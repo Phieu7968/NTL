@@ -6,7 +6,7 @@ window.SITE = {
      đánh giá của khách. Các con số đang có trong file này là SỐ MẪU do
      người dựng web đặt ra, không phải số liệu thật. Đặt false để ẩn hết
      cho tới khi bạn có dữ liệu thật. */
-  showSocialProof: true,
+  showSocialProof: false,
 
   brand: {
     name: "TeamHọc",

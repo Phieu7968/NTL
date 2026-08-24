@@ -210,14 +210,16 @@ ${nameSvg}
     <div><h4>Hỗ trợ</h4>
       <a href="contact.html">Liên hệ</a><a href="about.html#faq">Câu hỏi thường gặp</a>
       <a href="about.html">Về chúng tôi</a><a href="blog.html">Bài viết hướng dẫn</a>
-      <a href="contact.html">Chính sách hoàn tiền</a><a href="contact.html">Điều khoản sử dụng</a></div>
+      <a href="chinh-sach.html#doi-tra">Đổi trả &amp; hoàn tiền</a>
+      <a href="chinh-sach.html#bao-mat">Chính sách bảo mật</a>
+      <a href="chinh-sach.html#dieu-khoan">Điều khoản sử dụng</a></div>
     <div><h4>Liên hệ</h4>
       <p>📍 ${b.address}<br>☎ ${b.hotline}<br>✉ ${b.email}<br>💬 Zalo: ${b.zalo}</p>
       <p style="font-size:.82rem">Giờ làm việc: 8:00 – 21:00, T2 – CN</p></div>
   </div>
   <div class="ft-bottom">
     <span>© ${new Date().getFullYear()} ${b.domain} — Nội dung và sản phẩm do ${b.owner} biên soạn. Vui lòng không sao chép, bán lại hoặc phân phối lại khi chưa được đồng ý.</span>
-    <span>Thanh toán: ${b.pay.provider}</span></div>
+    <span><a href="chinh-sach.html">Chính sách &amp; điều khoản</a> · Thanh toán: ${b.pay.provider}</span></div>
 </div></footer>`;
 
     if (!$(".fab")) {
@@ -255,7 +257,7 @@ ${nameSvg}
   window.TV = { $, $$, S, vnd, catOf, byId, qs, slugify, stars, off, cover, card, toast,
     readCart, saveCart, addToCart, setQty, clearCart, cartCount, cartTotal,
     getCoupon, setCoupon, discountRate, COUPONS, reveal,
-    payPayload, payQR };
+    payPayload, payQR, layout };
 
   document.addEventListener("DOMContentLoaded", () => { layout(); reveal(); });
 })();

@@ -27,34 +27,76 @@ about.html           Giới thiệu + FAQ
 contact.html         Liên hệ / đặt làm riêng
 blog.html            Danh sách bài viết
 blog-post.html?slug= Nội dung bài viết
+chinh-sach.html      Điều khoản, đổi trả – hoàn tiền, bản quyền, bảo mật, khiếu nại
+robots.txt           Chặn index trang giỏ hàng / thanh toán
+sitemap.xml          34 URL cho công cụ tìm kiếm
+build.js             Gộp cả site thành một file HTML (node build.js -> dist/)
 
 data/products.js     ⭐ TOÀN BỘ NỘI DUNG: thương hiệu, thanh toán, 24 sản phẩm, blog, FAQ
 assets/css/style.css Stylesheet (biến màu ở :root đầu file)
 assets/js/app.js     Header/footer dùng chung, giỏ hàng, ảnh bìa tự sinh, dựng payload VietQR
 assets/js/qr.js      Bộ mã hoá QR (chế độ byte, mức sửa lỗi M, phiên bản 1–15)
+assets/img/          Ảnh Open Graph 1200x630 + file nguồn để chỉnh lại
 ```
 
-## ⚠ Còn một việc trước khi đưa web lên chạy thật
+## ⚠ Hai việc còn lại trước khi chạy quảng cáo
 
-### Xử lý phần "bằng chứng xã hội"
+### 1. Sản phẩm chưa có thật
 
-Số sao, số lượt đã bán và toàn bộ mục cảm nhận khách hàng hiện là **số liệu mẫu do người dựng web
-đặt ra**, không phải dữ liệu thật. Trên một website bán hàng thật, để nguyên là quảng cáo sai sự thật.
+24 sản phẩm trong `data/products.js` là **nội dung mẫu** để lấp đầy bố cục — tên, mô tả, tính năng
+và giá đều do người dựng web nghĩ ra, chưa có file Google Sheets nào tương ứng. Cần dựng sản phẩm
+thật rồi sửa lại `data/products.js` cho khớp và xoá những mục chưa có.
 
-Đặt `showSocialProof: false` ở đầu `data/products.js` để ẩn toàn bộ, bật lại khi đã có số liệu thật:
+### 2. Đơn hàng chưa đến tay chủ shop
 
-```js
-window.SITE = {
-  showSocialProof: false,   // ẩn sao, lượt bán và cảm nhận khách hàng
-  ...
-}
-```
+`checkout.html` không gửi dữ liệu đi đâu cả. Khách đặt hàng xong, mã đơn sinh ra trong trình duyệt
+của họ rồi mất. Chủ shop chỉ thấy một khoản chuyển khoản với nội dung `TH…` mà không biết ai mua gì,
+gửi file về email nào.
+
+Cách chữa nhẹ nhất, không cần server: nối form với **Google Apps Script Web App** hoặc **Google
+Forms** để đơn hàng chảy vào một Google Sheet và bắn email báo.
 
 ### Đã xong
 
-- ✔ **Mã QR thanh toán** — chủ tài khoản đã quét thử mã do web sinh ra và xác nhận thông tin người
-  nhận hiển thị đúng. Nếu sau này đổi số tài khoản trong `SITE.brand.pay`, nhớ quét thử lại.
+- ✔ **Mã QR thanh toán** — đã quét thử và xác nhận đúng người nhận.
 - ✔ **Số điện thoại / Zalo** — 0372 837 968.
+- ✔ **Đánh giá ảo** — `showSocialProof: false`, đã ẩn sao, lượt bán, cảm nhận khách,
+  bộ lọc theo sao và tuỳ chọn sắp xếp theo đánh giá.
+- ✔ **Trang chính sách** — `chinh-sach.html` với 6 mục, link từ chân trang và ô đồng ý khi thanh toán.
+- ✔ **Open Graph** — đủ thẻ trên 10 trang, ảnh 1200×630, `canonical`, JSON-LD, `robots.txt`, `sitemap.xml`.
+
+## Đưa web lên mạng
+
+### GitHub Pages (miễn phí)
+
+Repo đã có sẵn workflow `.github/workflows/deploy-pages.yml`. Bật một lần:
+
+1. Vào **Settings → Pages** của repo
+2. Mục **Source** chọn **GitHub Actions**
+3. Mỗi lần push, web tự deploy lên `https://<tài-khoản>.github.io/NTL/`
+
+### Trỏ tên miền teamhoc.shop
+
+1. Ở nhà cung cấp tên miền, tạo 4 bản ghi `A` cho `@` trỏ tới `185.199.108.153`,
+   `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+2. Tạo bản ghi `CNAME` cho `www` trỏ tới `<tài-khoản>.github.io`
+3. Vào **Settings → Pages → Custom domain**, nhập `teamhoc.shop`, bật **Enforce HTTPS**
+
+Kiểm tra lại các địa chỉ IP trên với tài liệu GitHub Pages hiện hành trước khi cấu hình.
+
+### Bản gộp một file
+
+```bash
+node build.js
+```
+
+Sinh ra hai file trong `dist/` (không commit vào repo):
+
+- `dist/index.html` — cả website trong một file, mở bằng trình duyệt là chạy, gửi qua Zalo/email
+  hoặc dùng offline được. Điều hướng bằng hash: `#!/shop.html?cat=web-app`.
+- `dist/artifact.html` — cùng nội dung nhưng bỏ thẻ bao ngoài, dùng để đăng lên Artifact.
+
+Sau khi sửa nội dung, nhớ chạy lại `node build.js` để bản gộp cập nhật theo.
 
 ## Tuỳ chỉnh
 
@@ -105,8 +147,10 @@ Hiện dùng tím `#7c3aed` làm màu chính và hồng `#db2777` làm màu nh�
   trường hợp (11 payload × 8 mask, phiên bản 1–13).
 - **Giải mã ngược**: mã QR VietQR sinh ra được OpenCV đọc lại đúng nguyên chuỗi 131 ký tự.
 - **Payload VietQR**: cấu trúc TLV hợp lệ, CRC-16/CCITT-FALSE khớp.
-- **Toàn bộ 9 trang**: không có lỗi JavaScript; luồng thêm giỏ → mã giảm giá → thanh toán → sinh mã
-  đơn kèm QR chạy đúng; bộ lọc/tìm kiếm/sắp xếp/phân trang hoạt động; không tràn ngang ở khổ 390px.
+- **Bản gộp một file**: điều hướng, giỏ hàng, mã giảm giá, thanh toán, QR và neo trong trang đều
+  chạy đúng; listener không bị nhân đôi khi quay lại cùng một trang; F5 giữa chừng giữ nguyên vị trí.
+- **Toàn bộ 10 trang**: không có lỗi JavaScript; luồng thêm giỏ → mã giảm giá → thanh toán → sinh mã
+  đơn kèm QR chạy đúng; bộ lọc/tìm kiếm/sắp xếp/phân trang hoạt động; không tràn ngang ở khổ 390px; không có link chết.
 
 ---
 
