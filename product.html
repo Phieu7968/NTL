@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
+<link rel="stylesheet" href="assets/css/style.css">
+<title>Chi tiết sản phẩm — TempViet</title>
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+<div id="site-header"></div>
+<main id="main"></main>
+<div id="site-footer"></div>
+
+<script src="data/products.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var T = window.TV, S = T.S;
+  var p = T.byId(T.qs("id")) || S.products[0];
+  document.title = p.name + " — TempViet";
+  var c = T.catOf(p.cat);
+
+  var related = S.products.filter(function (x) { return x.cat === p.cat && x.id !== p.id; }).slice(0, 4);
+  if (related.length < 4) {
+    S.products.forEach(function (x) {
+      if (related.length < 4 && x.id !== p.id && related.indexOf(x) === -1) related.push(x);
+    });
+  }
+
+  document.getElementById("main").innerHTML =
+'<div class="wrap"><div class="crumb"><a href="index.html">Trang chủ</a> › <a href="shop.html">Sản phẩm</a> › <a href="shop.html?cat=' + p.cat + '">' + c.name + '</a> › <span>' + p.name + '</span></div></div>' +
+
+'<section style="padding-bottom:1rem"><div class="wrap"><div class="pd">' +
+  '<div class="pd-media">' +
+    '<img src="' + T.cover(p, 900, 640) + '" alt="' + p.name + '" width="900" height="640">' +
+    '<div class="pd-strip"><div>📊</div><div>📈</div><div>🧮</div><div>📱</div></div>' +
+    '<p style="font-size:.82rem;color:var(--muted);margin-top:.75rem">Ảnh minh hoạ giao diện. Bản thật gồm đầy đủ các sheet nhập liệu, báo cáo và dashboard.</p>' +
+  '</div>' +
+
+  '<div>' +
+    '<div class="pc-cat">' + c.icon + " " + c.name + (p.badge ? ' · <span style="color:var(--accent)">' + p.badge + '</span>' : "") + '</div>' +
+    '<h1>' + p.name + '</h1>' +
+    '<div class="pc-meta" style="font-size:.9rem"><span class="stars" style="font-size:1.05rem">' + T.stars(p.rating) + '</span> <b style="color:var(--ink)">' + p.rating + '</b> · đã bán ' + p.sold + ' · cập nhật ' + p.updated + '</div>' +
+    '<p class="lead" style="font-size:1rem">' + p.short + '</p>' +
+
+    '<div class="pd-price"><span class="price">' + T.vnd(p.price) + '</span>' +
+      (p.old ? '<span class="old">' + T.vnd(p.old) + '</span><span class="save" style="position:static;background:var(--accent);">-' + T.off(p) + '%</span>' : "") +
+    '</div>' +
+
+    '<ul class="pd-list">' + p.includes.map(function (i) { return "<li>" + i + "</li>"; }).join("") + '</ul>' +
+
+    '<div class="buy-row">' +
+      '<span class="qty"><button id="minus" aria-label="Giảm">−</button><input id="qty" value="1" inputmode="numeric" aria-label="Số lượng"><button id="plus" aria-label="Tăng">+</button></span>' +
+      '<button class="btn btn-ghost" id="addBtn">🛒 Thêm vào giỏ</button>' +
+      '<button class="btn btn-accent" id="buyBtn">Mua ngay</button>' +
+    '</div>' +
+
+    '<div class="assure">' +
+      '<div><span>⚡</span> Nhận file qua email trong 30 phút giờ hành chính</div>' +
+      '<div><span>🔄</span> Cập nhật trọn đời, mua một lần dùng mãi</div>' +
+      '<div><span>💬</span> Hỗ trợ cài đặt 1-1 qua Zalo ' + S.brand.zalo + '</div>' +
+      '<div><span>🛡️</span> Hoàn 100% nếu lỗi kỹ thuật không khắc phục được trong 7 ngày</div>' +
+    '</div>' +
+  '</div>' +
+'</div>' +
+
+'<div class="tabs" id="tabs">' +
+  '<button class="on" data-t="t1">Mô tả</button><button data-t="t2">Tính năng chi tiết</button>' +
+  '<button data-t="t3">Hướng dẫn sử dụng</button><button data-t="t4">Đánh giá (' + Math.round(p.sold / 9) + ')</button>' +
+'</div>' +
+
+'<div id="t1" class="tab-pane on">' +
+  '<p>' + p.short + '</p>' +
+  '<p><b>' + p.name + '</b> được dựng cho người làm thật, không phải để trình diễn công thức. Toàn bộ phần tính toán nằm ở các sheet ẩn và đã được khoá lại, bạn chỉ nhập dữ liệu vào những ô được tô màu. Nhờ vậy nhân sự mới có thể dùng ngay sau khoảng mười lăm phút hướng dẫn.</p>' +
+  '<p>File chạy trên nền Google nên nhiều người xem cùng lúc mà không phải gửi qua gửi lại như Excel. Dữ liệu lưu trên tài khoản Google của bạn — chúng tôi chỉ giao bản sao và không giữ quyền truy cập sau khi bàn giao.</p>' +
+  '<p><b>Phù hợp với:</b> ' + (p.price >= 700000 ? "doanh nghiệp và đội nhóm từ 10 người trở lên, có nhiều người cùng nhập liệu." : p.price >= 250000 ? "hộ kinh doanh, đội nhóm nhỏ dưới 10 người và người làm quản lý." : "cá nhân, sinh viên và người mới bắt đầu tổ chức công việc.") + '</p>' +
+  '<p style="padding:1rem 1.15rem;background:var(--bg-alt);border-left:3px solid var(--brand);border-radius:var(--r-sm)"><b>Yêu cầu:</b> một tài khoản Google (Gmail) miễn phí và trình duyệt bất kỳ. Không cần cài phần mềm, không cần biết lập trình.</p>' +
+'</div>' +
+
+'<div id="t2" class="tab-pane"><ul class="pd-list">' +
+  p.features.map(function (f) { return "<li>" + f + "</li>"; }).join("") +
+'</ul><p style="margin-top:1.25rem">Cần thêm tính năng ngoài danh sách trên? Chúng tôi nhận tuỳ biến theo yêu cầu — <a href="contact.html" style="color:var(--brand-dark);font-weight:600">gửi mô tả để nhận báo giá</a>.</p></div>' +
+
+'<div id="t3" class="tab-pane">' +
+  '<h3>Sau khi thanh toán, bạn làm theo 4 bước</h3>' +
+  '<ol style="padding-left:1.2rem;display:grid;gap:.6rem"><li>Mở email chúng tôi gửi, bấm vào link file mẫu.</li>' +
+  '<li>Chọn <b>Tệp → Tạo bản sao</b> để lưu file về Google Drive của bạn.</li>' +
+  '<li>Vào sheet <b>Cài đặt</b>, điền thông tin đơn vị và danh mục ban đầu.</li>' +
+  '<li>Bắt đầu nhập dữ liệu ở các sheet được đánh dấu màu. Dashboard tự cập nhật.</li></ol>' +
+  '<p style="margin-top:1rem">Video hướng dẫn đi kèm trong email. Nếu vướng ở bước nào, nhắn Zalo ' + S.brand.zalo + ' và chúng tôi hỗ trợ trực tiếp qua màn hình.</p>' +
+'</div>' +
+
+'<div id="t4" class="tab-pane">' +
+  '<div style="display:flex;gap:1.5rem;align-items:center;padding:1.25rem;background:var(--bg-alt);border-radius:var(--r);margin-bottom:1.5rem;flex-wrap:wrap">' +
+    '<div style="text-align:center"><div style="font-size:2.4rem;font-weight:800;color:var(--ink);line-height:1">' + p.rating + '</div><div class="stars">' + T.stars(p.rating) + '</div><div style="font-size:.8rem;color:var(--muted)">' + Math.round(p.sold / 9) + ' đánh giá</div></div>' +
+    '<div style="flex:1;min-width:200px;font-size:.88rem;color:var(--muted)">Đánh giá được thu thập từ khách đã mua sản phẩm này.</div>' +
+  '</div>' +
+  S.testimonials.slice(0, 3).map(function (t) {
+    return '<div style="padding:1.15rem 0;border-bottom:1px solid var(--line)"><div style="display:flex;gap:.75rem;align-items:center;margin-bottom:.5rem">' +
+      '<span class="av">' + t.emoji + '</span><div><b style="color:var(--ink)">' + t.name + '</b><div class="stars" style="font-size:.85rem">' + "★".repeat(t.stars) + "☆".repeat(5 - t.stars) + '</div></div></div><p style="margin:0">' + t.text + '</p></div>';
+  }).join("") +
+'</div>' +
+'</div></section>' +
+
+'<section class="sec sec-alt"><div class="wrap"><div class="sec-head"><h2>Sản phẩm liên quan</h2></div>' +
+  '<div class="p-grid">' + related.map(T.card).join("") + '</div></div></section>';
+
+  /* tabs */
+  document.getElementById("tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-t]"); if (!b) return;
+    this.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
+    document.querySelectorAll(".tab-pane").forEach(function (x) { x.classList.remove("on"); });
+    b.classList.add("on");
+    document.getElementById(b.dataset.t).classList.add("on");
+  });
+
+  /* quantity + buy */
+  var q = document.getElementById("qty");
+  var val = function () { return Math.max(1, parseInt(q.value, 10) || 1); };
+  document.getElementById("minus").onclick = function () { q.value = Math.max(1, val() - 1); };
+  document.getElementById("plus").onclick = function () { q.value = val() + 1; };
+  q.onchange = function () { q.value = val(); };
+  document.getElementById("addBtn").onclick = function () { T.addToCart(p.id, val()); };
+  document.getElementById("buyBtn").onclick = function () { T.addToCart(p.id, val()); location.href = "cart.html"; };
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
+<link rel="stylesheet" href="assets/css/style.css">
+<title>Bài viết — TempViet</title>
+<meta name="description" content="Mẹo dùng Google Sheets, hướng dẫn chọn template và kinh nghiệm triển khai công cụ quản lý cho đội nhóm nhỏ.">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-head"><div class="wrap">
+  <div class="crumb" style="padding-top:0"><a href="index.html">Trang chủ</a> › <span>Bài viết</span></div>
+  <h1>Bài viết &amp; hướng dẫn</h1>
+  <p>Mẹo dùng bảng tính, kinh nghiệm chọn và triển khai công cụ quản lý cho đội nhóm nhỏ.</p>
+</div></div>
+
+<section class="sec"><div class="wrap"><div class="b-grid" id="blogGrid"></div></div></section>
+
+<section class="sec sec-alt"><div class="wrap"><div class="cta">
+  <div><h2>Nhận bài viết mới qua email</h2><p>Mỗi tháng một bài hướng dẫn và một template miễn phí. Không spam.</p></div>
+  <form class="cta-form" id="subForm"><input type="email" required placeholder="Email của bạn" aria-label="Email"><button class="btn btn-accent">Đăng ký</button></form>
+</div></div></section>
+
+<div id="site-footer"></div>
+<script src="data/products.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var T = window.TV;
+  document.getElementById("blogGrid").innerHTML = T.S.posts.map(function (b) {
+    return '<a class="bcard" href="blog-post.html?slug=' + b.slug + '"><div class="top">' + b.emoji + '</div>' +
+      '<div class="in"><div class="m"><span>' + b.cat + '</span>·<span>' + b.date + '</span></div>' +
+      '<h3>' + b.title + '</h3><p>' + b.excerpt + '</p><div class="r">Đọc tiếp →</div></div></a>';
+  }).join("");
+  document.getElementById("subForm").addEventListener("submit", function (e) {
+    e.preventDefault(); this.reset(); T.toast("Đã đăng ký nhận bài viết ✉️");
+  });
+});
+</script>
+</body>
+</html>

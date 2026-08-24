@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
+<link rel="stylesheet" href="assets/css/style.css">
+<title>Sản phẩm — TempViet</title>
+<meta name="description" content="Toàn bộ template Google Sheets và Web App: quản lý công việc, tài chính, bán hàng, nhân sự, học tập.">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-head"><div class="wrap">
+  <div class="crumb" style="padding-top:0"><a href="index.html">Trang chủ</a> › <span id="crumbNow">Tất cả sản phẩm</span></div>
+  <h1 id="pageTitle">Tất cả sản phẩm</h1>
+  <p id="pageDesc">Chọn bộ công cụ phù hợp với quy mô và công việc của bạn. Tất cả đều kèm hướng dẫn và cập nhật trọn đời.</p>
+</div></div>
+
+<section class="sec" style="padding-top:2rem"><div class="wrap">
+  <div class="shop-layout">
+
+    <aside class="side" id="side">
+      <h4>Danh mục</h4>
+      <div id="fCats"></div>
+
+      <h4>Khoảng giá</h4>
+      <div id="fPrice">
+        <label class="fopt"><input type="radio" name="price" value="all" checked><span>Tất cả</span></label>
+        <label class="fopt"><input type="radio" name="price" value="0-200000"><span>Dưới 200.000₫</span></label>
+        <label class="fopt"><input type="radio" name="price" value="200000-500000"><span>200.000₫ – 500.000₫</span></label>
+        <label class="fopt"><input type="radio" name="price" value="500000-1000000"><span>500.000₫ – 1.000.000₫</span></label>
+        <label class="fopt"><input type="radio" name="price" value="1000000-99999999"><span>Trên 1.000.000₫</span></label>
+      </div>
+
+      <h4>Đánh giá</h4>
+      <div id="fRate">
+        <label class="fopt"><input type="radio" name="rate" value="0" checked><span>Tất cả</span></label>
+        <label class="fopt"><input type="radio" name="rate" value="4.8"><span class="stars">★★★★★</span><span>từ 4.8</span></label>
+        <label class="fopt"><input type="radio" name="rate" value="4.5"><span class="stars">★★★★☆</span><span>từ 4.5</span></label>
+      </div>
+
+      <button class="btn btn-ghost btn-block btn-sm" id="resetBtn" style="margin-top:1.25rem">Xoá bộ lọc</button>
+    </aside>
+
+    <div>
+      <div class="toolbar">
+        <button class="btn btn-ghost btn-sm side-toggle" id="sideToggle">⚙ Bộ lọc</button>
+        <input class="f-input" type="search" id="qBox" placeholder="Tìm trong danh sách…" style="flex:1;min-width:180px">
+        <span class="cnt" id="cnt"></span>
+        <select id="sortSel" aria-label="Sắp xếp">
+          <option value="pop">Phổ biến nhất</option>
+          <option value="new">Mới cập nhật</option>
+          <option value="asc">Giá thấp → cao</option>
+          <option value="desc">Giá cao → thấp</option>
+          <option value="rate">Đánh giá cao</option>
+        </select>
+      </div>
+
+      <div class="chips" id="chips"></div>
+      <div class="p-grid c3" id="grid"></div>
+      <div class="pager" id="pager"></div>
+    </div>
+
+  </div>
+</div></section>
+
+<div id="site-footer"></div>
+<script src="data/products.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var T = window.TV, S = T.S, PER = 9;
+  var state = {
+    cats: (T.qs("cat") ? [T.qs("cat")] : []),
+    q: T.qs("q") || "",
+    price: "all", rate: 0,
+    sort: T.qs("sort") || "pop",
+    page: 1
+  };
+  document.getElementById("qBox").value = state.q;
+  document.getElementById("sortSel").value = state.sort;
+
+  /* build category filter */
+  document.getElementById("fCats").innerHTML = S.categories.map(function (c) {
+    var n = S.products.filter(function (p) { return p.cat === c.slug; }).length;
+    return '<label class="fopt"><input type="checkbox" value="' + c.slug + '"' +
+      (state.cats.indexOf(c.slug) > -1 ? " checked" : "") + '><span>' + c.icon + " " + c.name +
+      '</span><span class="c">' + n + '</span></label>';
+  }).join("");
+
+  function heading() {
+    var t = "Tất cả sản phẩm",
+        d = "Chọn bộ công cụ phù hợp với quy mô và công việc của bạn. Tất cả đều kèm hướng dẫn và cập nhật trọn đời.";
+    if (state.cats.length === 1) { var c = T.catOf(state.cats[0]); t = c.name; d = c.desc + " — " + S.products.filter(function(p){return p.cat===c.slug;}).length + " sản phẩm."; }
+    else if (state.q) { t = 'Kết quả cho “' + state.q + '”'; d = "Không thấy thứ bạn cần? Nhắn Zalo để chúng tôi tư vấn hoặc làm riêng."; }
+    document.getElementById("pageTitle").textContent = t;
+    document.getElementById("pageDesc").textContent = d;
+    document.getElementById("crumbNow").textContent = t;
+    document.title = t + " — TempViet";
+  }
+
+  function filtered() {
+    var q = state.q.toLowerCase().trim();
+    var lo = 0, hi = Infinity;
+    if (state.price !== "all") { var s = state.price.split("-"); lo = +s[0]; hi = +s[1]; }
+    return S.products.filter(function (p) {
+      if (state.cats.length && state.cats.indexOf(p.cat) === -1) return false;
+      if (p.price < lo || p.price > hi) return false;
+      if (p.rating < state.rate) return false;
+      if (q) {
+        var hay = (p.name + " " + p.short + " " + T.catOf(p.cat).name + " " + p.features.join(" ")).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function sorted(list) {
+    var parse = function (d) { var s = d.split("/"); return new Date(+s[1], +s[0] - 1, 1); };
+    var m = {
+      pop: function (a, b) { return b.sold - a.sold; },
+      new: function (a, b) { return parse(b.updated) - parse(a.updated); },
+      asc: function (a, b) { return a.price - b.price; },
+      desc: function (a, b) { return b.price - a.price; },
+      rate: function (a, b) { return b.rating - a.rating || b.sold - a.sold; }
+    };
+    return list.slice().sort(m[state.sort] || m.pop);
+  }
+
+  function chips() {
+    var out = [];
+    state.cats.forEach(function (c) {
+      out.push('<span class="chip">' + T.catOf(c).name + '<button data-x="cat" data-v="' + c + '">×</button></span>');
+    });
+    if (state.q) out.push('<span class="chip">“' + state.q + '”<button data-x="q">×</button></span>');
+    if (state.price !== "all") out.push('<span class="chip">Khoảng giá<button data-x="price">×</button></span>');
+    if (state.rate) out.push('<span class="chip">Từ ' + state.rate + ' sao<button data-x="rate">×</button></span>');
+    document.getElementById("chips").innerHTML = out.join("");
+  }
+
+  function render() {
+    heading(); chips();
+    var list = sorted(filtered());
+    var pages = Math.max(1, Math.ceil(list.length / PER));
+    if (state.page > pages) state.page = pages;
+    var slice = list.slice((state.page - 1) * PER, state.page * PER);
+
+    document.getElementById("cnt").textContent = list.length + " sản phẩm";
+    document.getElementById("grid").innerHTML = slice.length
+      ? slice.map(T.card).join("")
+      : '<div class="empty" style="grid-column:1/-1"><div class="ic">🔍</div><h3>Không tìm thấy sản phẩm phù hợp</h3><p>Thử bỏ bớt bộ lọc, hoặc nhắn Zalo để chúng tôi tư vấn.</p><a class="btn btn-primary" href="shop.html">Xem tất cả</a></div>';
+
+    var pg = "";
+    if (pages > 1) {
+      pg += '<button data-p="' + (state.page - 1) + '"' + (state.page === 1 ? " disabled" : "") + '>‹</button>';
+      for (var i = 1; i <= pages; i++) pg += '<button data-p="' + i + '" class="' + (i === state.page ? "on" : "") + '">' + i + '</button>';
+      pg += '<button data-p="' + (state.page + 1) + '"' + (state.page === pages ? " disabled" : "") + '>›</button>';
+    }
+    document.getElementById("pager").innerHTML = pg;
+  }
+
+  /* events */
+  document.getElementById("fCats").addEventListener("change", function () {
+    state.cats = Array.prototype.slice.call(this.querySelectorAll("input:checked")).map(function (i) { return i.value; });
+    state.page = 1; render();
+  });
+  document.getElementById("fPrice").addEventListener("change", function (e) { state.price = e.target.value; state.page = 1; render(); });
+  document.getElementById("fRate").addEventListener("change", function (e) { state.rate = +e.target.value; state.page = 1; render(); });
+  document.getElementById("sortSel").addEventListener("change", function () { state.sort = this.value; render(); });
+
+  var timer;
+  document.getElementById("qBox").addEventListener("input", function () {
+    var v = this.value;
+    clearTimeout(timer);
+    timer = setTimeout(function () { state.q = v; state.page = 1; render(); }, 220);
+  });
+
+  document.getElementById("chips").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-x]"); if (!b) return;
+    var x = b.dataset.x;
+    if (x === "cat") { state.cats = state.cats.filter(function (c) { return c !== b.dataset.v; });
+      document.querySelectorAll('#fCats input').forEach(function (i) { i.checked = state.cats.indexOf(i.value) > -1; }); }
+    if (x === "q") { state.q = ""; document.getElementById("qBox").value = ""; }
+    if (x === "price") { state.price = "all"; document.querySelector('#fPrice input[value="all"]').checked = true; }
+    if (x === "rate") { state.rate = 0; document.querySelector('#fRate input[value="0"]').checked = true; }
+    state.page = 1; render();
+  });
+
+  document.getElementById("pager").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-p]"); if (!b || b.disabled) return;
+    state.page = +b.dataset.p; render();
+    document.querySelector(".shop-layout").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () { location.href = "shop.html"; });
+  document.getElementById("sideToggle").addEventListener("click", function () { document.getElementById("side").classList.toggle("open"); });
+
+  render();
+});
+</script>
+</body>
+</html>

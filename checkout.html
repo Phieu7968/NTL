@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
+<link rel="stylesheet" href="assets/css/style.css">
+<title>Thanh toán — TempViet</title>
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="page-head"><div class="wrap">
+  <div class="crumb" style="padding-top:0"><a href="index.html">Trang chủ</a> › <a href="cart.html">Giỏ hàng</a> › <span>Thanh toán</span></div>
+  <h1>Thanh toán</h1>
+  <p>Điền thông tin nhận file. Chúng tôi chỉ dùng email của bạn để gửi sản phẩm và hướng dẫn.</p>
+</div></div>
+
+<section class="sec" style="padding-top:2rem"><div class="wrap"><div id="coWrap"></div></div></section>
+
+<div id="site-footer"></div>
+<script src="data/products.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var T = window.TV, B = T.S.brand;
+  var wrap = document.getElementById("coWrap");
+
+  function orderCode() {
+    var d = new Date(), pad = function (n) { return String(n).padStart(2, "0"); };
+    return "TV" + String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate()) +
+      "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  }
+
+  function done(code, total, email) {
+    T.clearCart(); T.setCoupon("");
+    wrap.innerHTML = '<div class="done"><div class="ic">✅</div>' +
+      '<h1>Đã ghi nhận đơn hàng</h1>' +
+      '<p>Mã đơn hàng của bạn:</p><div class="order-code">' + code + '</div>' +
+      '<p>Vui lòng chuyển khoản <b>' + T.vnd(total) + '</b> với nội dung là mã đơn hàng ở trên. Sau khi đối soát, chúng tôi gửi file về <b>' + email + '</b> trong vòng 30 phút giờ hành chính.</p>' +
+      '<div class="bankbox" style="text-align:left;max-width:400px;margin:1.5rem auto">' +
+        '<div><span>Ngân hàng</span><b>' + B.bank.name + '</b></div>' +
+        '<div><span>Số tài khoản</span><b>' + B.bank.acc + '</b></div>' +
+        '<div><span>Chủ tài khoản</span><b>' + B.bank.owner + '</b></div>' +
+        '<div><span>Nội dung</span><b>' + code + '</b></div>' +
+        '<div style="border-top:1px dashed var(--line-strong);margin-top:.5rem;padding-top:.5rem"><span>Số tiền</span><b>' + T.vnd(total) + '</b></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">' +
+        '<a class="btn btn-primary" href="shop.html">Tiếp tục mua sắm</a>' +
+        '<a class="btn btn-ghost" href="index.html">Về trang chủ</a></div>' +
+      '<p style="font-size:.82rem;color:var(--muted);margin-top:1.5rem">Đây là website demo — không có giao dịch thật nào được thực hiện.</p></div>';
+    scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function render() {
+    var items = T.readCart();
+    if (!items.length) {
+      wrap.innerHTML = '<div class="empty"><div class="ic">🧾</div><h3>Chưa có gì để thanh toán</h3>' +
+        '<p>Giỏ hàng của bạn đang trống.</p><a class="btn btn-primary" href="shop.html">Chọn sản phẩm</a></div>';
+      return;
+    }
+    var sub = T.cartTotal(), disc = Math.round(sub * T.discountRate()), total = sub - disc;
+
+    wrap.innerHTML = '<div class="cart-layout"><form id="coForm" novalidate>' +
+      '<h3>Thông tin người mua</h3>' +
+      '<div class="grid2">' +
+        '<div class="field"><label for="f-name">Họ và tên *</label><input id="f-name" name="name" placeholder="Nguyễn Văn A"><span class="err">Vui lòng nhập họ tên</span></div>' +
+        '<div class="field"><label for="f-phone">Số điện thoại *</label><input id="f-phone" name="phone" inputmode="tel" placeholder="09xx xxx xxx"><span class="err">Số điện thoại chưa hợp lệ</span></div>' +
+      '</div>' +
+      '<div class="field"><label for="f-mail">Email nhận file *</label><input id="f-mail" name="email" type="email" placeholder="ban@example.com"><span class="err">Email chưa hợp lệ</span></div>' +
+      '<div class="grid2">' +
+        '<div class="field"><label for="f-org">Đơn vị / công ty</label><input id="f-org" name="org" placeholder="Không bắt buộc"></div>' +
+        '<div class="field"><label for="f-inv">Xuất hoá đơn</label><select id="f-inv"><option>Không cần</option><option>Có, xuất hoá đơn VAT</option></select></div>' +
+      '</div>' +
+      '<div class="field"><label for="f-note">Ghi chú cho người bán</label><textarea id="f-note" rows="3" placeholder="Ví dụ: cần tuỳ chỉnh thêm cột theo dõi chi nhánh"></textarea></div>' +
+
+      '<h3 style="margin-top:2rem">Phương thức thanh toán</h3>' +
+      '<label class="pay on"><input type="radio" name="pay" value="bank" checked><span>🏦</span><div><b>Chuyển khoản ngân hàng</b><span>Phổ biến nhất — đối soát trong giờ hành chính</span>' +
+        '<div class="bankbox"><div><span>Ngân hàng</span><b>' + B.bank.name + '</b></div>' +
+        '<div><span>Số tài khoản</span><b>' + B.bank.acc + '</b></div>' +
+        '<div><span>Chủ tài khoản</span><b>' + B.bank.owner + '</b></div>' +
+        '<div><span>Nội dung</span><b>Mã đơn hàng hiển thị sau khi đặt</b></div></div></div></label>' +
+      '<label class="pay"><input type="radio" name="pay" value="momo"><span>📱</span><div><b>Ví Momo</b><span>Quét mã QR gửi kèm email xác nhận</span></div></label>' +
+      '<label class="pay"><input type="radio" name="pay" value="vnpay"><span>💳</span><div><b>VNPay / thẻ nội địa</b><span>Chuyển tới cổng thanh toán sau khi đặt hàng</span></div></label>' +
+
+      '<label class="fopt" style="margin-top:1rem"><input type="checkbox" id="f-agree" checked><span style="font-size:.88rem">Tôi đồng ý với điều khoản sử dụng và chính sách hoàn tiền</span></label>' +
+      '<button class="btn btn-primary btn-block" type="submit" style="margin-top:1.25rem;padding:1rem">Đặt hàng · ' + T.vnd(total) + '</button>' +
+      '<p style="font-size:.8rem;color:var(--muted);text-align:center;margin-top:.9rem">Đây là website demo. Không có giao dịch thật và không dữ liệu nào được gửi đi.</p>' +
+      '</form>' +
+
+      '<aside class="summary"><h3 style="margin-bottom:1rem">Đơn hàng</h3>' +
+        items.map(function (i) {
+          var p = T.byId(i.id); if (!p) return "";
+          return '<div class="sline" style="align-items:flex-start"><span style="max-width:64%">' + p.name +
+            '<br><small style="color:var(--muted)">× ' + i.qty + '</small></span><b>' + T.vnd(p.price * i.qty) + '</b></div>';
+        }).join("") +
+        '<div class="sline" style="border-top:1px solid var(--line);margin-top:.5rem;padding-top:.75rem"><span>Tạm tính</span><b>' + T.vnd(sub) + '</b></div>' +
+        (disc ? '<div class="sline"><span>Giảm giá (' + T.getCoupon() + ')</span><b style="color:var(--accent)">−' + T.vnd(disc) + '</b></div>' : "") +
+        '<div class="sline"><span>Giao hàng</span><b style="color:var(--brand)">Miễn phí (file số)</b></div>' +
+        '<div class="sline total"><span>Tổng cộng</span><span>' + T.vnd(total) + '</span></div>' +
+        '<a href="cart.html" style="display:block;text-align:center;margin-top:1rem;font-size:.88rem;color:var(--brand-dark);font-weight:600">← Sửa giỏ hàng</a>' +
+      '</aside></div>';
+
+    document.querySelectorAll(".pay input").forEach(function (r) {
+      r.addEventListener("change", function () {
+        document.querySelectorAll(".pay").forEach(function (l) { l.classList.remove("on"); });
+        r.closest(".pay").classList.add("on");
+      });
+    });
+
+    document.getElementById("coForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var f = this, ok = true;
+      var check = function (id, test) {
+        var el = document.getElementById(id), fld = el.closest(".field");
+        var good = test(el.value.trim());
+        fld.classList.toggle("bad", !good);
+        if (!good) ok = false;
+        return good;
+      };
+      check("f-name", function (v) { return v.length >= 2; });
+      check("f-phone", function (v) { return /^0\d{8,10}$/.test(v.replace(/[\s.\-]/g, "")); });
+      check("f-mail", function (v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); });
+      if (!document.getElementById("f-agree").checked) { ok = false; T.toast("Vui lòng đồng ý với điều khoản sử dụng"); }
+      if (!ok) { T.toast("Vui lòng kiểm tra lại thông tin ⚠️"); var bad = f.querySelector(".field.bad input"); if (bad) bad.focus(); return; }
+      done(orderCode(), total, document.getElementById("f-mail").value.trim());
+    });
+  }
+
+  render();
+});
+</script>
+</body>
+</html>
