@@ -34,32 +34,9 @@ assets/js/app.js     Header/footer dùng chung, giỏ hàng, ảnh bìa tự sin
 assets/js/qr.js      Bộ mã hoá QR (chế độ byte, mức sửa lỗi M, phiên bản 1–15)
 ```
 
-## ⚠ Ba việc phải làm trước khi đưa web lên chạy thật
+## ⚠ Còn một việc trước khi đưa web lên chạy thật
 
-### 1. Kiểm tra mã QR thanh toán
-
-Mã QR trên trang thanh toán được **tự dựng** theo chuẩn VietQR từ khối `SITE.brand.pay` trong
-`data/products.js`. Trường `bin: "970422"` lấy từ 6 số đầu của chính số tài khoản, **không phải tra
-từ danh sách BIN chính thức của Napas** — chưa được xác minh.
-
-**Hãy tự quét thử mã QR bằng app ngân hàng và kiểm tra tên người nhận hiện ra có đúng không.**
-
-Nếu chưa đúng, dùng một trong hai cách chắc chắn:
-
-```js
-pay: {
-  qrPayload: "00020101021138...",   // dán payload gốc giải mã từ QR trong app Viettel Money
-  qrImage:   "assets/img/qr.png"    // hoặc dùng thẳng ảnh QR xuất từ app
-}
-```
-
-Khi một trong hai trường có giá trị, website dùng nó và bỏ qua phần tự dựng.
-
-### 2. Thay số điện thoại
-
-`hotline` và `zalo` trong `data/products.js` đang là số giả `0900 000 000`.
-
-### 3. Xử lý phần "bằng chứng xã hội"
+### Xử lý phần "bằng chứng xã hội"
 
 Số sao, số lượt đã bán và toàn bộ mục cảm nhận khách hàng hiện là **số liệu mẫu do người dựng web
 đặt ra**, không phải dữ liệu thật. Trên một website bán hàng thật, để nguyên là quảng cáo sai sự thật.
@@ -72,6 +49,12 @@ window.SITE = {
   ...
 }
 ```
+
+### Đã xong
+
+- ✔ **Mã QR thanh toán** — chủ tài khoản đã quét thử mã do web sinh ra và xác nhận thông tin người
+  nhận hiển thị đúng. Nếu sau này đổi số tài khoản trong `SITE.brand.pay`, nhớ quét thử lại.
+- ✔ **Số điện thoại / Zalo** — 0372 837 968.
 
 ## Tuỳ chỉnh
 

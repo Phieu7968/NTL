@@ -14,27 +14,26 @@ window.SITE = {
     tagline: "Học nhanh · Làm gọn · Đi xa",
     slogan: "Bộ công cụ Google Sheets & Web App cho người học và người làm",
     owner: "TRUONG HOANG PHIEU",
-    hotline: "0900 000 000",       // TODO: thay bằng số thật
-    zalo: "0900 000 000",          // TODO: thay bằng số Zalo thật
+    hotline: "0372 837 968",
+    zalo: "0372 837 968",
     email: "hotro@teamhoc.shop",
     address: "Phường Tân Hạnh, tỉnh Vĩnh Long",
 
     /* ---------------------------------------------------------------
-       THANH TOÁN — mã QR trên trang giỏ hàng / thanh toán được dựng từ
-       khối này theo chuẩn VietQR (EMVCo).
+       THANH TOÁN — mã QR trên trang thanh toán được dựng từ khối này
+       theo chuẩn VietQR (EMVCo), sinh ngay trong trình duyệt.
 
-       ⚠ TRƯỚC KHI CHẠY THẬT: hãy tự quét thử mã QR bằng app ngân hàng
-       và kiểm tra tên người nhận hiện ra đúng là chủ tài khoản. `bin`
-       dưới đây lấy từ 6 số đầu của chính số tài khoản (970422) chứ
-       không phải tra từ danh sách BIN của Napas — chưa được xác minh.
+       ✔ ĐÃ XÁC MINH: chủ tài khoản đã quét thử mã sinh ra bằng app và
+         xác nhận thông tin người nhận hiển thị đúng.
 
-       Hai cách chắc chắn đúng 100%, ưu tiên theo thứ tự:
+       Nếu sau này đổi số tài khoản, nhớ quét thử lại. Khi cần chắc
+       chắn tuyệt đối, có thể bỏ qua phần tự dựng bằng một trong hai
+       trường sau (trường nào có giá trị thì web ưu tiên dùng):
          1. qrPayload — mở app Viettel Money, xuất mã QR nhận tiền, giải
             mã ra chuỗi bắt đầu bằng "00020101..." rồi dán vào đây.
+            Lưu ý: payload cố định sẽ không kèm được số tiền và mã đơn.
          2. qrImage   — lưu ảnh QR từ app vào assets/img/ rồi trỏ đường
             dẫn vào đây (ví dụ "assets/img/qr.png").
-       Khi một trong hai trường trên có giá trị, trang web dùng nó và bỏ
-       qua phần tự dựng payload.
        --------------------------------------------------------------- */
     pay: {
       provider: "Viettel Money",
