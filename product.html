@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
 <link rel="stylesheet" href="assets/css/style.css">
-<title>Chi tiết sản phẩm — TempViet</title>
+<title>Chi tiết sản phẩm — teamhoc.shop</title>
 <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
@@ -22,7 +22,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   var T = window.TV, S = T.S;
   var p = T.byId(T.qs("id")) || S.products[0];
-  document.title = p.name + " — TempViet";
+  document.title = p.name + " — teamhoc.shop";
   var c = T.catOf(p.cat);
 
   var related = S.products.filter(function (x) { return x.cat === p.cat && x.id !== p.id; }).slice(0, 4);
@@ -45,7 +45,9 @@ document.addEventListener("DOMContentLoaded", function () {
   '<div>' +
     '<div class="pc-cat">' + c.icon + " " + c.name + (p.badge ? ' · <span style="color:var(--accent)">' + p.badge + '</span>' : "") + '</div>' +
     '<h1>' + p.name + '</h1>' +
-    '<div class="pc-meta" style="font-size:.9rem"><span class="stars" style="font-size:1.05rem">' + T.stars(p.rating) + '</span> <b style="color:var(--ink)">' + p.rating + '</b> · đã bán ' + p.sold + ' · cập nhật ' + p.updated + '</div>' +
+    (S.showSocialProof
+      ? '<div class="pc-meta" style="font-size:.9rem"><span class="stars" style="font-size:1.05rem">' + T.stars(p.rating) + '</span> <b style="color:var(--ink)">' + p.rating + '</b> · đã bán ' + p.sold + ' · cập nhật ' + p.updated + '</div>'
+      : '<div class="pc-meta" style="font-size:.9rem">Cập nhật ' + p.updated + '</div>') +
     '<p class="lead" style="font-size:1rem">' + p.short + '</p>' +
 
     '<div class="pd-price"><span class="price">' + T.vnd(p.price) + '</span>' +
@@ -71,7 +73,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
 '<div class="tabs" id="tabs">' +
   '<button class="on" data-t="t1">Mô tả</button><button data-t="t2">Tính năng chi tiết</button>' +
-  '<button data-t="t3">Hướng dẫn sử dụng</button><button data-t="t4">Đánh giá (' + Math.round(p.sold / 9) + ')</button>' +
+  '<button data-t="t3">Hướng dẫn sử dụng</button>' +
+  (S.showSocialProof ? '<button data-t="t4">Đánh giá (' + Math.round(p.sold / 9) + ')</button>' : "") +
 '</div>' +
 
 '<div id="t1" class="tab-pane on">' +
@@ -95,7 +98,7 @@ document.addEventListener("DOMContentLoaded", function () {
   '<p style="margin-top:1rem">Video hướng dẫn đi kèm trong email. Nếu vướng ở bước nào, nhắn Zalo ' + S.brand.zalo + ' và chúng tôi hỗ trợ trực tiếp qua màn hình.</p>' +
 '</div>' +
 
-'<div id="t4" class="tab-pane">' +
+(S.showSocialProof ? '<div id="t4" class="tab-pane">' +
   '<div style="display:flex;gap:1.5rem;align-items:center;padding:1.25rem;background:var(--bg-alt);border-radius:var(--r);margin-bottom:1.5rem;flex-wrap:wrap">' +
     '<div style="text-align:center"><div style="font-size:2.4rem;font-weight:800;color:var(--ink);line-height:1">' + p.rating + '</div><div class="stars">' + T.stars(p.rating) + '</div><div style="font-size:.8rem;color:var(--muted)">' + Math.round(p.sold / 9) + ' đánh giá</div></div>' +
     '<div style="flex:1;min-width:200px;font-size:.88rem;color:var(--muted)">Đánh giá được thu thập từ khách đã mua sản phẩm này.</div>' +
@@ -104,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return '<div style="padding:1.15rem 0;border-bottom:1px solid var(--line)"><div style="display:flex;gap:.75rem;align-items:center;margin-bottom:.5rem">' +
       '<span class="av">' + t.emoji + '</span><div><b style="color:var(--ink)">' + t.name + '</b><div class="stars" style="font-size:.85rem">' + "★".repeat(t.stars) + "☆".repeat(5 - t.stars) + '</div></div></div><p style="margin:0">' + t.text + '</p></div>';
   }).join("") +
-'</div>' +
+'</div>' : "") +
 '</div></section>' +
 
 '<section class="sec sec-alt"><div class="wrap"><div class="sec-head"><h2>Sản phẩm liên quan</h2></div>' +

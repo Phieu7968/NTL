@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
 <link rel="stylesheet" href="assets/css/style.css">
-<title>Thanh toán — TempViet</title>
+<title>Thanh toán — teamhoc.shop</title>
 <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
@@ -24,35 +24,40 @@
 
 <div id="site-footer"></div>
 <script src="data/products.js"></script>
+<script src="assets/js/qr.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  var T = window.TV, B = T.S.brand;
+  var T = window.TV, B = T.S.brand, P = B.pay;
   var wrap = document.getElementById("coWrap");
 
   function orderCode() {
     var d = new Date(), pad = function (n) { return String(n).padStart(2, "0"); };
-    return "TV" + String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate()) +
+    return "TH" + String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate()) +
       "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
   }
 
   function done(code, total, email) {
     T.clearCart(); T.setCoupon("");
+    var qr = T.payQR(total, code);
     wrap.innerHTML = '<div class="done"><div class="ic">✅</div>' +
       '<h1>Đã ghi nhận đơn hàng</h1>' +
       '<p>Mã đơn hàng của bạn:</p><div class="order-code">' + code + '</div>' +
-      '<p>Vui lòng chuyển khoản <b>' + T.vnd(total) + '</b> với nội dung là mã đơn hàng ở trên. Sau khi đối soát, chúng tôi gửi file về <b>' + email + '</b> trong vòng 30 phút giờ hành chính.</p>' +
-      '<div class="bankbox" style="text-align:left;max-width:400px;margin:1.5rem auto">' +
-        '<div><span>Ngân hàng</span><b>' + B.bank.name + '</b></div>' +
-        '<div><span>Số tài khoản</span><b>' + B.bank.acc + '</b></div>' +
-        '<div><span>Chủ tài khoản</span><b>' + B.bank.owner + '</b></div>' +
+      '<p>Quét mã dưới đây bằng app ngân hàng hoặc ' + P.provider + ' để chuyển <b>' + T.vnd(total) + '</b>. ' +
+      'Sau khi đối soát, chúng tôi gửi file về <b>' + email + '</b> trong vòng 30 phút giờ hành chính.</p>' +
+      (qr ? '<div class="qrbox"><img src="' + qr + '" alt="Mã QR chuyển khoản ' + T.vnd(total) + '" width="240" height="240">' +
+            '<span>Mã đã gắn sẵn số tiền và nội dung <b>' + code + '</b></span></div>' : "") +
+      '<div class="bankbox" style="text-align:left;max-width:420px;margin:1.25rem auto">' +
+        '<div><span>Kênh nhận</span><b>' + P.provider + '</b></div>' +
+        '<div><span>Số tài khoản</span><b>' + P.acc + '</b></div>' +
+        '<div><span>Chủ tài khoản</span><b>' + P.owner + '</b></div>' +
         '<div><span>Nội dung</span><b>' + code + '</b></div>' +
         '<div style="border-top:1px dashed var(--line-strong);margin-top:.5rem;padding-top:.5rem"><span>Số tiền</span><b>' + T.vnd(total) + '</b></div>' +
       '</div>' +
       '<div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">' +
         '<a class="btn btn-primary" href="shop.html">Tiếp tục mua sắm</a>' +
         '<a class="btn btn-ghost" href="index.html">Về trang chủ</a></div>' +
-      '<p style="font-size:.82rem;color:var(--muted);margin-top:1.5rem">Đây là website demo — không có giao dịch thật nào được thực hiện.</p></div>';
+      '<p style="font-size:.82rem;color:var(--muted);margin-top:1.5rem">Đơn hàng được ghi nhận trên trình duyệt của bạn. Website chưa nối cổng thanh toán tự động nên giao dịch được đối soát thủ công.</p></div>';
     scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -79,17 +84,16 @@ document.addEventListener("DOMContentLoaded", function () {
       '<div class="field"><label for="f-note">Ghi chú cho người bán</label><textarea id="f-note" rows="3" placeholder="Ví dụ: cần tuỳ chỉnh thêm cột theo dõi chi nhánh"></textarea></div>' +
 
       '<h3 style="margin-top:2rem">Phương thức thanh toán</h3>' +
-      '<label class="pay on"><input type="radio" name="pay" value="bank" checked><span>🏦</span><div><b>Chuyển khoản ngân hàng</b><span>Phổ biến nhất — đối soát trong giờ hành chính</span>' +
-        '<div class="bankbox"><div><span>Ngân hàng</span><b>' + B.bank.name + '</b></div>' +
-        '<div><span>Số tài khoản</span><b>' + B.bank.acc + '</b></div>' +
-        '<div><span>Chủ tài khoản</span><b>' + B.bank.owner + '</b></div>' +
+      '<label class="pay on"><input type="radio" name="pay" value="qr" checked><span>📱</span><div><b>Quét mã QR</b><span>Mọi app ngân hàng hoặc ' + P.provider + ' đều quét được — mã kèm số tiền và mã đơn sẽ hiện sau khi đặt hàng</span></div></label>' +
+      '<label class="pay"><input type="radio" name="pay" value="manual"><span>🏦</span><div><b>Chuyển khoản thủ công</b><span>Nhập tay theo thông tin bên dưới</span>' +
+        '<div class="bankbox"><div><span>Kênh nhận</span><b>' + P.provider + '</b></div>' +
+        '<div><span>Số tài khoản</span><b>' + P.acc + '</b></div>' +
+        '<div><span>Chủ tài khoản</span><b>' + P.owner + '</b></div>' +
         '<div><span>Nội dung</span><b>Mã đơn hàng hiển thị sau khi đặt</b></div></div></div></label>' +
-      '<label class="pay"><input type="radio" name="pay" value="momo"><span>📱</span><div><b>Ví Momo</b><span>Quét mã QR gửi kèm email xác nhận</span></div></label>' +
-      '<label class="pay"><input type="radio" name="pay" value="vnpay"><span>💳</span><div><b>VNPay / thẻ nội địa</b><span>Chuyển tới cổng thanh toán sau khi đặt hàng</span></div></label>' +
 
       '<label class="fopt" style="margin-top:1rem"><input type="checkbox" id="f-agree" checked><span style="font-size:.88rem">Tôi đồng ý với điều khoản sử dụng và chính sách hoàn tiền</span></label>' +
       '<button class="btn btn-primary btn-block" type="submit" style="margin-top:1.25rem;padding:1rem">Đặt hàng · ' + T.vnd(total) + '</button>' +
-      '<p style="font-size:.8rem;color:var(--muted);text-align:center;margin-top:.9rem">Đây là website demo. Không có giao dịch thật và không dữ liệu nào được gửi đi.</p>' +
+      '<p style="font-size:.8rem;color:var(--muted);text-align:center;margin-top:.9rem">Thông tin đơn chỉ lưu trên trình duyệt của bạn, website không gửi dữ liệu đi đâu.</p>' +
       '</form>' +
 
       '<aside class="summary"><h3 style="margin-bottom:1rem">Đơn hàng</h3>' +

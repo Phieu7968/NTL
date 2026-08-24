@@ -2,15 +2,49 @@
    DỮ LIỆU SẢN PHẨM - chỉnh sửa file này để đổi nội dung shop
    ============================================================ */
 window.SITE = {
+  /* Bật/tắt toàn bộ "bằng chứng xã hội": số sao, số lượt đã bán và mục
+     đánh giá của khách. Các con số đang có trong file này là SỐ MẪU do
+     người dựng web đặt ra, không phải số liệu thật. Đặt false để ẩn hết
+     cho tới khi bạn có dữ liệu thật. */
+  showSocialProof: true,
+
   brand: {
-    name: "TempViet",
-    tagline: "Đơn giản hoá – Tối ưu hoá – Chuyên nghiệp hoá",
-    slogan: "Kho template Google Sheets & Web App cho người Việt",
-    hotline: "0900 000 000",
-    email: "hotro@tempviet.vn",
-    address: "Quận 1, TP. Hồ Chí Minh",
-    zalo: "0900 000 000",
-    bank: { name: "Vietcombank", acc: "0123456789", owner: "NGUYEN VAN A" }
+    name: "TeamHọc",
+    domain: "teamhoc.shop",
+    tagline: "Học nhanh · Làm gọn · Đi xa",
+    slogan: "Bộ công cụ Google Sheets & Web App cho người học và người làm",
+    owner: "TRUONG HOANG PHIEU",
+    hotline: "0900 000 000",       // TODO: thay bằng số thật
+    zalo: "0900 000 000",          // TODO: thay bằng số Zalo thật
+    email: "hotro@teamhoc.shop",
+    address: "Phường Tân Hạnh, tỉnh Vĩnh Long",
+
+    /* ---------------------------------------------------------------
+       THANH TOÁN — mã QR trên trang giỏ hàng / thanh toán được dựng từ
+       khối này theo chuẩn VietQR (EMVCo).
+
+       ⚠ TRƯỚC KHI CHẠY THẬT: hãy tự quét thử mã QR bằng app ngân hàng
+       và kiểm tra tên người nhận hiện ra đúng là chủ tài khoản. `bin`
+       dưới đây lấy từ 6 số đầu của chính số tài khoản (970422) chứ
+       không phải tra từ danh sách BIN của Napas — chưa được xác minh.
+
+       Hai cách chắc chắn đúng 100%, ưu tiên theo thứ tự:
+         1. qrPayload — mở app Viettel Money, xuất mã QR nhận tiền, giải
+            mã ra chuỗi bắt đầu bằng "00020101..." rồi dán vào đây.
+         2. qrImage   — lưu ảnh QR từ app vào assets/img/ rồi trỏ đường
+            dẫn vào đây (ví dụ "assets/img/qr.png").
+       Khi một trong hai trường trên có giá trị, trang web dùng nó và bỏ
+       qua phần tự dựng payload.
+       --------------------------------------------------------------- */
+    pay: {
+      provider: "Viettel Money",
+      acc: "9704229200178016449",
+      owner: "TRUONG HOANG PHIEU",
+      bin: "970422",
+      service: "QRIBFTTC",   // chuyển tới số thẻ; dùng "QRIBFTTA" nếu là số tài khoản
+      qrPayload: "",
+      qrImage: ""
+    }
   },
 
   categories: [
@@ -24,168 +58,168 @@ window.SITE = {
 
   products: [
     { id:"p01", cat:"web-app", emoji:"🏗️", badge:"BÁN CHẠY",
-      name:"Web App Quản Lý Dự Án Xây Dựng PRO",
+      name:"Công Trình 360 – Web App Điều Hành Thi Công",
       price:1290000, old:1990000, rating:4.9, sold:412, updated:"08/2026",
       short:"Theo dõi tiến độ, chi phí, công nợ, nhân sự và hạng mục công việc cho nhà thầu – chạy trực tiếp trên trình duyệt.",
       features:["Dashboard tiến độ & chi phí theo thời gian thực","Quản lý hạng mục – đầu việc – nhân công","Theo dõi công nợ nhà cung cấp & chủ đầu tư","Nhật ký công trường kèm hình ảnh","Xuất báo cáo PDF/Excel một chạm","Phân quyền nhiều tài khoản"],
       includes:["File Google Sheets + mã Apps Script","Video hướng dẫn cài đặt 25 phút","Hỗ trợ setup từ xa 1-1","Cập nhật trọn đời"] },
 
     { id:"p02", cat:"web-app", emoji:"🏨", badge:"MỚI",
-      name:"Web App Quản Lý Homestay & Khách Sạn",
+      name:"Lưu Trú 360 – Web App Vận Hành Homestay",
       price:990000, old:1490000, rating:4.8, sold:236, updated:"08/2026",
       short:"Sơ đồ phòng, đặt phòng, khách hàng, thu chi và lịch dọn phòng gói gọn trong một ứng dụng.",
       features:["Sơ đồ phòng trực quan theo ngày","Đặt phòng – nhận phòng – trả phòng","Hồ sơ khách & lịch sử lưu trú","Báo cáo doanh thu / lấp đầy phòng","Lịch dọn phòng cho housekeeping","Gửi xác nhận đặt phòng qua email"],
       includes:["Bản Web App bản quyền","Tài liệu hướng dẫn PDF","Hỗ trợ kỹ thuật 6 tháng","Cập nhật trọn đời"] },
 
     { id:"p03", cat:"web-app", emoji:"📨",
-      name:"Web App Quản Lý Văn Bản Đến – Đi 4.0",
+      name:"Sổ Công Văn Số – Luân Chuyển Hồ Sơ Nội Bộ",
       price:890000, old:1290000, rating:4.7, sold:189, updated:"07/2026",
       short:"Số hoá sổ công văn: vào sổ, phân luồng xử lý, tra cứu và thống kê văn bản cho cơ quan, doanh nghiệp.",
       features:["Vào sổ văn bản đến / đi tự động đánh số","Đính kèm file scan lên Google Drive","Phân luồng xử lý & nhắc hạn","Tra cứu nhanh theo nhiều tiêu chí","Thống kê theo tháng/quý/năm","Nhật ký thao tác người dùng"],
       includes:["Web App + Sheets nguồn","Hướng dẫn triển khai chi tiết","Hỗ trợ cài đặt từ xa","Cập nhật trọn đời"] },
 
     { id:"p04", cat:"kinh-doanh", emoji:"🚗", badge:"BÁN CHẠY",
-      name:"CRM Ô Tô PRO – Chăm Sóc Khách Hàng",
+      name:"Garage Care – Sổ Chăm Khách Ngành Ô Tô",
       price:590000, old:890000, rating:4.9, sold:521, updated:"08/2026",
       short:"Hệ thống theo dõi khách hàng showroom & garage: lịch hẹn, lịch bảo dưỡng, doanh số tư vấn viên.",
       features:["Pipeline khách hàng theo trạng thái","Nhắc lịch bảo dưỡng & đăng kiểm","Lịch sử dịch vụ từng xe","Báo cáo doanh số theo nhân viên","Phân loại khách nóng – ấm – lạnh","Xuất danh sách chăm sóc hằng ngày"],
       includes:["File Google Sheets bản quyền","Video hướng dẫn 40 phút","Nhóm hỗ trợ Zalo","Cập nhật trọn đời"] },
 
     { id:"p05", cat:"cong-viec", emoji:"✅", badge:"HOT",
-      name:"Task Tracker V5 PRO – Làm Chủ Công Việc",
+      name:"Việc Gọn – Bảng Điều Phối Đầu Việc",
       price:299000, old:499000, rating:4.8, sold:1204, updated:"08/2026",
       short:"Quản lý toàn bộ đầu việc cá nhân & nhóm theo phương pháp Eisenhower + Kanban ngay trên Google Sheets.",
       features:["Bảng Kanban kéo trạng thái","Ma trận ưu tiên Eisenhower","Dashboard hiệu suất tuần / tháng","Gán việc & theo dõi deadline","Tự động nhắc việc quá hạn","Ghi chú và nhật ký công việc"],
       includes:["File template bản quyền","Hướng dẫn sử dụng chi tiết","Hỗ trợ qua Zalo","Cập nhật trọn đời"] },
 
     { id:"p06", cat:"cong-viec", emoji:"📊",
-      name:"Kế Hoạch Dự Án & Biểu Đồ Gantt Tự Động",
+      name:"Tiến Độ Rõ – Kế Hoạch Dự Án & Gantt",
       price:349000, old:549000, rating:4.7, sold:487, updated:"06/2026",
       short:"Nhập đầu việc – Gantt tự vẽ. Theo dõi đường găng, phần trăm hoàn thành và nguồn lực.",
       features:["Gantt tự động theo ngày bắt đầu / kết thúc","Cột mốc & phụ thuộc công việc","Tô màu theo trạng thái tiến độ","Phân bổ nhân sự cho từng đầu việc","Báo cáo tiến độ tổng thể","In khổ A3 gọn gàng"],
       includes:["File template bản quyền","Video hướng dẫn","Hỗ trợ 3 tháng","Cập nhật trọn đời"] },
 
     { id:"p07", cat:"cong-viec", emoji:"🗓️",
-      name:"Bộ Kế Hoạch Năm – OKR & Mục Tiêu Cá Nhân",
+      name:"Mục Tiêu Năm – Khung OKR Cá Nhân & Đội Nhóm",
       price:199000, old:349000, rating:4.6, sold:653, updated:"05/2026",
       short:"Đặt mục tiêu năm, chia nhỏ theo quý – tháng – tuần và đo lường bằng chỉ số cụ thể.",
       features:["Khung OKR cho cá nhân & đội nhóm","Tự động tính % hoàn thành mục tiêu","Review tuần / tháng có sẵn câu hỏi","Theo dõi thói quen hỗ trợ mục tiêu","Dashboard tổng quan năm","Bản in đẹp cho bảng treo"],
       includes:["File template bản quyền","Ebook hướng dẫn OKR","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p08", cat:"tai-chinh", emoji:"💵", badge:"BÁN CHẠY",
-      name:"Sổ Thu Chi Cá Nhân & Gia Đình V4",
+      name:"Ví Nhà – Sổ Thu Chi Gia Đình",
       price:189000, old:299000, rating:4.9, sold:2140, updated:"08/2026",
       short:"Ghi chép thu chi 10 giây mỗi ngày, tự động phân loại và cảnh báo khi vượt ngân sách.",
       features:["Nhập liệu nhanh trên điện thoại","Ngân sách theo nhóm chi tiêu","Biểu đồ dòng tiền 12 tháng","Theo dõi khoản vay & tiết kiệm","Cảnh báo vượt hạn mức","Báo cáo tài chính cá nhân"],
       includes:["File template bản quyền","Hướng dẫn dùng trên điện thoại","Hỗ trợ qua Zalo","Cập nhật trọn đời"] },
 
     { id:"p09", cat:"tai-chinh", emoji:"🏦",
-      name:"Quản Lý Dòng Tiền Doanh Nghiệp SME",
+      name:"Dòng Tiền Khoẻ – Bảng Điều Hành Tài Chính SME",
       price:690000, old:990000, rating:4.8, sold:312, updated:"07/2026",
       short:"Dự báo dòng tiền 12 tháng, theo dõi công nợ phải thu – phải trả và điểm hoà vốn.",
       features:["Dự báo dòng tiền vào/ra theo tuần","Sổ công nợ phải thu – phải trả","Phân tích điểm hoà vốn","Báo cáo P&L đơn giản","Cảnh báo thiếu hụt tiền mặt","Dashboard cho ban giám đốc"],
       includes:["File template bản quyền","Video hướng dẫn 60 phút","Tư vấn 1-1 30 phút","Cập nhật trọn đời"] },
 
     { id:"p10", cat:"tai-chinh", emoji:"🧾",
-      name:"Bảng Kê Công Nợ & Nhắc Thanh Toán",
+      name:"Sổ Nợ Sạch – Theo Dõi & Nhắc Thu Hồi Công Nợ",
       price:249000, old:399000, rating:4.6, sold:398, updated:"04/2026",
       short:"Theo dõi từng hoá đơn, tuổi nợ và tự động soạn tin nhắn nhắc khách thanh toán.",
       features:["Phân tích tuổi nợ 0–30–60–90 ngày","Tự sinh nội dung nhắc nợ","Đối chiếu thanh toán từng phần","Báo cáo công nợ theo khách hàng","Cảnh báo nợ xấu","Xuất file gửi kế toán"],
       includes:["File template bản quyền","Hướng dẫn sử dụng","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p11", cat:"kinh-doanh", emoji:"📦", badge:"HOT",
-      name:"Quản Lý Kho – Xuất Nhập Tồn Tự Động",
+      name:"Kho Chuẩn – Xuất Nhập Tồn Tự Động",
       price:399000, old:599000, rating:4.8, sold:876, updated:"08/2026",
       short:"Nhập – xuất – tồn cập nhật tức thì, cảnh báo hết hàng và định giá tồn kho bình quân.",
       features:["Phiếu nhập / xuất có mã tự động","Tồn kho realtime theo từng mã hàng","Cảnh báo tồn tối thiểu","Định giá bình quân gia quyền","Báo cáo hàng bán chạy / hàng chậm","Kiểm kê định kỳ"],
       includes:["File template bản quyền","Video hướng dẫn","Nhóm hỗ trợ Zalo","Cập nhật trọn đời"] },
 
     { id:"p12", cat:"kinh-doanh", emoji:"🛍️",
-      name:"Quản Lý Bán Hàng Online Đa Sàn",
+      name:"Gộp Đơn Đa Sàn – Lãi Thực Sau Phí Sàn",
       price:459000, old:699000, rating:4.7, sold:534, updated:"07/2026",
       short:"Gộp đơn Shopee – TikTok – Facebook về một nơi, tính lãi thực nhận sau phí sàn.",
       features:["Nhập đơn từ nhiều kênh bán","Tính phí sàn & lợi nhuận thực","Theo dõi trạng thái vận chuyển","Báo cáo doanh thu theo kênh","Quản lý khách hàng thân thiết","Thống kê tỷ lệ hoàn đơn"],
       includes:["File template bản quyền","Hướng dẫn nhập liệu nhanh","Hỗ trợ 6 tháng","Cập nhật trọn đời"] },
 
     { id:"p13", cat:"kinh-doanh", emoji:"📈",
-      name:"Marketing Plan Quý / Tháng Chuyên Nghiệp",
+      name:"Bản Đồ Marketing Quý – Kế Hoạch & Lịch Nội Dung",
       price:229000, old:399000, rating:4.5, sold:421, updated:"03/2026",
       short:"Khung lập kế hoạch marketing từ mục tiêu, kênh, ngân sách đến lịch content chi tiết.",
       features:["Khung mục tiêu SMART theo quý","Phân bổ ngân sách theo kênh","Lịch content 90 ngày","Theo dõi chỉ số CPM / CPC / ROAS","Báo cáo hiệu quả chiến dịch","Thư viện ý tưởng nội dung"],
       includes:["File template bản quyền","Bộ 100 ý tưởng content","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p14", cat:"kinh-doanh", emoji:"🤝",
-      name:"CRM Bán Hàng B2B – Pipeline & Báo Giá",
+      name:"Chốt Đơn B2B – Pipeline & Báo Giá Tự Động",
       price:549000, old:799000, rating:4.7, sold:267, updated:"06/2026",
       short:"Quản lý cơ hội bán hàng theo từng giai đoạn, tự sinh báo giá và dự báo doanh thu.",
       features:["Pipeline 6 giai đoạn tuỳ chỉnh","Tự sinh báo giá PDF theo mẫu","Dự báo doanh thu theo xác suất","Nhật ký chăm sóc khách hàng","KPI theo từng sale","Nhắc lịch follow-up"],
       includes:["File template bản quyền","Mẫu báo giá thiết kế sẵn","Hỗ trợ 6 tháng","Cập nhật trọn đời"] },
 
     { id:"p15", cat:"nhan-su", emoji:"⏰", badge:"BÁN CHẠY",
-      name:"Chấm Công & Tính Lương Tự Động",
+      name:"Bảng Công Chuẩn – Chấm Công & Tính Lương",
       price:499000, old:749000, rating:4.8, sold:915, updated:"08/2026",
       short:"Chấm công theo ca, tính lương, tăng ca, BHXH và in phiếu lương cho từng nhân viên.",
       features:["Bảng công theo ca / theo giờ","Tính tăng ca, phụ cấp, khấu trừ","Tự động tính BHXH & thuế TNCN","In phiếu lương hàng loạt","Báo cáo quỹ lương theo phòng ban","Theo dõi nghỉ phép"],
       includes:["File template bản quyền","Video hướng dẫn 45 phút","Hỗ trợ 1-1 khi kỳ lương","Cập nhật trọn đời"] },
 
     { id:"p16", cat:"nhan-su", emoji:"🗂️",
-      name:"Hồ Sơ Nhân Sự & Hợp Đồng Lao Động",
+      name:"Hồ Sơ Người – Nhân Sự & Hợp Đồng Lao Động",
       price:299000, old:459000, rating:4.6, sold:388, updated:"05/2026",
       short:"Lưu trữ hồ sơ, theo dõi hạn hợp đồng, bằng cấp và biến động nhân sự toàn công ty.",
       features:["Hồ sơ nhân sự đầy đủ trường thông tin","Cảnh báo hết hạn hợp đồng","Theo dõi biến động vào / ra","Sơ đồ tổ chức tự động","Thống kê cơ cấu nhân sự","Xuất danh sách theo phòng ban"],
       includes:["File template bản quyền","Bộ biểu mẫu HR đi kèm","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p17", cat:"nhan-su", emoji:"🎯",
-      name:"Đánh Giá KPI & Năng Lực Nhân Viên",
+      name:"Thước Đo KPI – Đánh Giá Năng Lực Theo Kỳ",
       price:359000, old:559000, rating:4.6, sold:243, updated:"04/2026",
       short:"Bộ khung KPI theo phòng ban, chấm điểm đa chiều và xếp loại nhân viên theo kỳ.",
       features:["Thư viện KPI mẫu 12 phòng ban","Chấm điểm 360 độ","Tự động xếp loại A/B/C/D","Biểu đồ radar năng lực","So sánh kỳ trước – kỳ này","Xuất biên bản đánh giá"],
       includes:["File template bản quyền","Bộ KPI mẫu","Hỗ trợ 3 tháng","Cập nhật trọn đời"] },
 
     { id:"p18", cat:"hoc-tap", emoji:"🔤", badge:"MỚI",
-      name:"SmartVocab Pro – Học Từ Vựng Tiếng Anh",
+      name:"Từ Vựng Bền – Học Tiếng Anh Bằng Lịch Lặp Lại",
       price:159000, old:259000, rating:4.9, sold:1876, updated:"08/2026",
       short:"Flashcard lặp lại ngắt quãng (spaced repetition) chạy trên Google Sheets, học 15 phút mỗi ngày.",
       features:["Thuật toán lặp lại ngắt quãng SRS","Flashcard hai mặt có phát âm","Thống kê số từ đã thuộc","Nhập từ mới hàng loạt","Kiểm tra nhanh cuối tuần","Học được trên điện thoại"],
       includes:["File template bản quyền","Bộ 3000 từ vựng thông dụng","Hướng dẫn học hiệu quả","Cập nhật trọn đời"] },
 
     { id:"p19", cat:"hoc-tap", emoji:"📚",
-      name:"Thời Khoá Biểu & Quản Lý Học Tập Sinh Viên",
+      name:"Kỳ Học Gọn – Thời Khoá Biểu & Điểm GPA",
       price:99000, old:199000, rating:4.5, sold:1129, updated:"03/2026",
       short:"Thời khoá biểu, deadline bài tập, điểm số và tính GPA tự động cho học sinh – sinh viên.",
       features:["Thời khoá biểu tuần trực quan","Quản lý deadline bài tập","Tự động tính GPA theo tín chỉ","Theo dõi điểm từng môn","Nhắc lịch thi","Ghi chú bài giảng"],
       includes:["File template bản quyền","Hướng dẫn sử dụng","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p20", cat:"hoc-tap", emoji:"🌱",
-      name:"Habit Tracker – Theo Dõi Thói Quen 365 Ngày",
+      name:"Nếp Ngày – Theo Dõi Thói Quen 365 Ngày",
       price:89000, old:169000, rating:4.7, sold:1543, updated:"02/2026",
       short:"Đánh dấu thói quen mỗi ngày, xem chuỗi streak và biểu đồ nhiệt cả năm.",
       features:["Theo dõi tối đa 15 thói quen","Biểu đồ nhiệt 365 ngày","Chuỗi streak dài nhất","Thống kê tỷ lệ hoàn thành","Ghi chú cảm xúc mỗi ngày","Bản in treo tường"],
       includes:["File template bản quyền","Hướng dẫn xây thói quen","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p21", cat:"cong-viec", emoji:"📝",
-      name:"Biên Bản Họp & Theo Dõi Hành Động",
+      name:"Họp Ra Việc – Biên Bản & Danh Sách Hành Động",
       price:129000, old:229000, rating:4.4, sold:276, updated:"01/2026",
       short:"Ghi biên bản họp theo mẫu chuẩn và chuyển ngay thành danh sách việc có người phụ trách.",
       features:["Mẫu biên bản họp chuẩn","Chuyển kết luận thành đầu việc","Theo dõi hạn xử lý","Nhắc việc tồn đọng","Lưu trữ theo chủ đề cuộc họp","Xuất biên bản PDF"],
       includes:["File template bản quyền","Bộ mẫu biên bản","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p22", cat:"tai-chinh", emoji:"🏠",
-      name:"Kế Hoạch Mua Nhà & Trả Nợ Vay",
+      name:"Đường Về Nhà – Kế Hoạch Mua Nhà & Trả Nợ",
       price:149000, old:249000, rating:4.7, sold:604, updated:"06/2026",
       short:"Tính lịch trả nợ gốc – lãi, so sánh phương án vay và mô phỏng khả năng trả nợ.",
       features:["Lịch trả nợ chi tiết từng kỳ","So sánh dư nợ giảm dần / đều","Mô phỏng trả trước hạn","Tính tỷ lệ nợ trên thu nhập","Kế hoạch tích luỹ trước khi mua","Biểu đồ gốc – lãi theo thời gian"],
       includes:["File template bản quyền","Hướng dẫn tính toán","Hỗ trợ qua email","Cập nhật trọn đời"] },
 
     { id:"p23", cat:"web-app", emoji:"🍽️",
-      name:"Web App Quản Lý Quán Ăn & Cafe",
+      name:"Quán Nhẹ – Web App Vận Hành Quán Ăn & Cafe",
       price:790000, old:1190000, rating:4.6, sold:158, updated:"07/2026",
       short:"Order tại bàn, in bill, quản lý nguyên vật liệu và báo cáo lãi lỗ theo ngày.",
       features:["Sơ đồ bàn & order nhanh","In bill từ trình duyệt","Định lượng nguyên vật liệu","Báo cáo lãi lỗ theo ngày","Quản lý ca làm nhân viên","Theo dõi món bán chạy"],
       includes:["Web App bản quyền","Hướng dẫn cài đặt","Hỗ trợ kỹ thuật 6 tháng","Cập nhật trọn đời"] },
 
     { id:"p24", cat:"nhan-su", emoji:"🎓",
-      name:"Quản Lý Đào Tạo Nội Bộ & Lộ Trình Học",
+      name:"Lộ Trình Nghề – Đào Tạo Nội Bộ Theo Vị Trí",
       price:279000, old:429000, rating:4.5, sold:187, updated:"05/2026",
       short:"Lập lộ trình đào tạo cho từng vị trí, theo dõi tiến độ học và kết quả kiểm tra.",
       features:["Lộ trình đào tạo theo vị trí","Theo dõi tiến độ từng nhân viên","Lưu kết quả bài kiểm tra","Thống kê giờ đào tạo","Đánh giá hiệu quả khoá học","Nhắc lịch đào tạo định kỳ"],
@@ -214,6 +248,10 @@ window.SITE = {
       body:["<b>1. Bảo vệ dải ô chứa công thức.</b> Chọn vùng công thức, đặt quyền chỉ mình bạn sửa. Đây là lớp phòng thủ quan trọng nhất.","<b>2. Dùng Data Validation.</b> Bắt người dùng chọn từ danh sách thay vì gõ tự do, dữ liệu sạch ngay từ đầu.","<b>3. Tách sheet nhập liệu và sheet tính toán.</b> Người dùng chỉ thấy sheet nhập, phần tính toán ẩn đi.","<b>4. Bật thông báo thay đổi.</b> Công cụ → Quy tắc thông báo, bạn sẽ biết ai sửa gì.","<b>5. Dùng lịch sử phiên bản.</b> Đặt tên phiên bản ở các mốc quan trọng để khôi phục nhanh khi cần.","<b>6. Sao lưu định kỳ.</b> Mỗi tháng tạo một bản sao lưu đặt tên theo ngày. Mất 30 giây, nhưng có ngày sẽ cứu bạn."] }
   ],
 
+  /* ⚠ NỘI DUNG MẪU — những lời nhận xét dưới đây do người viết website
+     dựng ra để minh hoạ bố cục, KHÔNG phải khách hàng thật. Trước khi
+     đưa web lên chạy thật, hãy thay bằng phản hồi thật (kèm sự đồng ý
+     của khách) hoặc xoá hẳn khối này cùng phần hiển thị ở index.html. */
   testimonials: [
     { name:"Trần Minh Quân", role:"Chỉ huy trưởng công trình, Đà Nẵng", emoji:"👷", stars:5,
       text:"Trước đây tôi theo dõi tiến độ bằng ba file Excel rời rạc, cuối tháng ngồi ráp số mất cả buổi. Dùng Web App dự án được bốn tháng thì báo cáo tuần chỉ còn mất 15 phút." },

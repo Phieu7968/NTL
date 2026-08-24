@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
 <link rel="stylesheet" href="assets/css/style.css">
-<title>Bài viết — TempViet</title>
+<title>Bài viết — teamhoc.shop</title>
 <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var T = window.TV, S = T.S;
   var slug = T.qs("slug");
   var post = S.posts.find(function (p) { return p.slug === slug; }) || S.posts[0];
-  document.title = post.title + " — TempViet";
+  document.title = post.title + " — teamhoc.shop";
 
   var others = S.posts.filter(function (p) { return p.slug !== post.slug; }).slice(0, 3);
   var picks = S.products.slice().sort(function (a, b) { return b.sold - a.sold; }).slice(0, 3);

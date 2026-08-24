@@ -1,5 +1,5 @@
 /* =========================================================
-   TempViet — core: layout, cart, helpers
+   teamhoc.shop — core: layout, cart, helpers
    ========================================================= */
 (function () {
   "use strict";
@@ -20,9 +20,9 @@
 
   /* ---------- generated cover art (no external images) ---------- */
   const PALETTE = [
-    ["#0f9d76", "#3fd0a8"], ["#1a56db", "#4f8bf5"], ["#7c3aed", "#a978f7"],
-    ["#e11d48", "#fb7185"], ["#ea580c", "#fdba74"], ["#0891b2", "#4dd6ee"],
-    ["#4d7c0f", "#a3d43c"], ["#be185d", "#f472b6"]
+    ["#7c3aed", "#c084fc"], ["#db2777", "#f9a8d4"], ["#2563eb", "#7dd3fc"],
+    ["#059669", "#6ee7b7"], ["#ea580c", "#fdba74"], ["#0891b2", "#67e8f9"],
+    ["#9333ea", "#e9d5ff"], ["#e11d48", "#fda4af"]
   ];
   function cover(p, w, h) {
     w = w || 640; h = h || 480;
@@ -77,8 +77,42 @@ ${nameSvg}
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
+  /* ---------- VietQR (EMVCo) ---------- */
+  function crc16(str) {
+    let crc = 0xFFFF;
+    for (let i = 0; i < str.length; i++) {
+      crc ^= str.charCodeAt(i) << 8;
+      for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+    return crc.toString(16).toUpperCase().padStart(4, "0");
+  }
+  const tlv = (id, val) => id + String(val.length).padStart(2, "0") + val;
+
+  /* Dựng chuỗi VietQR. amount/note bỏ trống => mã tĩnh, người trả tự nhập. */
+  function payPayload(amount, note) {
+    const P = S.brand.pay;
+    if (P.qrPayload) return P.qrPayload;           // payload gốc lấy từ app -> ưu tiên tuyệt đối
+    const merchant = tlv("00", "A000000727") +
+      tlv("01", tlv("00", P.bin) + tlv("01", P.acc)) +
+      tlv("02", P.service);
+    let body = tlv("00", "01") + tlv("01", amount ? "12" : "11") + tlv("38", merchant) + tlv("53", "704");
+    if (amount) body += tlv("54", String(Math.round(amount)));
+    body += tlv("58", "VN");
+    if (note) body += tlv("62", tlv("08", String(note).slice(0, 25)));
+    body += "6304";
+    return body + crc16(body);
+  }
+
+  /* Trả về src cho <img>: ảnh QR do chủ shop cung cấp, hoặc mã tự dựng. */
+  function payQR(amount, note) {
+    const P = S.brand.pay;
+    if (P.qrImage) return P.qrImage;
+    if (!window.QR) return "";
+    return window.QR.dataUri(payPayload(amount, note), { fg: "#1d1033", label: "Mã QR chuyển khoản" });
+  }
+
   /* ---------- cart (localStorage) ---------- */
-  const KEY = "tempviet_cart_v1";
+  const KEY = "teamhoc_cart_v1";
   const readCart = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } };
   const saveCart = (c) => { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch (e) {} paintCount(); };
   const cartCount = () => readCart().reduce((n, i) => n + i.qty, 0);
@@ -101,8 +135,8 @@ ${nameSvg}
   function paintCount() { $$(".cart-count").forEach((e) => { const n = cartCount(); e.textContent = n; e.style.display = n ? "grid" : "none"; }); }
 
   /* ---------- coupon ---------- */
-  const COUPONS = { GIAM10: 0.10, GIAM20: 0.20, TEMPVIET: 0.15 };
-  const CKEY = "tempviet_coupon";
+  const COUPONS = { GIAM10: 0.10, GIAM20: 0.20, TEAMHOC: 0.15 };
+  const CKEY = "teamhoc_coupon";
   const getCoupon = () => { try { return localStorage.getItem(CKEY) || ""; } catch (e) { return ""; } };
   const setCoupon = (c) => { try { c ? localStorage.setItem(CKEY, c) : localStorage.removeItem(CKEY); } catch (e) {} };
   const discountRate = () => COUPONS[getCoupon()] || 0;
@@ -129,7 +163,7 @@ ${nameSvg}
       <div class="pc-body">
         <div class="pc-cat">${catOf(p.cat).icon} ${catOf(p.cat).name}</div>
         <a href="product.html?id=${p.id}"><h3 class="pc-name">${p.name}</h3></a>
-        <div class="pc-meta"><span class="stars">${stars(p.rating)}</span> ${p.rating} · đã bán ${p.sold}</div>
+        ${S.showSocialProof ? `<div class="pc-meta"><span class="stars">${stars(p.rating)}</span> ${p.rating} · đã bán ${p.sold}</div>` : ""}
         <div class="pc-price"><span class="price">${vnd(p.price)}</span>${p.old ? `<span class="old">${vnd(p.old)}</span>` : ""}</div>
         <div class="pc-act">
           <button class="btn btn-primary" data-add="${p.id}">Thêm vào giỏ</button>
@@ -149,11 +183,11 @@ ${nameSvg}
     const hd = $("#site-header");
     if (hd) hd.innerHTML =
 `<div class="topbar"><div class="wrap">
-  <span class="topbar-left">📩 Giao file tự động qua email · Hỗ trợ cài đặt 1-1</span>
+  <span class="topbar-left">📩 Giao file qua email · Hỗ trợ cài đặt 1-1 · Cập nhật trọn đời</span>
   <span class="topbar-links"><a href="tel:${b.hotline.replace(/\s/g, "")}">☎ ${b.hotline}</a><a href="mailto:${b.email}">✉ ${b.email}</a></span>
 </div></div>
 <header class="hd"><div class="wrap hd-in">
-  <a class="logo" href="index.html"><span class="logo-mark">📗</span><span>${b.name}<small>${b.tagline}</small></span></a>
+  <a class="logo" href="index.html"><span class="logo-mark">🎓</span><span>${b.name}<small>${b.tagline}</small></span></a>
   <nav class="nav" id="nav">${NAV.map(([h, t]) =>
     `<a href="${h}" class="${h === here ? "on" : ""}">${t}</a>`).join("")}</nav>
   <div class="hd-act">
@@ -168,8 +202,8 @@ ${nameSvg}
 `<footer class="ft"><div class="wrap">
   <div class="ft-grid">
     <div>
-      <a class="logo" href="index.html"><span class="logo-mark">📗</span><span>${b.name}<small>${b.tagline}</small></span></a>
-      <p style="margin-top:1rem">${b.slogan}. Hơn 12.000 người dùng đang làm việc gọn hơn mỗi ngày cùng bộ công cụ của chúng tôi.</p>
+      <a class="logo" href="index.html"><span class="logo-mark">🎓</span><span>${b.name}<small>${b.tagline}</small></span></a>
+      <p style="margin-top:1rem">${b.slogan}. Công cụ dựng sẵn trên Google Sheets: mở ra là dùng, sửa được theo cách của bạn, không phí hằng tháng.</p>
       <div class="socials"><a href="#" aria-label="Facebook">f</a><a href="#" aria-label="YouTube">▶</a><a href="#" aria-label="TikTok">♪</a><a href="#" aria-label="Zalo">Z</a></div>
     </div>
     <div><h4>Danh mục</h4>${S.categories.map((c) => `<a href="shop.html?cat=${c.slug}">${c.name}</a>`).join("")}</div>
@@ -181,8 +215,9 @@ ${nameSvg}
       <p>📍 ${b.address}<br>☎ ${b.hotline}<br>✉ ${b.email}<br>💬 Zalo: ${b.zalo}</p>
       <p style="font-size:.82rem">Giờ làm việc: 8:00 – 21:00, T2 – CN</p></div>
   </div>
-  <div class="ft-bottom"><span>© ${new Date().getFullYear()} ${b.name}. Website demo phục vụ mục đích trình diễn.</span>
-    <span>Thanh toán: Chuyển khoản · Momo · VNPay</span></div>
+  <div class="ft-bottom">
+    <span>© ${new Date().getFullYear()} ${b.domain} — Nội dung và sản phẩm do ${b.owner} biên soạn. Vui lòng không sao chép, bán lại hoặc phân phối lại khi chưa được đồng ý.</span>
+    <span>Thanh toán: ${b.pay.provider}</span></div>
 </div></footer>`;
 
     if (!$(".fab")) {
@@ -219,7 +254,8 @@ ${nameSvg}
   /* ---------- expose ---------- */
   window.TV = { $, $$, S, vnd, catOf, byId, qs, slugify, stars, off, cover, card, toast,
     readCart, saveCart, addToCart, setQty, clearCart, cartCount, cartTotal,
-    getCoupon, setCoupon, discountRate, COUPONS, reveal };
+    getCoupon, setCoupon, discountRate, COUPONS, reveal,
+    payPayload, payQR };
 
   document.addEventListener("DOMContentLoaded", () => { layout(); reveal(); });
 })();

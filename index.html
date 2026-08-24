@@ -8,8 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📗</text></svg>">
 <link rel="stylesheet" href="assets/css/style.css">
-<title>TempViet — Template Google Sheets & Web App cho người Việt</title>
-<meta name="description" content="Kho template Google Sheets, Excel và Web App quản lý công việc, tài chính, bán hàng, nhân sự. Dùng được ngay, có hướng dẫn chi tiết, cập nhật trọn đời.">
+<title>teamhoc.shop — Template Google Sheets &amp; Web App cho người học và người làm</title>
+<meta name="description" content="teamhoc.shop — bộ công cụ Google Sheets và Web App quản lý công việc, tài chính, bán hàng, nhân sự và học tập. Mở ra dùng được ngay, có hướng dẫn từng bước, cập nhật trọn đời.">
 <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
@@ -38,10 +38,10 @@
       </div>
 
       <div class="hero-stats">
-        <div><b>12.400+</b><span>người dùng</span></div>
         <div><b>24</b><span>bộ công cụ</span></div>
-        <div><b>4.8/5</b><span>điểm hài lòng</span></div>
+        <div><b>6</b><span>nhóm công việc</span></div>
         <div><b>&lt; 30 phút</b><span>nhận file</span></div>
+        <div><b>Trọn đời</b><span>cập nhật miễn phí</span></div>
       </div>
     </div>
 
@@ -50,7 +50,7 @@
       <div class="mock">
         <div class="mock-bar">
           <i class="dot" style="background:#ff5f57"></i><i class="dot" style="background:#febc2e"></i><i class="dot" style="background:#28c840"></i>
-          <span class="mock-title">Bảng điều hành — TempViet Dashboard</span>
+          <span class="mock-title">Bảng điều hành — teamhoc.shop Dashboard</span>
         </div>
         <div class="mock-body">
           <div class="mock-kpis">
@@ -147,8 +147,8 @@
   </div>
 </section>
 
-<!-- ============ TESTIMONIALS ============ -->
-<section class="sec sec-alt">
+<!-- ============ TESTIMONIALS (ẩn khi SITE.showSocialProof = false) ============ -->
+<section class="sec sec-alt" id="tSection">
   <div class="wrap">
     <div class="sec-head center reveal"><span class="eyebrow">Người dùng nói gì</span><h2>Phản hồi từ người đang dùng hằng ngày</h2></div>
     <div class="t-grid reveal" id="tGrid"></div>
@@ -209,6 +209,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var fresh = S.products.slice().sort(function (a, b) { return parse(b.updated) - parse(a.updated); }).slice(0, 4);
   document.getElementById("newGrid").innerHTML = fresh.map(T.card).join("");
 
+  if (!S.showSocialProof) document.getElementById("tSection").classList.add("hide");
   document.getElementById("tGrid").innerHTML = S.testimonials.slice(0, 6).map(function (t) {
     return '<div class="tcard"><div class="stars" style="font-size:1.05rem;margin-bottom:.6rem">' +
       "★".repeat(t.stars) + "☆".repeat(5 - t.stars) + '</div><p>“' + t.text + '”</p>' +
