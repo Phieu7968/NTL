@@ -83,6 +83,10 @@ button,input,select,textarea{font:inherit;color:inherit}
   display:grid;place-items:center;border:2px solid #fff}
 .burger{display:none}
 
+/* màn hình hẹp: bỏ dòng phụ dưới logo cho header đỡ chật */
+@media(max-width:620px){
+  .hd .logo small{display:none}
+}
 @media(max-width:960px){
   .nav{position:fixed;inset:64px 0 auto;background:#fff;flex-direction:column;gap:0;
     padding:.75rem 1.25rem 1.25rem;border-bottom:1px solid var(--line);box-shadow:var(--shadow);

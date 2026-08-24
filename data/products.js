@@ -11,7 +11,7 @@ window.SITE = {
   brand: {
     name: "TeamHọc",
     domain: "teamhoc.shop",
-    tagline: "Học nhanh · Làm gọn · Đi xa",
+    tagline: "Template Google Sheets & Web App",
     slogan: "Bộ công cụ Google Sheets & Web App cho người học và người làm",
     owner: "TRUONG HOANG PHIEU",
     hotline: "0372 837 968",
