@@ -35,6 +35,20 @@ window.SITE = {
          2. qrImage   — lưu ảnh QR từ app vào assets/img/ rồi trỏ đường
             dẫn vào đây (ví dụ "assets/img/qr.png").
        --------------------------------------------------------------- */
+    /* ---------------------------------------------------------------
+       NHẬN ĐƠN HÀNG — dán địa chỉ Web App của Google Apps Script vào
+       orderEndpoint để đơn chảy vào Google Sheet và bắn email báo.
+       Các bước làm: xem apps-script/HUONG-DAN.md
+
+       Để trống thì website vẫn chạy, nhưng đơn KHÔNG đến tay chủ shop —
+       khách sẽ thấy hướng dẫn gửi đơn thủ công qua Zalo / email.
+
+       orderToken phải trùng với TOKEN trong apps-script/Code.gs. Đây chỉ
+       là hàng rào chặn spam vặt: ai xem mã nguồn trang cũng đọc được.
+       --------------------------------------------------------------- */
+    orderEndpoint: "",
+    orderToken: "doi-chuoi-nay-di",
+
     pay: {
       provider: "Viettel Money",
       acc: "9704229200178016449",

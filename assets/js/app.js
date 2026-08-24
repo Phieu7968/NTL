@@ -77,6 +77,74 @@ ${nameSvg}
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   }
 
+  /* ---------- gửi đơn về Google Sheet ---------- */
+  const ORDERS_KEY = "teamhoc_orders";
+
+  /* Luôn giữ một bản sao trên máy khách để không mất đơn khi mạng lỗi. */
+  function saveLocalOrder(rec) {
+    try {
+      const all = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]");
+      all.unshift(rec);
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(all.slice(0, 20)));
+    } catch (e) {}
+  }
+  function localOrders() {
+    try { return JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); } catch (e) { return []; }
+  }
+  function markOrderSent(maDon) {
+    try {
+      const all = localOrders();
+      const hit = all.find((o) => o.maDon === maDon);
+      if (hit) { hit.daGui = true; localStorage.setItem(ORDERS_KEY, JSON.stringify(all)); }
+    } catch (e) {}
+  }
+
+  /**
+   * Gửi đơn / yêu cầu tư vấn lên Apps Script.
+   * Trả về "sent" khi chắc chắn tới nơi, "unknown" khi đã bắn đi nhưng
+   * không đọc được phản hồi, "off" khi chưa cấu hình, "failed" khi hỏng.
+   */
+  async function submitOrder(payload) {
+    const url = S.brand.orderEndpoint;
+    const rec = Object.assign({ luc: new Date().toISOString(), daGui: false }, payload);
+    saveLocalOrder(rec);
+    if (!url) return "off";
+
+    const body = JSON.stringify(Object.assign({ token: S.brand.orderToken }, payload));
+    // text/plain để trình duyệt không phải hỏi preflight — Apps Script không trả lời preflight
+    const opts = { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: body };
+
+    try {
+      const res = await fetch(url, opts);
+      const data = await res.json().catch(() => null);
+      if (data && data.ok) { markOrderSent(payload.maDon); return "sent"; }
+      if (data && !data.ok) { console.error("Apps Script từ chối:", data.message); return "failed"; }
+      markOrderSent(payload.maDon);
+      return "unknown";
+    } catch (e1) {
+      // CORS chặn đọc phản hồi -> bắn lại kiểu no-cors, dữ liệu vẫn tới nơi
+      try {
+        await fetch(url, Object.assign({ mode: "no-cors" }, opts));
+        markOrderSent(payload.maDon);
+        return "unknown";
+      } catch (e2) {
+        console.error("Không gửi được đơn:", e2);
+        return "failed";
+      }
+    }
+  }
+
+  /* Link gửi đơn thủ công khi không kết nối được — để khách không mắc kẹt. */
+  function fallbackLinks(tomTat) {
+    const zalo = S.brand.zalo.replace(/\s/g, "");
+    return {
+      zalo: "https://zalo.me/" + zalo,
+      email: "mailto:" + S.brand.email +
+        "?subject=" + encodeURIComponent("Đơn hàng " + (tomTat.maDon || "")) +
+        "&body=" + encodeURIComponent(tomTat.text)
+    };
+  }
+
   /* ---------- VietQR (EMVCo) ---------- */
   function crc16(str) {
     let crc = 0xFFFF;
@@ -257,7 +325,8 @@ ${nameSvg}
   window.TV = { $, $$, S, vnd, catOf, byId, qs, slugify, stars, off, cover, card, toast,
     readCart, saveCart, addToCart, setQty, clearCart, cartCount, cartTotal,
     getCoupon, setCoupon, discountRate, COUPONS, reveal,
-    payPayload, payQR, layout };
+    payPayload, payQR, layout,
+    submitOrder, localOrders, fallbackLinks };
 
   document.addEventListener("DOMContentLoaded", () => { layout(); reveal(); });
 })();

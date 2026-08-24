@@ -108,8 +108,31 @@ document.addEventListener("DOMContentLoaded", function () {
     check("c-mail", function (v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); });
     check("c-msg", function (v) { return v.length >= 10; });
     if (!ok) { T.toast("Vui lòng kiểm tra lại thông tin ⚠️"); return; }
-    this.reset();
-    T.toast("Đã nhận yêu cầu! Chúng tôi sẽ liên hệ trong 1 ngày làm việc ✅");
+
+    var f = this, btn = f.querySelector('button[type=submit]');
+    if (btn.disabled) return;
+    var chuGoc = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = "Đang gửi…";
+
+    T.submitOrder({
+      loai: "tu-van",
+      hoTen: document.getElementById("c-name").value.trim(),
+      dienThoai: document.getElementById("c-phone").value.trim(),
+      email: document.getElementById("c-mail").value.trim(),
+      ghiChu: "[" + document.getElementById("c-topic").value + "] " +
+              document.getElementById("c-msg").value.trim()
+    }).then(function (trangThai) {
+      if (trangThai === "sent" || trangThai === "unknown") {
+        f.reset();
+        T.toast("Đã nhận yêu cầu! Chúng tôi sẽ liên hệ trong 1 ngày làm việc ✅");
+      } else {
+        T.toast("Chưa gửi được. Nhắn Zalo " + T.S.brand.zalo + " giúp chúng tôi nhé 🙏");
+      }
+    }).catch(function () {
+      T.toast("Chưa gửi được. Nhắn Zalo " + T.S.brand.zalo + " giúp chúng tôi nhé 🙏");
+    }).then(function () {
+      btn.disabled = false; btn.innerHTML = chuGoc;
+    });
   });
   T.reveal();
 });

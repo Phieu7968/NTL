@@ -56,12 +56,33 @@ document.addEventListener("DOMContentLoaded", function () {
       "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
   }
 
-  function done(code, total, email) {
+  function bangTrangThai(trangThai, code, tomTat) {
+    if (trangThai === "sent")
+      return '<div class="note note-ok">✅ Đơn đã gửi tới ' + T.S.brand.name +
+             '. Bạn cũng nhận được email xác nhận trong ít phút.</div>';
+    if (trangThai === "unknown")
+      return '<div class="note note-ok">📨 Đơn đã được gửi đi. Nếu sau 10 phút chưa thấy email xác nhận, ' +
+             'nhắn Zalo ' + T.S.brand.zalo + ' kèm mã đơn để chúng tôi kiểm tra giúp.</div>';
+    var lk = T.fallbackLinks(tomTat);
+    var vi = trangThai === "off"
+      ? 'Website chưa nối hệ thống nhận đơn tự động.'
+      : 'Không gửi được đơn lên hệ thống.';
+    return '<div class="note note-warn"><b>⚠ ' + vi + '</b>' +
+      '<p style="margin:.5rem 0 .75rem">Đơn của bạn <b>chưa tới tay chúng tôi</b>. ' +
+      'Vui lòng gửi mã đơn <b>' + code + '</b> qua một trong hai cách dưới đây, ' +
+      'hoặc cứ chuyển khoản rồi nhắn Zalo kèm mã đơn.</p>' +
+      '<div style="display:flex;gap:.5rem;flex-wrap:wrap">' +
+      '<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="' + lk.zalo + '">💬 Nhắn Zalo</a>' +
+      '<a class="btn btn-ghost btn-sm" href="' + lk.email + '">✉ Gửi email</a></div></div>';
+  }
+
+  function done(code, total, email, trangThai, tomTat) {
     T.clearCart(); T.setCoupon("");
     var qr = T.payQR(total, code);
     wrap.innerHTML = '<div class="done"><div class="ic">✅</div>' +
       '<h1>Đã ghi nhận đơn hàng</h1>' +
       '<p>Mã đơn hàng của bạn:</p><div class="order-code">' + code + '</div>' +
+      bangTrangThai(trangThai, code, tomTat) +
       '<p>Quét mã dưới đây bằng app ngân hàng hoặc ' + P.provider + ' để chuyển <b>' + T.vnd(total) + '</b>. ' +
       'Sau khi đối soát, chúng tôi gửi file về <b>' + email + '</b> trong vòng 30 phút giờ hành chính.</p>' +
       (qr ? '<div class="qrbox"><img src="' + qr + '" alt="Mã QR chuyển khoản ' + T.vnd(total) + '" width="240" height="240">' +
@@ -76,7 +97,7 @@ document.addEventListener("DOMContentLoaded", function () {
       '<div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">' +
         '<a class="btn btn-primary" href="shop.html">Tiếp tục mua sắm</a>' +
         '<a class="btn btn-ghost" href="index.html">Về trang chủ</a></div>' +
-      '<p style="font-size:.82rem;color:var(--muted);margin-top:1.5rem">Đơn hàng được ghi nhận trên trình duyệt của bạn. Website chưa nối cổng thanh toán tự động nên giao dịch được đối soát thủ công.</p></div>';
+      '<p style="font-size:.82rem;color:var(--muted);margin-top:1.5rem">Giao dịch được đối soát thủ công, chúng tôi gửi file ngay sau khi thấy khoản chuyển khoản của bạn.</p></div>';
     scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -150,7 +171,46 @@ document.addEventListener("DOMContentLoaded", function () {
       check("f-mail", function (v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); });
       if (!document.getElementById("f-agree").checked) { ok = false; T.toast("Vui lòng đồng ý với điều khoản sử dụng"); }
       if (!ok) { T.toast("Vui lòng kiểm tra lại thông tin ⚠️"); var bad = f.querySelector(".field.bad input"); if (bad) bad.focus(); return; }
-      done(orderCode(), total, document.getElementById("f-mail").value.trim());
+
+      var btn = f.querySelector('button[type=submit]');
+      if (btn.disabled) return;                       // chặn bấm hai lần
+      var chuGoc = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = "Đang gửi đơn…";
+
+      var code = orderCode();
+      var mail = document.getElementById("f-mail").value.trim();
+      var sp = T.readCart().map(function (i) {
+        var p = T.byId(i.id); return p ? p.name + " x" + i.qty : "";
+      }).filter(Boolean);
+      var payload = {
+        loai: "don-hang",
+        maDon: code,
+        hoTen: document.getElementById("f-name").value.trim(),
+        dienThoai: document.getElementById("f-phone").value.trim(),
+        email: mail,
+        donVi: document.getElementById("f-org").value.trim(),
+        sanPham: sp.join("\n"),
+        soTien: total,
+        maGiamGia: T.getCoupon(),
+        thanhToan: (f.querySelector('input[name=pay]:checked') || {}).value === "manual"
+          ? "Chuyển khoản thủ công" : "Quét mã QR",
+        hoaDon: document.getElementById("f-inv").value,
+        ghiChu: document.getElementById("f-note").value.trim()
+      };
+      var tomTat = {
+        maDon: code,
+        text: "Đơn hàng: " + code + "\nHọ tên: " + payload.hoTen +
+              "\nĐiện thoại: " + payload.dienThoai + "\nEmail: " + mail +
+              "\nSản phẩm:\n" + payload.sanPham + "\nSố tiền: " + T.vnd(total)
+      };
+
+      T.submitOrder(payload).then(function (trangThai) {
+        done(code, total, mail, trangThai, tomTat);
+      }).catch(function () {
+        done(code, total, mail, "failed", tomTat);
+      }).then(function () {
+        btn.disabled = false; btn.innerHTML = chuGoc;
+      });
     });
   }
 

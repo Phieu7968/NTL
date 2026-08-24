@@ -31,6 +31,7 @@ chinh-sach.html      Điều khoản, đổi trả – hoàn tiền, bản quy�
 robots.txt           Chặn index trang giỏ hàng / thanh toán
 sitemap.xml          34 URL cho công cụ tìm kiếm
 build.js             Gộp cả site thành một file HTML (node build.js -> dist/)
+apps-script/         Script Google nhận đơn vào Sheet + gửi mail (kèm HUONG-DAN.md)
 
 data/products.js     ⭐ TOÀN BỘ NỘI DUNG: thương hiệu, thanh toán, 24 sản phẩm, blog, FAQ
 assets/css/style.css Stylesheet (biến màu ở :root đầu file)
@@ -39,22 +40,13 @@ assets/js/qr.js      Bộ mã hoá QR (chế độ byte, mức sửa lỗi M, ph
 assets/img/          Ảnh Open Graph 1200x630 + file nguồn để chỉnh lại
 ```
 
-## ⚠ Hai việc còn lại trước khi chạy quảng cáo
+## ⚠ Việc còn lại trước khi chạy quảng cáo
 
-### 1. Sản phẩm chưa có thật
+### Sản phẩm chưa có thật
 
 24 sản phẩm trong `data/products.js` là **nội dung mẫu** để lấp đầy bố cục — tên, mô tả, tính năng
 và giá đều do người dựng web nghĩ ra, chưa có file Google Sheets nào tương ứng. Cần dựng sản phẩm
 thật rồi sửa lại `data/products.js` cho khớp và xoá những mục chưa có.
-
-### 2. Đơn hàng chưa đến tay chủ shop
-
-`checkout.html` không gửi dữ liệu đi đâu cả. Khách đặt hàng xong, mã đơn sinh ra trong trình duyệt
-của họ rồi mất. Chủ shop chỉ thấy một khoản chuyển khoản với nội dung `TH…` mà không biết ai mua gì,
-gửi file về email nào.
-
-Cách chữa nhẹ nhất, không cần server: nối form với **Google Apps Script Web App** hoặc **Google
-Forms** để đơn hàng chảy vào một Google Sheet và bắn email báo.
 
 ### Đã xong
 
@@ -64,6 +56,29 @@ Forms** để đơn hàng chảy vào một Google Sheet và bắn email báo.
   bộ lọc theo sao và tuỳ chọn sắp xếp theo đánh giá.
 - ✔ **Trang chính sách** — `chinh-sach.html` với 6 mục, link từ chân trang và ô đồng ý khi thanh toán.
 - ✔ **Open Graph** — đủ thẻ trên 10 trang, ảnh 1200×630, `canonical`, JSON-LD, `robots.txt`, `sitemap.xml`.
+- ✔ **Nhận đơn hàng** — code đã sẵn sàng, chỉ còn cài đặt phía Google (xem mục dưới).
+
+## Nhận đơn hàng vào Google Sheet
+
+Đơn hàng và yêu cầu tư vấn được gửi lên một **Google Apps Script Web App**, ghi vào Google Sheet
+và bắn email báo cho chủ shop, đồng thời gửi email xác nhận cho khách. Không cần server, không tốn phí.
+
+**Cài đặt (khoảng 10 phút):** làm theo [`apps-script/HUONG-DAN.md`](apps-script/HUONG-DAN.md),
+rồi điền hai dòng vào `SITE.brand` trong `data/products.js`:
+
+```js
+orderEndpoint: "https://script.google.com/macros/s/AKfycb...../exec",
+orderToken: "chuoi-bi-mat-cua-ban",   // trùng TOKEN trong apps-script/Code.gs
+```
+
+**Khi chưa cấu hình** (`orderEndpoint` để trống) website vẫn chạy bình thường, nhưng trang cảm ơn
+sẽ báo rõ đơn chưa tới tay chủ shop và hiện nút nhắn Zalo / gửi email để khách gửi tay.
+
+**Không có đơn nào biến mất trong im lặng.** Mọi đơn đều được lưu một bản trong `localStorage` của
+khách (khoá `teamhoc_orders`, giữ 20 đơn gần nhất) trước khi gửi đi, kèm cờ `daGui`.
+
+Lưu ý: `orderToken` nằm trong mã nguồn trang web nên ai cũng đọc được — nó chặn bot quét bừa, không
+phải bảo mật thật. Với quy mô shop nhỏ thì đủ; muốn chắc hơn cần backend thật.
 
 ## Đưa web lên mạng
 
@@ -147,6 +162,9 @@ Hiện dùng tím `#7c3aed` làm màu chính và hồng `#db2777` làm màu nh�
   trường hợp (11 payload × 8 mask, phiên bản 1–13).
 - **Giải mã ngược**: mã QR VietQR sinh ra được OpenCV đọc lại đúng nguyên chuỗi 131 ký tự.
 - **Payload VietQR**: cấu trúc TLV hợp lệ, CRC-16/CCITT-FALSE khớp.
+- **Luồng nhận đơn**: thử với endpoint giả ở cả bốn tình huống — chưa cấu hình, chạy tốt, bị từ
+  chối token, endpoint chết. Mỗi tình huống hiện đúng thông báo, đơn luôn được lưu local, và bấm
+  dồn nút đặt hàng chỉ sinh ra một mã đơn.
 - **Bản gộp một file**: điều hướng, giỏ hàng, mã giảm giá, thanh toán, QR và neo trong trang đều
   chạy đúng; listener không bị nhân đôi khi quay lại cùng một trang; F5 giữa chừng giữ nguyên vị trí.
 - **Toàn bộ 10 trang**: không có lỗi JavaScript; luồng thêm giỏ → mã giảm giá → thanh toán → sinh mã
