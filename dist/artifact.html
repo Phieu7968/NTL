@@ -1,0 +1,3071 @@
+<title>AI Video Studio</title>
+<style>
+/* AI Video Studio - giao diện tối giản, ưu tiên mobile rồi mở rộng lên desktop. */
+
+:root {
+  --bg: #0d1017;
+  --bg-soft: #141924;
+  --card: #171d2a;
+  --card-2: #1d2433;
+  --line: #2a3346;
+  --text: #e8ecf5;
+  --muted: #94a0b8;
+  --brand: #6c8cff;
+  --brand-2: #a06cff;
+  --ok: #3ddc97;
+  --warn: #ffc266;
+  --danger: #ff6b6b;
+  --radius: 14px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+/* Thiết kế lấy nền tối làm gốc (:root ở trên). Ba trạng thái cần phục vụ:
+   - người xem không chọn gì  -> theo hệ điều hành
+   - người xem chọn sáng      -> sáng, kể cả khi hệ điều hành đang tối
+   - người xem chọn tối       -> tối, kể cả khi hệ điều hành đang sáng
+   Vì vậy bảng màu sáng xuất hiện ở hai nơi, và cả hai đều chỉ đổi biến. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f6fb;
+    --bg-soft: #eef1f8;
+    --card: #ffffff;
+    --card-2: #f7f9fd;
+    --line: #dde3ef;
+    --text: #171d2b;
+    --muted: #5d6b85;
+    --shadow: 0 10px 30px rgba(23, 29, 43, .08);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+    --bg-soft: #eef1f8;
+    --card: #ffffff;
+    --card-2: #f7f9fd;
+    --line: #dde3ef;
+    --text: #171d2b;
+    --muted: #5d6b85;
+    --shadow: 0 10px 30px rgba(23, 29, 43, .08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 20% -10%, rgba(108, 140, 255, .18), transparent 60%), var(--bg);
+  color: var(--text);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { width: min(1100px, 100%); margin: 0 auto; padding: 0 16px; }
+
+.skip-link { position: absolute; left: -9999px; }
+.skip-link:focus { left: 12px; top: 12px; background: var(--card); padding: 8px 12px; border-radius: 8px; z-index: 50; }
+
+/* ---------- Topbar ---------- */
+.topbar { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--bg) 85%, transparent); border-bottom: 1px solid var(--line); }
+.topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; padding-bottom: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand > div { min-width: 0; }
+.brand-mark { font-size: 26px; }
+.brand strong { display: block; font-size: 16px; letter-spacing: .2px; }
+.brand-sub { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin: 18px 0;
+  box-shadow: var(--shadow);
+}
+.card-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.card-head.no-margin { margin-bottom: 0; }
+.step-badge {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2)); color: #fff;
+}
+.card-title { margin: 0; font-size: 20px; line-height: 1.3; }
+.card-sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+/* ---------- Ý tưởng ---------- */
+.idea-input {
+  width: 100%; resize: vertical; padding: 14px; font-size: 17px; line-height: 1.5;
+  font-family: inherit;
+  background: var(--card-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 12px;
+}
+.idea-input:focus, textarea:focus, input:focus, select:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.chip {
+  border: 1px dashed var(--line); background: transparent; color: var(--muted);
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  text-align: left; max-width: 100%;
+}
+.chip:hover { color: var(--text); border-color: var(--brand); }
+
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+@media (min-width: 760px) { .options-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.field span { font-weight: 600; }
+.field select, .field input, .field textarea {
+  background: var(--card-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px; font-size: 15px; font-family: inherit; width: 100%;
+}
+.field textarea { resize: vertical; line-height: 1.5; }
+
+.idea-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  border: 1px solid var(--line); background: var(--card-2); color: var(--text);
+  border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
+}
+.btn:hover:not(:disabled) { border-color: var(--brand); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: linear-gradient(135deg, var(--brand), var(--brand-2)); border-color: transparent; color: #fff; }
+.btn.big { padding: 13px 22px; font-size: 16px; }
+.btn.ghost { background: transparent; }
+.btn.danger-ghost { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.btn.small { padding: 7px 10px; font-size: 13px; }
+.icon-btn { background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
+.file-btn { cursor: pointer; }
+
+/* ---------- Tổng quan ---------- */
+.meta-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.meta-chip { background: var(--card-2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; color: var(--muted); }
+.meta-chip strong { color: var(--text); font-weight: 600; }
+
+.warning {
+  margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13.5px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+}
+
+.synopsis { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--card-2); }
+.synopsis-title { margin: 0 0 8px; font-size: 15px; }
+.logline { margin: 0 0 12px; font-size: 14.5px; line-height: 1.6; color: var(--text); }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.timeline li {
+  display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: baseline;
+  padding: 8px 10px; border-radius: 8px; font-size: 13.5px;
+}
+.timeline li:nth-child(odd) { background: color-mix(in srgb, var(--line) 30%, transparent); }
+.timeline a { color: inherit; text-decoration: none; font-weight: 600; }
+.timeline a:hover { color: var(--brand); text-decoration: underline; }
+.tl-time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.tl-shot { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.tl-vo { color: var(--muted); font-style: italic; }
+.tl-done { color: var(--ok); }
+@media (max-width: 620px) {
+  .timeline li { grid-template-columns: auto 1fr; }
+  .tl-shot { display: none; }
+}
+
+.bible { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--card-2); }
+.bible summary { cursor: pointer; font-weight: 600; font-size: 14.5px; }
+.bible-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 12px 0; }
+@media (min-width: 760px) { .bible-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Scenes ---------- */
+.scenes-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-top: 22px; }
+.scenes-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.progress { height: 6px; background: var(--card-2); border-radius: 999px; overflow: hidden; margin: 12px 0 6px; border: 1px solid var(--line); }
+.progress-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--brand), var(--ok)); transition: width .3s ease; }
+
+.scene-list { display: grid; gap: 14px; margin: 14px 0 40px; }
+.scene, #scenes-card { scroll-margin-top: 76px; }
+
+.scene {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; box-shadow: var(--shadow);
+}
+.scene.is-generating { border-color: var(--brand); }
+.scene.is-done { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.scene.is-error { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); }
+
+.scene-head { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.scene-no { font-size: 12px; font-weight: 700; letter-spacing: .12em; color: var(--brand); text-transform: uppercase; }
+.scene-title { margin: 2px 0 0; font-size: 17px; }
+.scene-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--card-2); white-space: nowrap; }
+.badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.badge.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.badge.live { color: var(--brand); border-color: var(--brand); }
+
+.scene-body { display: grid; gap: 12px; margin-top: 12px; }
+@media (min-width: 900px) { .scene-body { grid-template-columns: 1.15fr .85fr; align-items: start; } }
+
+.scene-fields { display: grid; gap: 10px; }
+.scene-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.prompt-box { position: relative; }
+.prompt-box textarea {
+  width: 100%; min-height: 210px; background: var(--card-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical;
+}
+.prompt-label { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 6px; gap: 8px; }
+
+.scene-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+.video-wrap { margin-top: 12px; }
+.video-wrap video { width: 100%; border-radius: 10px; background: #000; display: block; max-height: 60vh; }
+.video-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+.placeholder {
+  border: 1px dashed var(--line); border-radius: 10px; padding: 22px; text-align: center;
+  color: var(--muted); font-size: 13.5px; background: var(--card-2);
+}
+
+/* ---------- Modal ---------- */
+.modal { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--text); padding: 0; width: min(680px, 94vw); box-shadow: var(--shadow); }
+.modal::backdrop { background: rgba(3, 6, 12, .6); backdrop-filter: blur(3px); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); margin: 0; }
+.modal-head h3 { margin: 0; font-size: 17px; }
+.modal-body { padding: 18px; display: grid; gap: 14px; max-height: 76vh; overflow: auto; }
+.modal-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.modal-body textarea { font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.steps { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+.steps li { color: var(--text); }
+.url-row { display: flex; gap: 8px; flex: 1 1 260px; }
+.url-row input { flex: 1; background: var(--card-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-family: inherit; }
+.two-col { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 620px) { .two-col { grid-template-columns: 1fr 1fr; } }
+hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
+  background: var(--card); border: 1px solid var(--line); color: var(--text);
+  padding: 12px 18px; border-radius: 12px; box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 60;
+  max-width: min(92vw, 460px); font-size: 14px; text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.err { border-color: var(--danger); }
+
+.footer { color: var(--muted); font-size: 13px; padding-bottom: 40px; text-align: center; }
+.footer a { color: var(--brand); }
+
+.hidden { display: none !important; }
+@media (max-width: 560px) {
+  .hide-sm { display: none; }
+  .brand-sub { display: none; }
+  .brand-mark { font-size: 22px; }
+  .card { padding: 15px; }
+  .scene { padding: 14px; }
+  .scene-row { grid-template-columns: 1fr; }
+  .card-title { font-size: 18px; }
+}
+
+</style>
+<a class="skip-link" href="#main">Bỏ qua tới nội dung chính</a>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🎬</span>
+      <div>
+        <strong>AI Video Studio</strong>
+        <span class="brand-sub">Ý tưởng → Kịch bản → Cảnh → Prompt → Video</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn ghost" type="button" data-action="open-settings" title="Cấu hình API (tuỳ chọn)">⚙️ <span class="hide-sm">Cài đặt</span></button>
+      <button class="btn ghost" type="button" data-action="export" title="Xuất toàn bộ kịch bản + prompt">⬇️ <span class="hide-sm">Xuất kịch bản</span></button>
+      <button class="btn danger-ghost" type="button" data-action="reset-project" title="Xoá dự án và bắt đầu lại">♻️ <span class="hide-sm">Reset Project</span></button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <!-- BƯỚC 1: Ý TƯỞNG -->
+  <section class="card" id="idea-card">
+    <div class="card-head">
+      <span class="step-badge">1</span>
+      <div>
+        <h1 class="card-title">Bạn muốn tạo video gì?</h1>
+        <p class="card-sub">Viết ý tưởng bằng tiếng Việt bình thường. App sẽ lo phần kịch bản và prompt.</p>
+      </div>
+    </div>
+
+    <textarea id="idea" class="idea-input" rows="3"
+      placeholder="Ví dụ: Quảng cáo chai nước hoa nữ, phong cách sang trọng, cinematic"
+      aria-label="Ý tưởng video"></textarea>
+
+    <div class="examples" id="examples" aria-label="Ý tưởng mẫu"></div>
+
+    <div class="options-grid" id="options"></div>
+
+    <div class="idea-actions">
+      <button class="btn primary big" type="button" data-action="create">✨ Tạo kịch bản &amp; prompt</button>
+      <label class="checkbox" title="Cần API key Gemini trong phần Cài đặt">
+        <input type="checkbox" id="use-ai" /> Dùng Gemini AI để viết kịch bản sâu hơn
+      </label>
+    </div>
+    <p class="hint" id="idea-hint"></p>
+  </section>
+
+  <!-- BƯỚC 2: TỔNG QUAN DỰ ÁN -->
+  <section class="card hidden" id="overview-card">
+    <div class="card-head">
+      <span class="step-badge">2</span>
+      <div>
+        <h2 class="card-title" id="project-title">Kịch bản</h2>
+        <p class="card-sub" id="project-idea"></p>
+      </div>
+    </div>
+    <div class="meta-chips" id="project-meta"></div>
+    <div id="project-warnings"></div>
+
+    <div class="synopsis">
+      <h3 class="synopsis-title">📖 Kịch bản</h3>
+      <p class="logline" id="logline"></p>
+      <ol class="timeline" id="timeline"></ol>
+    </div>
+
+    <details class="bible" id="bible-panel">
+      <summary>🔒 Nhân vật &amp; sản phẩm (khoá xuyên suốt mọi cảnh) — bấm để chỉnh</summary>
+      <p class="hint">Sửa ở đây sẽ đồng bộ sang <strong>tất cả</strong> các cảnh. Còn sửa trong một cảnh thì chỉ cảnh đó đổi.</p>
+      <div class="bible-grid" id="bible-fields"></div>
+      <button class="btn" type="button" data-action="apply-bible">Áp dụng cho tất cả cảnh</button>
+    </details>
+  </section>
+
+  <!-- BƯỚC 3: DANH SÁCH CẢNH -->
+  <section class="hidden" id="scenes-card">
+    <div class="scenes-head">
+      <div class="card-head no-margin">
+        <span class="step-badge">3</span>
+        <div>
+          <h2 class="card-title">Danh sách cảnh &amp; prompt</h2>
+          <p class="card-sub" id="progress-text">Chưa có cảnh nào được tạo video.</p>
+        </div>
+      </div>
+      <div class="scenes-actions">
+        <button class="btn primary" type="button" data-action="generate-all">🎬 Generate Video — tất cả cảnh</button>
+        <button class="btn" type="button" data-action="copy-all">📋 Copy tất cả prompt</button>
+        <button class="btn" type="button" data-action="rebuild">🔄 Dựng lại kịch bản</button>
+      </div>
+    </div>
+    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="scene-list" id="scene-list"></div>
+  </section>
+
+</main>
+
+<footer class="wrap footer">
+  <p>Dự án được lưu tự động trong trình duyệt của bạn. Video tạo bằng <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">Google Flow</a>.</p>
+</footer>
+
+<!-- MODAL: quy trình Google Flow -->
+<dialog id="flow-modal" class="modal">
+  <form method="dialog" class="modal-head">
+    <h3 id="flow-title">Tạo video bằng Google Flow</h3>
+    <button class="icon-btn" value="close" aria-label="Đóng">✕</button>
+  </form>
+  <div class="modal-body">
+    <ol class="steps" id="flow-steps"></ol>
+    <label class="field">
+      <span>Prompt của cảnh này</span>
+      <textarea id="flow-prompt" rows="8" readonly></textarea>
+    </label>
+    <div class="modal-actions">
+      <button class="btn primary" type="button" data-action="flow-copy">📋 Copy prompt</button>
+      <button class="btn" type="button" data-action="flow-open">↗️ Mở Google Flow</button>
+    </div>
+    <hr />
+    <p class="hint">Sau khi tải video từ Flow về máy, gắn vào đúng cảnh này:</p>
+    <div class="modal-actions">
+      <label class="btn file-btn">
+        📁 Tải video lên
+        <input type="file" id="flow-file" accept="video/*" hidden />
+      </label>
+      <div class="url-row">
+        <input type="url" id="flow-url" placeholder="hoặc dán link video (.mp4)" />
+        <button class="btn" type="button" data-action="flow-url">Gắn link</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- MODAL: cài đặt -->
+<dialog id="settings-modal" class="modal">
+  <form method="dialog" class="modal-head">
+    <h3>Cài đặt</h3>
+    <button class="icon-btn" value="close" aria-label="Đóng">✕</button>
+  </form>
+  <div class="modal-body">
+    <p class="hint">App chạy đầy đủ mà <strong>không cần</strong> API key: kịch bản do engine trong máy sinh, video tạo thủ công qua Google Flow. Nhập key nếu bạn muốn AI viết kịch bản sâu hơn và render video Veo ngay trong app.</p>
+    <label class="field">
+      <span>Gemini API key (Google AI Studio)</span>
+      <input type="password" id="api-key" placeholder="AIza…" autocomplete="off" />
+    </label>
+    <label class="field">
+      <span>Chế độ tạo video</span>
+      <select id="video-mode">
+        <option value="flow">Google Flow (thủ công, không cần key)</option>
+        <option value="api">Veo qua Gemini API (cần key)</option>
+      </select>
+    </label>
+    <div class="two-col">
+      <label class="field">
+        <span>Model viết kịch bản</span>
+        <input type="text" id="text-model" list="text-models" />
+        <datalist id="text-models"></datalist>
+      </label>
+      <label class="field">
+        <span>Model tạo video</span>
+        <input type="text" id="video-model" list="video-models" />
+        <datalist id="video-models"></datalist>
+      </label>
+    </div>
+    <p class="hint">Key chỉ được lưu trong localStorage của trình duyệt này và chỉ gửi tới Google.</p>
+    <div class="modal-actions">
+      <button class="btn primary" type="button" data-action="save-settings">Lưu cài đặt</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- MODAL: xác nhận (thay window.confirm, vì hộp thoại hệ thống bị chặn trong khung nhúng) -->
+<dialog id="confirm-modal" class="modal">
+  <form method="dialog" class="modal-head">
+    <h3>Xác nhận</h3>
+    <button class="icon-btn" value="cancel" aria-label="Đóng">✕</button>
+  </form>
+  <div class="modal-body">
+    <p id="confirm-text"></p>
+    <div class="modal-actions">
+      <button class="btn danger-ghost" type="button" data-action="confirm-yes">Đồng ý</button>
+      <button class="btn" type="button" data-action="confirm-no">Huỷ</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- MODAL: xuất kịch bản (tải file có thể bị chặn, nên luôn cho copy được) -->
+<dialog id="export-modal" class="modal">
+  <form method="dialog" class="modal-head">
+    <h3>Kịch bản &amp; toàn bộ prompt</h3>
+    <button class="icon-btn" value="close" aria-label="Đóng">✕</button>
+  </form>
+  <div class="modal-body">
+    <p class="hint">Copy đoạn dưới, hoặc tải về dạng file .md.</p>
+    <label class="field">
+      <span>Nội dung</span>
+      <textarea id="export-text" rows="14" readonly></textarea>
+    </label>
+    <div class="modal-actions">
+      <button class="btn primary" type="button" data-action="export-copy">📋 Copy tất cả</button>
+      <button class="btn" type="button" data-action="export-download">⬇️ Tải file .md</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ===== src/engine/presets.js ===== */
+/**
+ * Presets: các lựa chọn cố định cho form nhập ý tưởng.
+ * Mọi id đều ổn định để lưu vào localStorage và dùng lại giữa các phiên.
+ */
+
+const GENRES = [
+  { id: 'ad', vi: 'Quảng cáo sản phẩm', en: 'Product commercial' },
+  { id: 'brand', vi: 'Phim thương hiệu', en: 'Brand film' },
+  { id: 'review', vi: 'Review / Giới thiệu sản phẩm', en: 'Product review' },
+  { id: 'story', vi: 'Phim ngắn / Kể chuyện', en: 'Short story film' },
+  { id: 'tutorial', vi: 'Hướng dẫn / Tutorial', en: 'How-to tutorial' },
+  { id: 'travel', vi: 'Du lịch / Phong cảnh', en: 'Travel montage' },
+  { id: 'music', vi: 'Music video', en: 'Music video' },
+  { id: 'social', vi: 'Video ngắn mạng xã hội', en: 'Short-form social video' },
+  { id: 'realestate', vi: 'Bất động sản / Không gian', en: 'Real-estate walkthrough' },
+  { id: 'food', vi: 'Ẩm thực / Đồ ăn', en: 'Food & beverage film' },
+];
+
+const STYLES = [
+  { id: 'cinematic', vi: 'Cinematic sang trọng', en: 'luxury cinematic', look: 'shallow depth of field, anamorphic flares, rich contrast, filmic grain' },
+  { id: 'minimal', vi: 'Tối giản / Minimalist', en: 'clean minimalist', look: 'negative space, soft gradients, calm composition, muted palette' },
+  { id: 'documentary', vi: 'Tài liệu / Chân thực', en: 'natural documentary', look: 'handheld realism, available light, candid framing, true-to-life colours' },
+  { id: 'vibrant', vi: 'Trẻ trung / Rực rỡ', en: 'vibrant youthful', look: 'punchy saturated colours, energetic cuts, playful framing' },
+  { id: 'moody', vi: 'Trầm / Nghệ thuật', en: 'moody artistic', look: 'low-key lighting, deep shadows, teal and amber grade, atmospheric haze' },
+  { id: 'anime', vi: 'Hoạt hình Anime', en: 'anime animation', look: '2D anime cel shading, expressive linework, painterly backgrounds' },
+  { id: '3d', vi: '3D / CGI', en: '3D CGI render', look: 'physically based rendering, ray-traced reflections, subsurface scattering' },
+  { id: 'retro', vi: 'Retro / Vintage', en: 'retro vintage', look: '16mm film emulation, halation, faded warm grade, subtle gate weave' },
+];
+
+const ASPECTS = [
+  { id: '16:9', vi: '16:9 – Ngang (YouTube, TV)', w: 16, h: 9 },
+  { id: '9:16', vi: '9:16 – Dọc (TikTok, Reels, Shorts)', w: 9, h: 16 },
+  { id: '1:1', vi: '1:1 – Vuông (Feed mạng xã hội)', w: 1, h: 1 },
+  { id: '4:5', vi: '4:5 – Dọc nhẹ (Instagram)', w: 4, h: 5 },
+  { id: '21:9', vi: '21:9 – Điện ảnh siêu rộng', w: 21, h: 9 },
+];
+
+const LANGUAGES = [
+  { id: 'vi', vi: 'Tiếng Việt', label: 'Vietnamese' },
+  { id: 'en', vi: 'Tiếng Anh', label: 'English' },
+  { id: 'vi-en', vi: 'Song ngữ Việt – Anh', label: 'Vietnamese with English subtitles' },
+  { id: 'none', vi: 'Không lời thoại (chỉ hình + nhạc)', label: 'no dialogue, music and sound design only' },
+];
+
+const DURATIONS = [15, 20, 30, 45, 60, 90];
+const SCENE_COUNTS = [3, 4, 5, 6, 7, 8, 10, 12];
+
+/** Veo / Google Flow tạo tốt nhất ở các clip ngắn; dài hơn mốc này thì nên tách cảnh. */
+const MAX_CLIP_SECONDS = 8;
+
+const DEFAULT_OPTIONS = {
+  genre: 'ad',
+  style: 'cinematic',
+  duration: 30,
+  aspect: '16:9',
+  sceneCount: 5,
+  language: 'vi',
+};
+
+function findPreset(list, id) {
+  return list.find((item) => item.id === id) || list[0];
+}
+
+/* ===== src/engine/text.js ===== */
+/** Tiện ích xử lý chuỗi dùng chung cho engine (chạy được cả trên Node lẫn trình duyệt). */
+
+/** Bỏ dấu tiếng Việt + hạ chữ thường, để dò từ khoá kể cả khi người dùng gõ không dấu. */
+function normalize(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Hash 32-bit ổn định (FNV-1a) để tạo seed từ ý tưởng. */
+function hashSeed(text) {
+  let hash = 0x811c9dc5;
+  const str = String(text || '');
+  for (let i = 0; i < str.length; i += 1) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/** PRNG mulberry32: cùng seed → cùng kết quả, nên kịch bản tái lập được. */
+function makeRng(seed) {
+  let state = (seed >>> 0) || 1;
+  return function rng() {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pick(list, rng) {
+  return list[Math.floor(rng() * list.length) % list.length];
+}
+
+function titleCase(text) {
+  return String(text || '')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/** Ghép các mảnh mô tả, bỏ mảnh rỗng, tránh dấu phẩy thừa trong prompt. */
+function joinParts(parts, separator = ', ') {
+  return parts
+    .map((part) => (part == null ? '' : String(part).trim()))
+    .filter(Boolean)
+    .join(separator);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+/** Rút gọn ý tưởng thành một dòng ngắn để hiển thị trên thẻ dự án. */
+function shorten(text, max = 120) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max - 1).trimEnd()}…`;
+}
+
+/* ===== src/engine/script.js ===== */
+/**
+ * Script engine - biến Project Bible thành kịch bản chia cảnh.
+ *
+ * Mỗi genre có một bộ "beat" (nhịp kể chuyện). Số scene người dùng chọn được
+ * ánh xạ vào bộ beat đó, sau đó mỗi scene nhận thời lượng, cỡ cảnh, góc máy,
+ * chuyển động máy, hành động và lời thoại riêng.
+ */
+
+
+const BEATS = {
+  ad: [
+    { id: 'hook', vi: 'Mở đầu gây chú ý', purpose: 'grab attention in the first second', shot: 'macro', weight: 0.9 },
+    { id: 'desire', vi: 'Khơi gợi mong muốn', purpose: 'set up the desire the product answers', shot: 'medium', weight: 1 },
+    { id: 'reveal', vi: 'Lộ diện sản phẩm', purpose: 'hero reveal of the product', shot: 'close', weight: 1.1 },
+    { id: 'demo', vi: 'Sản phẩm trong sử dụng', purpose: 'show the product being used', shot: 'medium', weight: 1.15 },
+    { id: 'detail', vi: 'Cận cảnh chi tiết', purpose: 'macro detail that proves quality', shot: 'macro', weight: 0.9 },
+    { id: 'emotion', vi: 'Cao trào cảm xúc', purpose: 'emotional payoff on the subject', shot: 'closeup', weight: 1 },
+    { id: 'cta', vi: 'Chốt & kêu gọi hành động', purpose: 'final hero frame with logo space', shot: 'wide', weight: 0.85 },
+  ],
+  brand: [
+    { id: 'world', vi: 'Mở ra thế giới thương hiệu', purpose: 'establish the world of the brand', shot: 'wide', weight: 1 },
+    { id: 'character', vi: 'Giới thiệu nhân vật', purpose: 'introduce the human at the centre', shot: 'medium', weight: 1 },
+    { id: 'tension', vi: 'Điều còn thiếu', purpose: 'show what is missing', shot: 'closeup', weight: 0.95 },
+    { id: 'reveal', vi: 'Thương hiệu xuất hiện', purpose: 'the brand enters the story', shot: 'close', weight: 1.1 },
+    { id: 'value', vi: 'Giá trị cốt lõi', purpose: 'demonstrate the core value', shot: 'medium', weight: 1.05 },
+    { id: 'emotion', vi: 'Khoảnh khắc cảm xúc', purpose: 'emotional high point', shot: 'closeup', weight: 1 },
+    { id: 'cta', vi: 'Kết & logo', purpose: 'end frame with logo space', shot: 'wide', weight: 0.85 },
+  ],
+  review: [
+    { id: 'intro', vi: 'Chào & nêu vấn đề', purpose: 'host greets and frames the question', shot: 'medium', weight: 1 },
+    { id: 'unbox', vi: 'Mở hộp / Cầm sản phẩm', purpose: 'first physical contact with the product', shot: 'close', weight: 1.05 },
+    { id: 'feature', vi: 'Điểm nổi bật', purpose: 'call out the strongest feature', shot: 'macro', weight: 1 },
+    { id: 'use', vi: 'Trải nghiệm thực tế', purpose: 'real world usage', shot: 'medium', weight: 1.1 },
+    { id: 'compare', vi: 'So sánh / Lưu ý', purpose: 'honest caveat or comparison', shot: 'closeup', weight: 0.95 },
+    { id: 'verdict', vi: 'Kết luận', purpose: 'verdict to camera', shot: 'medium', weight: 1 },
+    { id: 'cta', vi: 'Kêu gọi theo dõi', purpose: 'call to action', shot: 'wide', weight: 0.85 },
+  ],
+  story: [
+    { id: 'setup', vi: 'Thiết lập bối cảnh', purpose: 'establish place and mood', shot: 'wide', weight: 1 },
+    { id: 'character', vi: 'Nhân vật xuất hiện', purpose: 'meet the character', shot: 'medium', weight: 1 },
+    { id: 'inciting', vi: 'Sự kiện khởi đầu', purpose: 'the event that starts everything', shot: 'close', weight: 1.05 },
+    { id: 'rising', vi: 'Đẩy kịch tính', purpose: 'raise the stakes', shot: 'medium', weight: 1.1 },
+    { id: 'climax', vi: 'Cao trào', purpose: 'the turning point', shot: 'closeup', weight: 1.15 },
+    { id: 'resolution', vi: 'Giải quyết', purpose: 'resolution and release', shot: 'wide', weight: 1 },
+  ],
+  tutorial: [
+    { id: 'intro', vi: 'Giới thiệu kết quả', purpose: 'show the finished result first', shot: 'close', weight: 0.9 },
+    { id: 'prep', vi: 'Chuẩn bị', purpose: 'lay out what is needed', shot: 'topdown', weight: 1 },
+    { id: 'step1', vi: 'Bước 1', purpose: 'first step in the process', shot: 'medium', weight: 1.05 },
+    { id: 'step2', vi: 'Bước 2', purpose: 'second step in the process', shot: 'close', weight: 1.05 },
+    { id: 'step3', vi: 'Bước 3', purpose: 'third step in the process', shot: 'macro', weight: 1 },
+    { id: 'result', vi: 'Thành phẩm', purpose: 'the finished result revealed', shot: 'close', weight: 1 },
+    { id: 'cta', vi: 'Chốt & mời theo dõi', purpose: 'wrap up and call to action', shot: 'medium', weight: 0.85 },
+  ],
+  travel: [
+    { id: 'establish', vi: 'Toàn cảnh mở màn', purpose: 'sweeping establishing view', shot: 'aerial', weight: 1.1 },
+    { id: 'arrival', vi: 'Đặt chân đến nơi', purpose: 'arrival moment', shot: 'medium', weight: 1 },
+    { id: 'explore', vi: 'Khám phá', purpose: 'exploring the details of the place', shot: 'close', weight: 1 },
+    { id: 'people', vi: 'Con người bản địa', purpose: 'local life and faces', shot: 'closeup', weight: 0.95 },
+    { id: 'highlight', vi: 'Điểm nhấn', purpose: 'the signature highlight of the trip', shot: 'wide', weight: 1.1 },
+    { id: 'sunset', vi: 'Hoàng hôn', purpose: 'golden hour beauty pass', shot: 'aerial', weight: 1 },
+    { id: 'outro', vi: 'Kết', purpose: 'closing frame with title space', shot: 'wide', weight: 0.85 },
+  ],
+  music: [
+    { id: 'intro', vi: 'Intro', purpose: 'atmospheric opening', shot: 'wide', weight: 1 },
+    { id: 'verse', vi: 'Verse', purpose: 'performance in the main location', shot: 'medium', weight: 1 },
+    { id: 'build', vi: 'Pre-chorus', purpose: 'energy builds', shot: 'close', weight: 1 },
+    { id: 'chorus', vi: 'Chorus', purpose: 'biggest visual moment', shot: 'wide', weight: 1.2 },
+    { id: 'bridge', vi: 'Bridge', purpose: 'contrast and intimacy', shot: 'closeup', weight: 0.95 },
+    { id: 'outro', vi: 'Outro', purpose: 'fade out frame', shot: 'aerial', weight: 0.9 },
+  ],
+  social: [
+    { id: 'hook', vi: 'Hook 1 giây đầu', purpose: 'stop the scroll instantly', shot: 'closeup', weight: 0.8 },
+    { id: 'problem', vi: 'Vấn đề', purpose: 'name the pain point', shot: 'medium', weight: 1 },
+    { id: 'solution', vi: 'Giải pháp', purpose: 'reveal the solution', shot: 'close', weight: 1.1 },
+    { id: 'proof', vi: 'Bằng chứng', purpose: 'proof it works', shot: 'macro', weight: 1 },
+    { id: 'cta', vi: 'Kêu gọi hành động', purpose: 'direct call to action', shot: 'medium', weight: 0.9 },
+  ],
+  realestate: [
+    { id: 'exterior', vi: 'Ngoại thất', purpose: 'exterior establishing view', shot: 'aerial', weight: 1.1 },
+    { id: 'entrance', vi: 'Lối vào', purpose: 'entering the space', shot: 'wide', weight: 1 },
+    { id: 'living', vi: 'Phòng khách', purpose: 'main living area', shot: 'wide', weight: 1.05 },
+    { id: 'kitchen', vi: 'Bếp & bàn ăn', purpose: 'kitchen and dining detail', shot: 'medium', weight: 1 },
+    { id: 'private', vi: 'Không gian riêng tư', purpose: 'bedroom or private area', shot: 'medium', weight: 1 },
+    { id: 'view', vi: 'Tầm nhìn', purpose: 'the view that sells it', shot: 'wide', weight: 1.05 },
+    { id: 'cta', vi: 'Kết & thông tin', purpose: 'closing frame with info space', shot: 'aerial', weight: 0.85 },
+  ],
+  food: [
+    { id: 'ingredients', vi: 'Nguyên liệu', purpose: 'fresh ingredients laid out', shot: 'topdown', weight: 1 },
+    { id: 'prep', vi: 'Sơ chế', purpose: 'hands preparing the ingredients', shot: 'macro', weight: 1 },
+    { id: 'cooking', vi: 'Chế biến', purpose: 'the heat and action of cooking', shot: 'close', weight: 1.1 },
+    { id: 'plating', vi: 'Trình bày món', purpose: 'plating the dish', shot: 'topdown', weight: 1 },
+    { id: 'taste', vi: 'Thưởng thức', purpose: 'the first taste reaction', shot: 'closeup', weight: 1.05 },
+    { id: 'cta', vi: 'Kết & thương hiệu', purpose: 'hero frame with brand space', shot: 'wide', weight: 0.85 },
+  ],
+};
+
+const SHOT_LABEL = {
+  aerial: 'aerial establishing shot',
+  wide: 'wide shot',
+  medium: 'medium shot',
+  close: 'close-up shot',
+  closeup: 'tight close-up on the face',
+  macro: 'macro detail shot',
+  topdown: 'top-down overhead shot',
+};
+
+const ANGLES = {
+  aerial: ['high aerial angle', 'drone descending angle'],
+  wide: ['eye-level wide angle', 'slightly low hero angle'],
+  medium: ['eye-level angle', 'over-the-shoulder angle'],
+  close: ['eye-level angle', 'three-quarter angle'],
+  closeup: ['eye-level angle', 'slightly low intimate angle'],
+  macro: ['macro angle at product level', 'top-down macro angle'],
+  topdown: ['90-degree overhead angle', 'slightly tilted overhead angle'],
+};
+
+const MOVES = {
+  aerial: ['slow drone push-in', 'drone orbit around the subject', 'drone reveal rising over the horizon'],
+  wide: ['slow dolly in', 'lateral tracking shot', 'static locked-off frame with subtle drift'],
+  medium: ['smooth gimbal follow', 'slow push-in on the subject', 'gentle handheld float'],
+  close: ['slow push-in', 'slider move left to right', 'rack focus from foreground to subject'],
+  closeup: ['very slow push-in', 'static frame with micro handheld breathing'],
+  macro: ['macro slider across the surface', 'slow probe-lens move around the product', 'rotating turntable move'],
+  topdown: ['overhead slow rise', 'overhead lateral slide'],
+};
+
+const PRODUCT_VI = {
+  fragrance: 'chai nước hoa',
+  fashion: 'thiết kế thời trang',
+  beauty: 'sản phẩm dưỡng da',
+  tech: 'thiết bị công nghệ',
+  luxury: 'sản phẩm cao cấp',
+  beverage: 'ly đồ uống',
+  automotive: 'chiếc xe',
+  food: 'món ăn',
+  interior: 'món nội thất',
+  space: 'không gian sống',
+  digital: 'ứng dụng',
+  education: 'khoá học',
+  general: 'sản phẩm',
+};
+
+/** Động từ sử dụng sản phẩm theo nhóm ngành - tránh câu kiểu "mặc chiếc điện thoại". */
+const USE_ACTION = {
+  fragrance: 'sprays {p} onto the wrist, then breathes in the mist with eyes closed',
+  fashion: 'wears {p} and turns slowly so the fabric catches the light',
+  beauty: 'applies {p} to the skin with slow, careful movements',
+  tech: 'unlocks {p} and swipes through the glowing interface',
+  luxury: 'fastens {p} on and turns the wrist so it catches the light',
+  beverage: 'lifts {p} and takes a slow first sip',
+  automotive: 'runs a hand along the body line of {p}, then opens the door',
+  food: 'lifts a portion of {p} with chopsticks, steam rising',
+  interior: 'runs a hand across {p} and settles into it',
+  space: 'walks through {p}, taking it in',
+  digital: 'taps through {p}, the interface responding instantly',
+  education: 'opens {p} and starts taking notes',
+  general: 'holds {p} up and turns it slowly in the light',
+};
+
+function useAction(product, productName) {
+  const template = USE_ACTION[product?.category] || USE_ACTION.general;
+  return template.replace(/\{p\}/g, productName);
+}
+
+/** Câu thoại/VO mẫu theo beat, viết sẵn hai ngôn ngữ. */
+const VO = {
+  hook: { vi: 'Bạn đã bao giờ dừng lại chỉ vì một khoảnh khắc đẹp?', en: 'Ever stopped just for a beautiful moment?' },
+  desire: { vi: 'Có những thứ không cần nói nhiều, chỉ cần cảm nhận.', en: 'Some things need no words - only feeling.' },
+  reveal: { vi: 'Và đây là {product}.', en: 'And here it is: {product}.' },
+  demo: { vi: 'Chỉ một chạm, mọi thứ khác hẳn.', en: 'One touch, and everything changes.' },
+  detail: { vi: 'Từng chi tiết đều được chăm chút.', en: 'Every detail, carefully made.' },
+  emotion: { vi: 'Tự tin là khi bạn là chính mình.', en: 'Confidence is simply being yourself.' },
+  cta: { vi: '{brand} - trải nghiệm ngay hôm nay.', en: '{brand} - experience it today.' },
+  world: { vi: 'Mọi câu chuyện đều bắt đầu từ một nơi chốn.', en: 'Every story begins somewhere.' },
+  character: { vi: 'Đây là {name}.', en: 'This is {name}.' },
+  tension: { vi: 'Nhưng vẫn còn một điều chưa trọn vẹn.', en: 'But something is still missing.' },
+  value: { vi: 'Điều chúng tôi tin: chất lượng nằm ở chi tiết.', en: 'What we believe: quality lives in the details.' },
+  intro: { vi: 'Hôm nay mình sẽ cùng bạn xem thử {product}.', en: 'Today we are looking at {product}.' },
+  unbox: { vi: 'Cảm giác đầu tiên khi cầm trên tay rất khác.', en: 'The first thing you notice is how it feels.' },
+  feature: { vi: 'Điểm mình thích nhất chính là đây.', en: 'This is the part I like most.' },
+  use: { vi: 'Dùng thử trong ngày thường thì sao?', en: 'So how does it hold up in real life?' },
+  compare: { vi: 'Có một điểm bạn nên cân nhắc.', en: 'There is one thing to keep in mind.' },
+  verdict: { vi: 'Kết luận của mình: rất đáng để thử.', en: 'My verdict: absolutely worth trying.' },
+  setup: { vi: 'Một buổi sáng như mọi buổi sáng.', en: 'A morning like any other.' },
+  inciting: { vi: 'Cho đến khi điều đó xảy ra.', en: 'Until it happened.' },
+  rising: { vi: 'Mọi thứ bắt đầu thay đổi.', en: 'Everything starts to change.' },
+  climax: { vi: 'Khoảnh khắc quyết định.', en: 'The deciding moment.' },
+  resolution: { vi: 'Và mọi thứ trở về đúng chỗ của nó.', en: 'And everything falls into place.' },
+  prep: { vi: 'Chuẩn bị đầy đủ trước khi bắt đầu.', en: 'Get everything ready first.' },
+  step1: { vi: 'Bước một: bắt đầu thật nhẹ nhàng.', en: 'Step one: start gently.' },
+  step2: { vi: 'Bước hai: đây là phần quan trọng.', en: 'Step two: this is the important part.' },
+  step3: { vi: 'Bước ba: hoàn thiện chi tiết cuối.', en: 'Step three: finish the last details.' },
+  result: { vi: 'Và đây là thành quả.', en: 'And here is the result.' },
+  establish: { vi: 'Nơi này đẹp hơn mọi tấm ảnh.', en: 'This place is better than any photo.' },
+  arrival: { vi: 'Chạm chân đến nơi, mọi mệt mỏi tan biến.', en: 'The moment you arrive, everything fades.' },
+  explore: { vi: 'Càng đi càng thấy nhiều điều bất ngờ.', en: 'The further you go, the more you find.' },
+  people: { vi: 'Điều đẹp nhất luôn là con người.', en: 'The best part is always the people.' },
+  highlight: { vi: 'Và đây là khoảnh khắc đáng giá nhất.', en: 'And here is the moment worth the trip.' },
+  sunset: { vi: 'Hoàng hôn khép lại một ngày trọn vẹn.', en: 'Sunset closes a perfect day.' },
+  outro: { vi: 'Hẹn gặp lại ở hành trình tiếp theo.', en: 'See you on the next journey.' },
+  problem: { vi: 'Vấn đề là ai cũng gặp phải điều này.', en: 'The problem is, this happens to everyone.' },
+  solution: { vi: 'Giải pháp đơn giản hơn bạn nghĩ.', en: 'The fix is simpler than you think.' },
+  proof: { vi: 'Kết quả nói thay lời muốn nói.', en: 'The result speaks for itself.' },
+  exterior: { vi: 'Không gian sống bắt đầu từ ấn tượng đầu tiên.', en: 'A home starts with a first impression.' },
+  entrance: { vi: 'Mở cửa ra là một thế giới khác.', en: 'Open the door to another world.' },
+  living: { vi: 'Phòng khách ngập tràn ánh sáng tự nhiên.', en: 'The living room is full of natural light.' },
+  kitchen: { vi: 'Khu bếp được thiết kế cho những bữa ăn quây quần.', en: 'The kitchen is made for shared meals.' },
+  private: { vi: 'Không gian riêng tư, yên tĩnh tuyệt đối.', en: 'A private space, perfectly quiet.' },
+  view: { vi: 'Và tầm nhìn này là thứ khó quên nhất.', en: 'And this view is the unforgettable part.' },
+  ingredients: { vi: 'Bắt đầu từ nguyên liệu tươi nhất.', en: 'It starts with the freshest ingredients.' },
+  cooking: { vi: 'Lửa vừa tới, hương thơm bắt đầu dậy.', en: 'The heat rises and the aroma follows.' },
+  plating: { vi: 'Trình bày cũng là một phần của hương vị.', en: 'Plating is part of the flavour.' },
+  taste: { vi: 'Miếng đầu tiên luôn là miếng ngon nhất.', en: 'The first bite is always the best.' },
+  build: { vi: '', en: '' },
+  verse: { vi: '', en: '' },
+  chorus: { vi: '', en: '' },
+  bridge: { vi: '', en: '' },
+};
+
+/** Các thể loại mà lời thoại mẫu xoay quanh một sản phẩm cụ thể. */
+const PRODUCT_LED_GENRES = ['ad', 'brand', 'review', 'social', 'food', 'realestate', 'tutorial'];
+
+function beatsFor(genreId) {
+  return BEATS[genreId] || BEATS.ad;
+}
+
+/** Ánh xạ số scene người dùng chọn vào bộ beat: luôn giữ beat mở đầu và beat kết. */
+function planBeats(genreId, sceneCount) {
+  const beats = beatsFor(genreId);
+  const count = clamp(Math.round(sceneCount) || beats.length, 2, 24);
+  if (count === beats.length) return beats.map((b, i) => ({ ...b, repeat: 0, order: i }));
+
+  if (count < beats.length) {
+    const chosen = [beats[0]];
+    const middle = beats.slice(1, -1);
+    const need = count - 2;
+    for (let i = 0; i < need; i += 1) {
+      const idx = Math.round((i * (middle.length - 1)) / Math.max(1, need - 1));
+      chosen.push(middle[clamp(idx, 0, middle.length - 1)]);
+    }
+    chosen.push(beats[beats.length - 1]);
+    return chosen.slice(0, count).map((b, i) => ({ ...b, repeat: 0, order: i }));
+  }
+
+  // Nhiều scene hơn số beat: nhân bản các beat giữa, đánh số biến thể để nội dung không lặp y hệt.
+  const out = beats.map((b) => ({ ...b, repeat: 0 }));
+  const middle = beats.slice(1, -1);
+  let i = 0;
+  while (out.length < count) {
+    const source = middle[i % middle.length];
+    const repeat = Math.floor(i / middle.length) + 1;
+    out.splice(out.length - 1, 0, { ...source, repeat });
+    i += 1;
+  }
+  return out.map((b, idx) => ({ ...b, order: idx }));
+}
+
+/** Chia thời lượng tổng cho các scene theo trọng số, tối thiểu 2 giây mỗi scene. */
+function distributeDuration(beats, totalSeconds) {
+  const total = Math.max(beats.length * 2, Math.round(totalSeconds) || 30);
+  const weights = beats.map((b) => b.weight || 1);
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const raw = weights.map((w) => (w / sum) * total);
+  const seconds = raw.map((value) => Math.max(2, Math.round(value)));
+
+  let diff = total - seconds.reduce((a, b) => a + b, 0);
+  let guard = 0;
+  while (diff !== 0 && guard < 500) {
+    for (let i = 0; i < seconds.length && diff !== 0; i += 1) {
+      const step = diff > 0 ? 1 : -1;
+      if (step === -1 && seconds[i] <= 2) continue;
+      seconds[i] += step;
+      diff -= step;
+    }
+    guard += 1;
+  }
+  return seconds;
+}
+
+function fillTemplate(template, bible) {
+  const productVi = PRODUCT_VI[bible.product?.category] || PRODUCT_VI.general;
+  // Chưa có tên thương hiệu thì để placeholder rõ ràng để người dùng điền, thay vì bịa tên.
+  const brand = bible.product?.brand || '[TÊN THƯƠNG HIỆU]';
+  return String(template || '')
+    .replace(/\{product\}/g, bible.options.language === 'en' ? (bible.product?.name || 'the product') : productVi)
+    .replace(/\{brand\}/g, brand)
+    .replace(/\{name\}/g, bible.character?.name || 'nhân vật chính');
+}
+
+function voiceoverFor(beat, bible) {
+  if (bible.languageId === 'none') return '';
+  // Lời thoại mẫu được viết cho video bán một sản phẩm. Chưa nhận ra sản phẩm mà
+  // vẫn gán vào thì ra những câu lạc đề kiểu "Chỉ một chạm, mọi thứ khác hẳn" trên
+  // một video an toàn lao động. Thà để trống cho người dùng tự viết.
+  if (!bible.product?.present && PRODUCT_LED_GENRES.includes(bible.genreId)) return '';
+  const entry = VO[beat.id];
+  if (!entry) return '';
+  const useEn = bible.languageId === 'en';
+  const line = useEn ? entry.en : entry.vi;
+  if (!line) return '';
+  return fillTemplate(line, bible);
+}
+
+/** Hành động cụ thể của scene, viết bằng tiếng Anh vì prompt cuối cùng dùng tiếng Anh. */
+function actionFor(beat, bible, rng) {
+  const c = bible.character;
+  const p = bible.product;
+  const who = c?.present ? c.id : 'the camera';
+  const productName = p?.present
+    ? (p.brand ? `the "${p.brand}" ${p.name}` : `the ${p.name}`)
+    : 'the main subject of the concept';
+
+  const byBeat = {
+    hook: p?.present
+      ? `${productName} fills the frame in extreme close-up as a shaft of light grazes across its surface`
+      : `a striking detail of the scene fills the frame as light moves across it`,
+    desire: c?.present ? `${who} pauses mid-motion and looks off-frame, thoughtful` : `the environment breathes, empty and waiting`,
+    reveal: p?.present ? `${productName} is revealed as ${p.hero}` : `the subject is revealed in full`,
+    demo: c?.present && p?.present
+      ? `${who} ${useAction(p, productName)}`
+      : `${productName} is shown in use`,
+    detail: p?.present ? `an extreme macro travels across the surface of ${productName}` : `an extreme macro travels across the texture of the scene`,
+    emotion: c?.present ? `${who} smiles softly and turns towards the light` : `light shifts across the scene in a quiet beat`,
+    cta: p?.present ? `${productName} rests centred with clean negative space around it for the logo` : `a clean final frame with negative space for the logo`,
+    world: `a sweeping view establishes the world of the story`,
+    character: c?.present ? `${who} walks into frame and settles, at ease` : `the main subject enters the frame`,
+    tension: c?.present ? `${who} hesitates, glancing down` : `a small imperfection is noticed`,
+    value: `hands work carefully, showing the craft behind the product`,
+    intro: c?.present ? `${who} greets the camera and holds up ${productName}` : `${productName} is introduced to camera`,
+    unbox: c?.present ? `${who} opens the box and lifts ${productName} out slowly` : `${productName} is revealed and handled up close`,
+    feature: `a macro pass highlights the key feature of ${productName}`,
+    use: c?.present && p?.present
+      ? `${who} ${useAction(p, productName)}, moving naturally through the space`
+      : `${productName} is shown in real use`,
+    compare: c?.present ? `${who} turns ${productName} in the hand, weighing it up` : `two options sit side by side`,
+    verdict: c?.present ? `${who} looks straight into the lens and gives the verdict` : `a final hero frame lands`,
+    setup: `the location wakes up quietly, small movements in the frame`,
+    inciting: c?.present ? `${who} notices something and stops` : `something changes in the frame`,
+    rising: c?.present ? `${who} moves with purpose, pace picking up` : `movement accelerates through the frame`,
+    climax: c?.present ? `${who} takes the decisive action, breath held` : `the decisive moment lands`,
+    resolution: c?.present ? `${who} exhales and lets the moment settle` : `the scene settles into stillness`,
+    prep: `hands arrange everything needed neatly within the frame`,
+    step1: `hands begin the first step slowly and clearly`,
+    step2: `hands perform the key step, the most important motion of the process`,
+    step3: `hands finish the final detail with care`,
+    result: `the finished result is presented, still and perfect`,
+    establish: `the landscape opens up below as the camera rises`,
+    arrival: c?.present ? `${who} steps into the location and looks around` : `the first steps into the location`,
+    explore: `small discoveries fill the frame one after another`,
+    people: `a local face breaks into a genuine smile`,
+    highlight: `the signature view of the place fills the frame`,
+    sunset: `the sun drops to the horizon and floods the frame with gold`,
+    outro: `the camera pulls back and holds on a final wide frame`,
+    problem: c?.present ? `${who} reacts to the everyday problem with visible frustration` : `the problem is shown plainly`,
+    solution: `${productName} enters frame as the answer`,
+    proof: `a clear before-and-after comparison plays out in frame`,
+    exterior: `the building is revealed from above in one continuous move`,
+    entrance: `the door opens and the camera glides through`,
+    living: `the camera travels across the living space, light pouring in`,
+    kitchen: `the camera moves along the counter, catching every finish`,
+    private: `the camera drifts into the quiet private space`,
+    view: `the camera settles on the view through the full-height window`,
+    ingredients: `the ingredients are arranged one by one from above`,
+    cooking: `steam and heat rise as the cooking happens`,
+    plating: `the dish is plated with precise, elegant movements`,
+    taste: c?.present ? `${who} takes the first bite and reacts with delight` : `the first bite is taken`,
+    verse: c?.present ? `${who} performs to camera, moving with the beat` : `the performance carries the frame`,
+    build: `energy rises, motion accelerates with the music`,
+    chorus: c?.present ? `${who} hits the biggest movement of the track` : `the biggest visual moment lands`,
+    bridge: c?.present ? `${who} slows down into an intimate, quiet beat` : `the frame goes quiet and intimate`,
+  };
+
+  const base = byBeat[beat.id] || `the scene plays out around ${productName}`;
+  if (beat.repeat > 0) {
+    const variations = [
+      'seen from a fresh angle on the opposite side of the set',
+      'covered again in a tighter framing with different blocking',
+      'repeated at a different moment of the action, with new movement',
+    ];
+    return `${base}, ${variations[(beat.repeat - 1) % variations.length]}`;
+  }
+  return base;
+}
+
+/**
+ * Dựng danh sách scene từ bible. Hàm thuần: cùng bible → cùng kết quả.
+ * @param {object} bible
+ * @param {object} [opts] {variantSeeds: {sceneIndex: seed}} để regenerate riêng từng scene
+ */
+function buildScenes(bible, opts = {}) {
+  const beats = planBeats(bible.genreId, bible.options.sceneCount);
+  const durations = distributeDuration(beats, bible.options.duration);
+  const variantSeeds = opts.variantSeeds || {};
+
+  return beats.map((beat, index) => {
+    const seed = variantSeeds[index] != null ? variantSeeds[index] : bible.seed + index * 7919;
+    const rng = makeRng(seed);
+    const shot = beat.shot;
+    const angle = pick(ANGLES[shot] || ANGLES.medium, rng);
+    const movement = pick(MOVES[shot] || MOVES.medium, rng);
+
+    return {
+      id: `scene-${index + 1}`,
+      index,
+      number: index + 1,
+      beatId: beat.id,
+      title: beat.repeat > 0 ? `${beat.vi} (biến thể ${beat.repeat + 1})` : beat.vi,
+      purpose: beat.purpose,
+      duration: durations[index],
+      overLimit: durations[index] > MAX_CLIP_SECONDS,
+      shot,
+      shotLabel: SHOT_LABEL[shot] || SHOT_LABEL.medium,
+      angle,
+      movement,
+      action: actionFor(beat, bible, rng),
+      voiceover: voiceoverFor(beat, bible),
+      onScreenText: beat.id === 'cta' ? (bible.product?.brand || bible.title) : '',
+      seed,
+      variant: variantSeeds[index] != null ? 1 : 0,
+    };
+  });
+}
+
+/* ===== src/engine/synopsis.js ===== */
+/**
+ * Tóm tắt kịch bản bằng tiếng Việt: logline + dòng thời gian các cảnh.
+ * Đây là phần "Kịch bản" mà người dùng đọc được, nằm giữa Ý tưởng và Danh sách Scene.
+ */
+
+/** Nhãn cỡ cảnh bằng tiếng Việt để người dùng đọc dòng thời gian cho dễ. */
+const SHOT_VI = {
+  aerial: 'Toàn cảnh flycam',
+  wide: 'Toàn cảnh',
+  medium: 'Trung cảnh',
+  close: 'Cận cảnh',
+  closeup: 'Đặc tả gương mặt',
+  macro: 'Macro chi tiết',
+  topdown: 'Góc từ trên xuống',
+};
+
+const MOOD_VI = {
+  'luxurious and confident': 'sang trọng, tự tin',
+  'soft and romantic': 'nhẹ nhàng, lãng mạn',
+  'energetic and playful': 'năng động, vui tươi',
+  'warm and heartfelt': 'ấm áp, giàu cảm xúc',
+  'mysterious and cinematic': 'huyền bí, đậm chất điện ảnh',
+  'sleek and modern': 'hiện đại, tinh gọn',
+  'natural and grounded': 'tự nhiên, mộc mạc',
+};
+
+/** Vai/nghề nghiệp dịch sang tiếng Việt cho phần tóm tắt kịch bản. */
+const ROLE_VI = {
+  'factory worker': 'công nhân', engineer: 'kỹ sư', teacher: 'giáo viên', doctor: 'bác sĩ',
+  farmer: 'nông dân', driver: 'tài xế', 'staff member': 'nhân viên', customer: 'khách hàng',
+  chef: 'đầu bếp', executive: 'lãnh đạo doanh nghiệp', athlete: 'vận động viên', child: 'em bé',
+  'family of three': 'gia đình ba người', singer: 'ca sĩ', student: 'học sinh, sinh viên',
+  'fashion model': 'người mẫu', barista: 'nhân viên pha chế', presenter: 'người dẫn',
+  instructor: 'người hướng dẫn', 'lead character': 'nhân vật chính', performer: 'nghệ sĩ biểu diễn',
+  'young woman': 'cô gái', woman: 'người phụ nữ', 'young man': 'chàng trai', man: 'người đàn ông',
+  'person featured in the video': 'nhân vật xuất hiện trong video',
+};
+
+function characterVi(bible) {
+  const c = bible.character;
+  if (!c?.present) return '';
+  const roleVi = ROLE_VI[c.role];
+  const gender = roleVi || (c.gender === 'male' ? 'chàng trai' : c.gender === 'female' ? 'cô gái' : 'nhân vật');
+  const ethnic = c.ethnicity === 'Vietnamese' ? 'Việt Nam' : c.ethnicity;
+  const age = String(c.age || '').match(/\d+/);
+  return `${c.name} — ${gender} ${ethnic}${age ? ` khoảng ${age[0]} tuổi` : ''}`;
+}
+
+function settingVi(bible) {
+  const map = {
+    'modern coffee shop': 'quán cà phê hiện đại',
+    'photo studio': 'studio chụp hình',
+    beach: 'bãi biển',
+    'city street': 'đường phố thành thị',
+    office: 'văn phòng',
+    kitchen: 'gian bếp',
+    forest: 'khu rừng',
+    'living room': 'phòng khách',
+    'boutique showroom': 'showroom cao cấp',
+    rooftop: 'sân thượng',
+    gym: 'phòng tập',
+    'luxury hotel suite': 'phòng khách sạn hạng sang',
+    countryside: 'vùng quê',
+    'local market': 'khu chợ',
+    'cinematic studio set': 'phim trường tối, đậm chất điện ảnh',
+    'apartment building': 'toà chung cư',
+    school: 'khuôn viên trường học',
+    factory: 'nhà máy',
+    'construction site': 'công trường xây dựng',
+    clinic: 'phòng khám',
+    restaurant: 'nhà hàng',
+    supermarket: 'siêu thị',
+    stadium: 'sân vận động',
+    warehouse: 'nhà kho',
+    'theo ý tưởng': 'bối cảnh theo đúng ý tưởng',
+  };
+  return map[bible.setting?.name] || bible.setting?.name || 'bối cảnh chính';
+}
+
+/** Một đoạn tóm tắt kịch bản bằng tiếng Việt, đọc là hình dung được cả video. */
+function buildLogline(bible, scenes) {
+  const total = scenes.reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
+  const productVi = bible.product?.present
+    ? (bible.product.brand ? `${PRODUCT_VI[bible.product.category] || 'sản phẩm'} "${bible.product.brand}"` : (PRODUCT_VI[bible.product.category] || 'sản phẩm'))
+    : '';
+  const who = characterVi(bible);
+
+  const parts = [`${bible.genreVi || bible.genre} dài ${total} giây, ${scenes.length} cảnh, phong cách ${(bible.styleVi || bible.style).toLowerCase()}`];
+  if (who && productVi) parts.push(`${who} cùng ${productVi} tại ${settingVi(bible)}`);
+  else if (who) parts.push(`${who} tại ${settingVi(bible)}`);
+  else if (productVi) parts.push(`${productVi} tại ${settingVi(bible)}`);
+  else parts.push(`lấy ${settingVi(bible)} làm nhân vật chính`);
+
+  parts.push(`không khí ${MOOD_VI[bible.mood] || bible.mood}, tông màu ${bible.paletteVi || bible.palette}`);
+
+  const last = scenes[scenes.length - 1];
+  if (last?.beatId === 'cta') parts.push('khép lại bằng khung hình chốt chừa chỗ đặt logo');
+
+  return `${parts.join('; ')}.`;
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/** Dòng thời gian: mỗi cảnh biết mình bắt đầu và kết thúc ở giây thứ mấy. */
+function buildTimeline(scenes) {
+  let cursor = 0;
+  return scenes.map((scene) => {
+    const start = cursor;
+    cursor += Number(scene.duration) || 0;
+    return {
+      id: scene.id,
+      number: scene.number,
+      title: scene.title,
+      duration: scene.duration,
+      start,
+      end: cursor,
+      range: `${formatTime(start)} – ${formatTime(cursor)}`,
+      shotVi: SHOT_VI[scene.shot] || 'Trung cảnh',
+      voiceover: scene.voiceover,
+      hasVideo: Boolean(scene.video),
+    };
+  });
+}
+
+/* ===== src/engine/prompt.js ===== */
+/**
+ * Prompt compiler - phần quan trọng nhất của app.
+ *
+ * Mỗi scene được biên dịch thành một prompt hoàn chỉnh cho Google Flow / Veo, gồm đủ:
+ * nhân vật, sản phẩm, hành động, bối cảnh, camera angle, camera movement, ánh sáng,
+ * chất liệu hình ảnh, phong cách cinematic, âm thanh, negative prompt.
+ *
+ * Toàn bộ phần "khoá" (nhân vật + sản phẩm + tông màu + ánh sáng) lấy trực tiếp từ
+ * Project Bible, nên chỉnh một scene không bao giờ ảnh hưởng nhân vật/sản phẩm ở scene khác.
+ */
+
+
+
+
+const LANG_LABEL = {
+  vi: 'Vietnamese',
+  en: 'English',
+  'vi-en': 'Vietnamese (with English subtitles)',
+  none: '',
+};
+
+/** Các trường của scene mà người dùng được phép sửa mà không đụng tới bible. */
+const EDITABLE_SCENE_FIELDS = ['title', 'duration', 'action', 'shotLabel', 'angle', 'movement', 'voiceover', 'onScreenText', 'extraNotes'];
+
+/**
+ * Khối chủ thể. Luôn có một dòng Subject vì model cần biết ai/cái gì là trung tâm khung hình.
+ * Không có nhân vật lẫn sản phẩm thì trỏ về dòng Concept, chứ không khẳng định
+ * "không có người trong khung" - một video khai giảng dĩ nhiên phải có người.
+ */
+function subjectBlock(bible) {
+  const lines = [];
+  if (bible.character?.present) {
+    lines.push(`Subject: ${bible.character.lock}.`);
+    if (bible.product?.present) lines.push(`Product (must stay identical): ${bible.product.lock}.`);
+  } else if (bible.product?.present) {
+    lines.push(`Subject (must stay identical): ${bible.product.lock}.`);
+  } else {
+    lines.push('Subject: the main subject described in the concept above, framed as the hero of the shot.');
+    lines.push('People: include only the people the concept implies, dressed appropriately for that setting.');
+  }
+  return lines.join('\n');
+}
+
+function dialogueLine(bible, scene) {
+  const label = LANG_LABEL[bible.languageId];
+  if (!label || !scene.voiceover) return 'Dialogue: none, music and sound design only.';
+  return `Dialogue (${label}, lip-synced): "${scene.voiceover}"`;
+}
+
+function continuityLine(bible) {
+  const parts = [];
+  if (bible.character?.present) parts.push(`${bible.character.id} keeps the exact same face, hair and outfit as every other scene`);
+  if (bible.product?.present) parts.push('the product keeps the exact same shape, colour, label and proportions');
+  parts.push(`same colour grade (${bible.palette})`);
+  parts.push(`same lighting logic and same ${bible.lens} lens language`);
+  return `Continuity: ${joinParts(parts, '; ')}.`;
+}
+
+/**
+ * Biên dịch prompt cho một scene.
+ * @param {object} bible Project Bible (nguồn duy nhất của nhân vật/sản phẩm)
+ * @param {object} scene scene đã build (có thể đã được người dùng chỉnh sửa các trường editable)
+ * @param {object} [opts] {total: số scene, includeHeader: bool}
+ */
+function compilePrompt(bible, scene, opts = {}) {
+  const total = opts.total || bible.options.sceneCount;
+  const header = `Scene ${scene.number}/${total} - "${scene.title}" - ${scene.duration}s - ${bible.aspect}`;
+
+  const body = [
+    // Ý tưởng gốc đứng đầu prompt: khi engine không nhận ra sản phẩm hay bối cảnh,
+    // đây vẫn là mô tả đúng nhất về thứ người dùng muốn.
+    bible.concept ? `Concept (follow this intent exactly): ${bible.concept}` : '',
+    subjectBlock(bible),
+    `Action: ${scene.action}.`,
+    `Setting: ${bible.setting.description}, ${bible.setting.time}.`,
+    `Camera: ${joinParts([scene.shotLabel, scene.angle, scene.movement, `${bible.lens} lens`, 'shallow depth of field'])}.`,
+    `Lighting: ${bible.lighting}.`,
+    `Look: ${joinParts([bible.style, bible.styleLook, `colour palette of ${bible.palette}`, bible.filmStock])}.`,
+    `Audio: ${bible.audio}${scene.onScreenText ? `; on-screen text: "${scene.onScreenText}"` : ''}.`,
+    dialogueLine(bible, scene),
+    continuityLine(bible),
+    scene.extraNotes ? `Extra notes: ${scene.extraNotes}.` : '',
+    `Negative prompt: ${bible.negative}.`,
+  ].filter(Boolean).join('\n');
+
+  return opts.includeHeader === false ? body : `${header}\n\n${body}`;
+}
+
+/** Prompt gọn một đoạn - tiện dán vào các công cụ chỉ nhận một dòng. */
+function compileCompactPrompt(bible, scene) {
+  return joinParts([
+    `${scene.shotLabel}, ${scene.angle}`,
+    bible.character?.present ? bible.character.lock : '',
+    scene.action,
+    `in ${bible.setting.description}`,
+    scene.movement,
+    bible.lighting,
+    `${bible.style}, ${bible.styleLook}, ${bible.palette}`,
+    bible.filmStock,
+    `audio: ${bible.audio}`,
+    `${bible.aspect} aspect ratio, ${scene.duration} seconds`,
+  ]);
+}
+
+/** Biên dịch prompt cho toàn bộ scene, tôn trọng prompt người dùng đã tự sửa. */
+function compileAll(bible, scenes) {
+  return scenes.map((scene) => ({
+    ...scene,
+    prompt: scene.customPrompt != null ? scene.customPrompt : compilePrompt(bible, scene, { total: scenes.length }),
+    compact: compileCompactPrompt(bible, scene),
+  }));
+}
+
+/** Cảnh báo kỹ thuật để hiển thị cho người dùng trước khi generate. */
+function promptWarnings(bible, scenes) {
+  const warnings = [];
+  const longOnes = scenes.filter((s) => s.duration > MAX_CLIP_SECONDS);
+  if (longOnes.length) {
+    warnings.push(
+      `${longOnes.length} scene dài hơn ${MAX_CLIP_SECONDS}s (Google Flow tạo tốt nhất ở clip ngắn). `
+      + 'Hãy tăng số cảnh hoặc giảm tổng thời lượng để mỗi cảnh gọn hơn.',
+    );
+  }
+  if (bible.product?.present && !bible.product.brand) {
+    warnings.push('Chưa có tên thương hiệu - prompt đang dùng placeholder [TÊN THƯƠNG HIỆU]. Thêm tên vào ô ý tưởng trong dấu ngoặc kép, ví dụ: "Elysia".');
+  }
+  if (!bible.product?.present && PRODUCT_LED_GENRES.includes(bible.genreId)) {
+    warnings.push('App chưa nhận ra sản phẩm cụ thể trong ý tưởng, nên prompt sẽ chung chung và phần lời thoại để trống. Hãy viết rõ sản phẩm/chủ thể trong ô ý tưởng, hoặc mở panel "Nhân vật & sản phẩm" điền tay.');
+  }
+  if (!bible.character?.present && PRODUCT_LED_GENRES.includes(bible.genreId)) {
+    warnings.push('Ý tưởng không nhắc tới người nào nên app không tự thêm nhân vật. Muốn có người trong video, hãy ghi rõ trong ý tưởng (ví dụ "một nữ nhân viên", "một kỹ sư").');
+  }
+  return warnings;
+}
+
+/** Xuất toàn bộ dự án ra text để copy sang Google Flow một lần. */
+function exportProjectText(project) {
+  const { bible, scenes } = project;
+  const lines = [
+    `# ${bible.title}`,
+    '',
+    `Ý tưởng: ${bible.idea}`,
+    `Thể loại: ${bible.genre} | Phong cách: ${bible.style} | Tỷ lệ: ${bible.aspect} | Tổng: ${scenes.reduce((a, s) => a + s.duration, 0)}s | ${scenes.length} cảnh`,
+    '',
+    '## Kịch bản',
+    buildLogline(bible, scenes),
+    '',
+    ...buildTimeline(scenes).map((item) => `- ${item.range} · Scene ${item.number} — ${item.title} (${item.shotVi})${item.voiceover ? ` — “${item.voiceover}”` : ''}`),
+    '',
+    '## Nhân vật & sản phẩm (giữ nguyên ở mọi cảnh)',
+    bible.character?.present ? `- Nhân vật: ${bible.character.lock}` : '- Nhân vật: không có',
+    bible.product?.present ? `- Sản phẩm: ${bible.product.lock}` : '- Sản phẩm: không có',
+    `- Bối cảnh: ${bible.setting.lock}`,
+    `- Tông màu: ${bible.palette}`,
+    `- Ánh sáng: ${bible.lighting}`,
+    `- Âm thanh: ${bible.audio}`,
+    '',
+    '## Prompt từng cảnh',
+  ];
+  scenes.forEach((scene) => {
+    lines.push('', `### Scene ${scene.number} - ${scene.title} (${scene.duration}s)`, '', scene.prompt);
+  });
+  return lines.join('\n');
+}
+
+/* ===== src/engine/bible.js ===== */
+/**
+ * Project Bible - "bộ nhớ" của dự án.
+ *
+ * Đây là nơi khoá lại nhân vật, sản phẩm, bối cảnh, tông màu, ánh sáng và âm thanh.
+ * Mọi prompt của mọi scene đều được dựng lại từ đúng object này, nên sửa hay
+ * regenerate một scene không bao giờ làm lệch nhân vật/sản phẩm ở các scene khác.
+ */
+
+
+const FEMALE_NAMES = ['Linh', 'Mai', 'Ngọc', 'Thảo', 'Hà', 'Trâm', 'An', 'Vy'];
+const MALE_NAMES = ['Minh', 'Nam', 'Khang', 'Duy', 'Bảo', 'Hưng', 'Quân', 'Phong'];
+
+const CHARACTER_RULES = [
+  { keys: ['co gai', 'cô gái', 'nu chinh', 'nguoi mau nu', 'girl', 'young woman'], gender: 'female', age: '25-year-old', role: 'young woman' },
+  { keys: ['nguoi phu nu', 'phu nu', 'woman', 'ba me', 'me bim'], gender: 'female', age: '32-year-old', role: 'woman' },
+  { keys: ['chang trai', 'anh chang', 'nam chinh', 'young man', 'guy'], gender: 'male', age: '27-year-old', role: 'young man' },
+  { keys: ['nguoi dan ong', 'dan ong', 'man', 'quy ong'], gender: 'male', age: '35-year-old', role: 'man' },
+  { keys: ['dau bep', 'chef', 'bep truong'], gender: 'neutral', age: '38-year-old', role: 'chef', wardrobe: 'crisp white chef jacket, dark apron' },
+  { keys: ['doanh nhan', 'ceo', 'giam doc', 'businessman', 'businesswoman'], gender: 'neutral', age: '38-year-old', role: 'executive', wardrobe: 'tailored charcoal suit, minimal jewellery' },
+  { keys: ['van dong vien', 'athlete', 'runner', 'gym'], gender: 'neutral', age: '26-year-old', role: 'athlete', wardrobe: 'technical sportswear, running shoes' },
+  { keys: ['em be', 'tre em', 'baby', 'child', 'kid'], gender: 'neutral', age: '6-year-old', role: 'child', wardrobe: 'soft pastel casual clothes' },
+  { keys: ['gia dinh', 'family'], gender: 'neutral', age: '', role: 'family of three', wardrobe: 'warm casual knitwear' },
+  { keys: ['ca si', 'singer', 'nhac si'], gender: 'neutral', age: '24-year-old', role: 'singer', wardrobe: 'stage outfit with subtle sequins' },
+  { keys: ['sinh vien', 'hoc sinh', 'student'], gender: 'neutral', age: '20-year-old', role: 'student', wardrobe: 'casual campus outfit, canvas backpack' },
+  { keys: ['nguoi mau', 'model', 'fashionista'], gender: 'neutral', age: '24-year-old', role: 'fashion model', wardrobe: 'editorial designer outfit' },
+  { keys: ['barista', 'pha che'], gender: 'neutral', age: '27-year-old', role: 'barista', wardrobe: 'denim apron over a plain tee' },
+  { keys: ['cong nhan', 'worker'], gender: 'neutral', age: '30-year-old', role: 'factory worker', wardrobe: 'company work uniform, safety helmet and gloves' },
+  { keys: ['ky su', 'ky thuat vien', 'engineer', 'technician'], gender: 'neutral', age: '32-year-old', role: 'engineer', wardrobe: 'work shirt with company logo, safety helmet' },
+  { keys: ['giao vien', 'thay giao', 'co giao', 'teacher'], gender: 'neutral', age: '35-year-old', role: 'teacher', wardrobe: 'neat smart-casual outfit' },
+  { keys: ['bac si', 'y ta', 'doctor', 'nurse'], gender: 'neutral', age: '36-year-old', role: 'doctor', wardrobe: 'clean white coat over scrubs' },
+  { keys: ['nong dan', 'farmer'], gender: 'neutral', age: '45-year-old', role: 'farmer', wardrobe: 'worn work clothes and a wide-brim hat' },
+  { keys: ['tai xe', 'lai xe', 'driver'], gender: 'neutral', age: '38-year-old', role: 'driver', wardrobe: 'company driver uniform' },
+  { keys: ['nhan vien', 'staff', 'employee', 'nhan su'], gender: 'neutral', age: '29-year-old', role: 'staff member', wardrobe: 'company uniform or neat office wear' },
+  { keys: ['khach hang', 'customer', 'client'], gender: 'neutral', age: '33-year-old', role: 'customer', wardrobe: 'ordinary everyday clothes' },
+];
+
+const ETHNICITIES = [
+  { keys: ['viet nam', 'vietnam', 'vietnamese', 'ha noi', 'sai gon', 'da nang', 'hue'], label: 'Vietnamese' },
+  { keys: ['han quoc', 'korea', 'korean'], label: 'Korean' },
+  { keys: ['nhat ban', 'japan', 'japanese'], label: 'Japanese' },
+  { keys: ['trung quoc', 'chinese'], label: 'Chinese' },
+  { keys: ['thai lan', 'thailand', 'thai'], label: 'Thai' },
+  { keys: ['chau au', 'european', 'phuong tay', 'western'], label: 'European' },
+  { keys: ['nguoi my', 'hoa ky', 'american', 'usa'], label: 'American' },
+];
+
+const PRODUCT_RULES = [
+  { keys: ['nuoc hoa', 'perfume', 'fragrance', 'eau de parfum'], name: 'perfume bottle', category: 'fragrance', material: 'faceted crystal glass with a polished metal cap', hero: 'the bottle catching a thin rim of light as it turns' },
+  { keys: ['thoi trang', 'fashion', 'quan ao', 'chiec vay', 'vay dam', 'ao dai', 'outfit', 'clothing', 'bo suu tap'], name: 'fashion outfit', category: 'fashion', material: 'soft flowing fabric with visible weave and stitching', hero: 'fabric moving in slow motion as the model turns' },
+  { keys: ['my pham', 'cosmetic', 'skincare', 'serum', 'kem duong', 'son moi', 'lipstick'], name: 'skincare bottle', category: 'beauty', material: 'frosted glass dropper bottle with matte label', hero: 'a single drop of serum falling in macro' },
+  { keys: ['dien thoai', 'smartphone', 'phone', 'iphone'], name: 'smartphone', category: 'tech', material: 'brushed aluminium frame and glossy glass back', hero: 'the screen lighting up in a dark frame' },
+  { keys: ['laptop', 'may tinh'], name: 'laptop', category: 'tech', material: 'anodised aluminium unibody', hero: 'the lid opening to reveal a glowing display' },
+  { keys: ['dong ho', 'watch', 'timepiece'], name: 'wristwatch', category: 'luxury', material: 'stainless steel case with sapphire crystal', hero: 'a macro sweep across the dial and second hand' },
+  { keys: ['giay', 'sneaker', 'shoes'], name: 'sneaker', category: 'fashion', material: 'knit upper with rubber outsole', hero: 'the sole compressing on impact in slow motion' },
+  { keys: ['ca phe', 'coffee', 'espresso', 'latte'], name: 'cup of coffee', category: 'beverage', material: 'ceramic cup with crema surface and rising steam', hero: 'steam curling up through a shaft of light' },
+  { keys: ['tra sua', 'bubble tea', 'milk tea', 'nuoc ep', 'sinh to'], name: 'drink cup', category: 'beverage', material: 'clear cup with layered liquid and condensation', hero: 'ice tumbling into the cup in slow motion' },
+  { keys: ['o to', 'xe hoi', 'car', 'suv', 'sedan'], name: 'car', category: 'automotive', material: 'metallic paint with sharp specular highlights', hero: 'a slow reflection sweeping along the body line' },
+  { keys: ['xe may', 'motorbike', 'scooter'], name: 'motorbike', category: 'automotive', material: 'painted metal with chrome accents', hero: 'wheels spinning as light streaks past' },
+  { keys: ['trang suc', 'jewellery', 'jewelry', 'nhan cuoi', 'chiec nhan', 'vong co', 'day chuyen', 'bong tai', 'necklace', 'bracelet'], name: 'jewellery piece', category: 'luxury', material: '18k gold with brilliant-cut stones', hero: 'stones throwing tiny rainbow highlights in macro' },
+  { keys: ['banh ngot', 'banh', 'cake', 'pastry', 'do an', 'food', 'mon an', 'am thuc', 'pho bo', 'bun bo', 'nha hang'], name: 'dish', category: 'food', material: 'fresh ingredients with visible texture and steam', hero: 'a close macro of texture and rising steam' },
+  { keys: ['sua tuoi', 'sua chua', 'sua hat', 'milk', 'yogurt'], name: 'dairy product', category: 'food', material: 'chilled bottle with condensation on the surface', hero: 'a splash of milk frozen mid-air' },
+  { keys: ['noi that', 'furniture', 'sofa', 'ban ghe'], name: 'furniture piece', category: 'interior', material: 'natural oak and woven textile', hero: 'light moving slowly across the surface' },
+  { keys: ['can ho', 'bat dong san', 'nha pho', 'villa', 'apartment', 'real estate'], name: 'apartment', category: 'space', material: 'stone, glass and warm wood finishes', hero: 'a smooth glide through the living space' },
+  { keys: ['app', 'ung dung', 'phan mem', 'website', 'saas', 'nen tang', 'he thong quan ly'], name: 'software product', category: 'digital', material: 'clean UI on a floating device mockup', hero: 'the interface animating under the fingertip' },
+  { keys: ['khoa hoc', 'course', 'workshop'], name: 'course', category: 'education', material: 'notebooks, laptop and warm desk light', hero: 'a hand writing while the screen glows' },
+];
+
+const SETTING_RULES = [
+  { keys: ['quan ca phe', 'coffee shop', 'cafe', 'quan cafe'], name: 'modern coffee shop', description: 'a modern coffee shop with warm wood tables, hanging pendant lights, indoor plants and a large window', time: 'late morning' },
+  { keys: ['studio', 'phong chup'], name: 'photo studio', description: 'a seamless studio backdrop with controlled softbox lighting and a subtle floor reflection', time: 'timeless studio light' },
+  { keys: ['bai bien', 'bo bien', 'beach', 'seaside'], name: 'beach', description: 'an open beach with fine sand, gentle waves and a wide horizon', time: 'golden hour' },
+  { keys: ['duong pho', 'street', 'pho co', 'do thi', 'thanh pho', 'city'], name: 'city street', description: 'a busy city street with neon storefronts, wet asphalt and passing traffic lights', time: 'blue hour' },
+  { keys: ['van phong', 'office', 'coworking'], name: 'office', description: 'a bright modern office with glass partitions, minimalist desks and city view windows', time: 'daytime' },
+  { keys: ['nha bep', 'kitchen', 'bep'], name: 'kitchen', description: 'a clean contemporary kitchen with marble counters and morning light from a side window', time: 'morning' },
+  { keys: ['rung', 'forest', 'nui', 'mountain'], name: 'forest', description: 'a misty forest with tall trees, soft fog and shafts of light between branches', time: 'early morning' },
+  { keys: ['phong khach', 'living room', 'can ho', 'noi that nha'], name: 'living room', description: 'a warm minimalist living room with linen sofa, oak floor and sheer curtains', time: 'afternoon' },
+  { keys: ['showroom', 'cua hang', 'store', 'boutique'], name: 'boutique showroom', description: 'a premium boutique showroom with spotlit displays and polished stone floor', time: 'evening' },
+  { keys: ['san thuong', 'rooftop'], name: 'rooftop', description: 'a rooftop terrace overlooking a glittering skyline', time: 'sunset' },
+  { keys: ['gym', 'phong tap'], name: 'gym', description: 'an industrial gym with black rubber floor, chalk dust in the air and hard top light', time: 'early morning' },
+  { keys: ['khach san', 'hotel', 'resort'], name: 'luxury hotel suite', description: 'a luxury hotel suite with marble surfaces, silk drapes and layered practical lighting', time: 'dusk' },
+  { keys: ['ruong', 'lang que', 'nong thon', 'countryside'], name: 'countryside', description: 'terraced rice fields with a soft haze rolling over the hills', time: 'sunrise' },
+  { keys: ['khu cho', 'cho dem', 'cho truyen thong', 'market'], name: 'local market', description: 'a lively local market with colourful stalls, hanging lamps and moving crowds', time: 'morning' },
+  { keys: ['chung cu', 'toa nha', 'apartment building', 'hanh lang'], name: 'apartment building', description: 'a modern apartment building with clean corridors, stairwells and a shared lobby', time: 'daytime' },
+  { keys: ['truong hoc', 'truong thpt', 'truong tieu hoc', 'lop hoc', 'san truong', 'school', 'classroom'], name: 'school', description: 'a school campus with classrooms, a courtyard and rows of desks', time: 'morning' },
+  { keys: ['nha may', 'xuong san xuat', 'factory', 'day chuyen'], name: 'factory', description: 'a working factory floor with production lines, machinery and overhead lighting', time: 'daytime' },
+  { keys: ['cong truong', 'construction site', 'cong trinh'], name: 'construction site', description: 'an active construction site with scaffolding, steel frames and dust in the air', time: 'morning' },
+  { keys: ['benh vien', 'phong kham', 'hospital', 'clinic'], name: 'clinic', description: 'a clean modern clinic with bright corridors and medical equipment', time: 'daytime' },
+  { keys: ['nha hang', 'quan an', 'restaurant'], name: 'restaurant', description: 'a warm restaurant interior with set tables and soft pendant lighting', time: 'evening' },
+  { keys: ['sieu thi', 'cua hang tien loi', 'supermarket'], name: 'supermarket', description: 'a bright supermarket aisle with stocked shelves and clean flooring', time: 'daytime' },
+  { keys: ['san van dong', 'san bong', 'stadium'], name: 'stadium', description: 'a large stadium with floodlights and an open pitch', time: 'evening' },
+  { keys: ['kho hang', 'nha kho', 'warehouse'], name: 'warehouse', description: 'a large warehouse with tall racking, pallets and forklift lanes', time: 'daytime' },
+];
+
+const MOOD_RULES = [
+  { keys: ['sang trong', 'luxury', 'cao cap', 'premium'], mood: 'luxurious and confident', palette: 'deep black, champagne gold and warm amber', paletteVi: 'đen sâu, vàng champagne và hổ phách ấm' },
+  { keys: ['nhe nhang', 'diu dang', 'soft', 'gentle', 'lang man', 'romantic'], mood: 'soft and romantic', palette: 'blush pink, cream and pale gold', paletteVi: 'hồng phấn, kem và vàng nhạt' },
+  { keys: ['nang dong', 'tre trung', 'energetic', 'youthful', 'vui'], mood: 'energetic and playful', palette: 'coral, electric blue and sunlit yellow', paletteVi: 'san hô, xanh điện và vàng nắng' },
+  { keys: ['cam dong', 'am ap', 'warm', 'emotional', 'gia dinh'], mood: 'warm and heartfelt', palette: 'honey amber, terracotta and soft ivory', paletteVi: 'hổ phách mật ong, đất nung và ngà mềm' },
+  { keys: ['bi an', 'huyen bi', 'mysterious', 'dark'], mood: 'mysterious and cinematic', palette: 'midnight blue, smoke grey and cold silver', paletteVi: 'xanh đêm, xám khói và bạc lạnh' },
+  { keys: ['hien dai', 'modern', 'cong nghe', 'tech', 'futuristic'], mood: 'sleek and modern', palette: 'cool graphite, glass white and cyan accents', paletteVi: 'xám chì lạnh, trắng kính và điểm nhấn cyan' },
+  { keys: ['thien nhien', 'natural', 'moc mac', 'organic'], mood: 'natural and grounded', palette: 'sage green, sand beige and warm wood', paletteVi: 'xanh xô thơm, be cát và gỗ ấm' },
+];
+
+const LIGHTING_BY_MOOD = {
+  'luxurious and confident': 'controlled key light with deep falloff, soft rim light separating the subject from a dark background',
+  'soft and romantic': 'large diffused window light, gentle wrap, airy highlights',
+  'energetic and playful': 'bright bounced daylight with crisp specular highlights',
+  'warm and heartfelt': 'golden practical lights mixed with soft late-afternoon sun',
+  'mysterious and cinematic': 'low-key lighting, single hard source, volumetric haze',
+  'sleek and modern': 'clean broad softbox light with cool edge highlights',
+  'natural and grounded': 'natural available light, soft overcast diffusion',
+};
+
+const AUDIO_BY_MOOD = {
+  'luxurious and confident': 'sparse cinematic piano, deep sub-bass swell, silky room tone',
+  'soft and romantic': 'warm felt piano, light strings, soft breathing room tone',
+  'energetic and playful': 'upbeat pop percussion, finger snaps, bright synth plucks',
+  'warm and heartfelt': 'acoustic guitar, soft strings, gentle ambient life',
+  'mysterious and cinematic': 'low drone, slow pulsing bass, distant reverb tail',
+  'sleek and modern': 'minimal electronic pulse, clean UI clicks, airy pad',
+  'natural and grounded': 'ambient nature bed, soft wind, organic foley',
+};
+
+/** Nơi chốn có tiếng đặc trưng riêng, đè lên nền âm thanh chọn theo tâm trạng. */
+const AUDIO_BY_SETTING = {
+  factory: 'steady machinery hum, rhythmic production line clatter, distant industrial tones',
+  'construction site': 'power tools, metal impacts, distant machinery and site chatter',
+  warehouse: 'forklift hum, pallet movement, wide indoor room tone',
+  school: 'children chatter in the distance, school bell, open courtyard ambience',
+  clinic: 'quiet corridor tone, soft equipment beeps, calm footsteps',
+  gym: 'weight plates, controlled breathing, low room reverb',
+  'city street': 'traffic hum, passing motorbikes, distant street chatter',
+  'local market': 'market chatter, footsteps, small bells and handling sounds',
+  restaurant: 'cutlery, low conversation, kitchen sounds behind',
+  supermarket: 'trolley wheels, faint background music, checkout beeps',
+  stadium: 'crowd murmur, distant whistle, open-air reverb',
+  'apartment building': 'quiet corridor tone, lift chime, muffled everyday life',
+};
+
+const DEFAULT_NEGATIVE = 'no text overlays, no watermark, no logo distortion, no extra fingers, no deformed hands or faces, no warped product label, no duplicated subject, no subtitles, no jitter, no blurry frames, no oversaturated skin tones';
+
+/** So khớp theo *từ* chứ không phải chuỗi con: "phong cách" không được tính là màu "hồng". */
+function containsPhrase(text, phrase) {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(text);
+}
+
+/** Tên dự án: bỏ phần "Tạo video…" ở đầu câu để tiêu đề đọc gọn hơn. */
+function projectTitle(idea) {
+  let text = String(idea || '').split(/[.,;\n]/)[0].trim();
+  text = text.replace(/^(hãy\s+|giúp\s+(tôi|mình)\s+)?(tạo|làm|dựng|quay|viết|lên)\s+(một\s+)?(video|clip|đoạn\s+video|phim|kịch\s+bản)\s*/i, '');
+  text = text.replace(/^(video|clip|phim)\s+/i, '');
+  text = text.trim();
+  if (text.length > 60) {
+    const cut = text.slice(0, 60);
+    const lastSpace = cut.lastIndexOf(' ');
+    text = (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trim();
+  }
+  return titleCase(text) || 'Dự Án Video Mới';
+}
+
+function matchRule(rules, text) {
+  for (const rule of rules) {
+    if (rule.keys.some((key) => containsPhrase(text, key))) return rule;
+  }
+  return null;
+}
+
+function detectGender(text, fallback) {
+  // Thứ tự quan trọng: kiểm tra nữ trước, và tránh các từ dễ nhầm ("Việt Nam" không phải giới tính nam).
+  if (/(^|[^a-z])(co gai|nu|nu chinh|phu nu|nguoi mau nu|ba me|female|woman|girl)([^a-z]|$)/.test(text)) return 'female';
+  if (/(^|[^a-z])(chang trai|anh chang|nam chinh|nam gioi|nguoi dan ong|dan ong|quy ong|male|man|guy|boy)([^a-z]|$)/.test(text)) return 'male';
+  return fallback || 'neutral';
+}
+
+/** Các từ cho thấy trong video có người. Không thấy từ nào thì đừng bịa ra nhân vật. */
+const PERSON_HINTS = [
+  'nguoi', 'co gai', 'chang trai', 'phu nu', 'dan ong', 'em be', 'tre em', 'gia dinh',
+  'nhan vien', 'khach hang', 'hoc sinh', 'sinh vien', 'giao vien', 'dau bep', 'ca si',
+  'dien vien', 'mc', 'host', 'model', 'nguoi mau', 'doanh nhan', 'ceo', 'van dong vien',
+  'barista', 'ban', 'toi', 'chung toi', 'anh', 'chi', 'co ay', 'anh ay', 'nhan vat',
+  'presenter', 'woman', 'man', 'girl', 'boy', 'family', 'team', 'doi ngu', 'cong nhan',
+  'ky su', 'bac si', 'y ta', 'nong dan', 'tai xe', 'phong van', 'dan chuong trinh',
+];
+
+function mentionsPerson(text) {
+  return PERSON_HINTS.some((hint) => containsPhrase(text, hint));
+}
+
+function buildCharacter(text, options, rng) {
+  const rule = matchRule(CHARACTER_RULES, text);
+  // Trước đây mọi video quảng cáo đều bị gán một cô người mẫu, kể cả video tuyển
+  // dụng nhà máy hay giới thiệu trường học. Giờ phải có dấu hiệu thật mới dựng.
+  if (!rule && !mentionsPerson(text)) {
+    return { present: false };
+  }
+
+  const DEFAULT_ROLE = {
+    ad: 'person featured in the video', brand: 'person featured in the video',
+    review: 'presenter', tutorial: 'instructor', social: 'presenter',
+    story: 'lead character', music: 'performer',
+  };
+  const base = rule || { gender: 'neutral', age: '26-year-old', role: DEFAULT_ROLE[options.genre] || 'presenter' };
+  const gender = detectGender(text, base.gender);
+  const ethnicity = (matchRule(ETHNICITIES, text) || { label: 'Vietnamese' }).label;
+  // Không rõ giới tính thì bốc từ cả hai danh sách, đừng mặc định là nữ.
+  const namePool = gender === 'male' ? MALE_NAMES : gender === 'female' ? FEMALE_NAMES : [...FEMALE_NAMES, ...MALE_NAMES];
+  const name = pick(namePool, rng);
+
+  const hairOptions = gender === 'male'
+    ? ['short neatly parted black hair', 'textured black hair swept back']
+    : gender === 'female'
+      ? ['long straight black hair', 'shoulder-length black hair with a soft wave', 'black hair in a low elegant bun']
+      : ['neat short dark hair', 'dark hair tied back neatly'];
+
+  const hair = pick(hairOptions, rng);
+  // Trang phục sang trọng chỉ dùng khi ý tưởng thật sự thuộc nhóm thời trang / làm đẹp /
+  // cao cấp. Mặc định phải trung tính, nếu không một video an toàn lao động cũng ra váy lụa.
+  const glamour = ['model', 'fashion model', 'singer', 'performer'].includes(base.role)
+    || ['thoi trang', 'fashion', 'my pham', 'lam dep', 'nuoc hoa', 'trang suc', 'sang trong', 'luxury'].some((k) => containsPhrase(text, k));
+
+  const wardrobe = base.wardrobe || (glamour
+    ? pick(
+      gender === 'male'
+        ? ['a tailored off-white linen shirt and dark trousers', 'a fitted black knit and slim charcoal trousers']
+        : ['a minimalist cream silk blouse and tailored trousers', 'an elegant off-white slip dress', 'a soft beige knit top with wide-leg trousers'],
+      rng,
+    )
+    : pick(
+      ['neat everyday clothes appropriate to the setting', 'simple smart-casual clothing suited to the location'],
+      rng,
+    ));
+
+  const descriptor = joinParts([
+    base.age,
+    ethnicity,
+    base.role,
+  ], ' ');
+
+  return {
+    present: true,
+    id: name.toUpperCase(),
+    name,
+    gender,
+    ethnicity,
+    role: base.role,
+    age: base.age,
+    hair,
+    wardrobe,
+    skin: glamour
+      ? 'natural glowing skin with visible pores, no heavy retouching'
+      : 'natural skin texture with visible pores, no heavy retouching, no glamour makeup',
+    expression: 'calm confident expression with a subtle warm smile',
+    /** Chuỗi này được nhúng nguyên văn vào mọi scene để giữ nhân vật nhất quán. */
+    lock: joinParts([
+      `${name.toUpperCase()} (${descriptor})`,
+      hair,
+      glamour ? 'natural glowing skin, soft natural makeup' : 'natural skin texture, no heavy makeup',
+      `wearing ${wardrobe}`,
+      'same face, same hairstyle and same outfit in every shot',
+    ]),
+  };
+}
+
+function buildProduct(idea, text, options, rng) {
+  const rule = matchRule(PRODUCT_RULES, text);
+  // Không nhận ra sản phẩm thì nói thẳng là không biết, đừng dựng ra "chiếc đồng hồ
+  // vàng 18k" cho một video mà người dùng không hề nhắc tới sản phẩm nào.
+  if (!rule) return { present: false };
+
+  const base = rule;
+
+  const brandMatch = String(idea).match(/["“”']([^"“”']{2,40})["“”']/);
+  const brand = brandMatch ? brandMatch[1].trim() : '';
+  const colour = matchRule([
+    { keys: ['mau vang', 'anh vang', 'gold', 'golden'], label: 'champagne gold' },
+    { keys: ['mau den', 'black'], label: 'matte black' },
+    { keys: ['mau trang', 'white', 'ivory'], label: 'ivory white' },
+    { keys: ['mau hong', 'pink'], label: 'soft blush pink' },
+    { keys: ['mau xanh la', 'green', 'emerald'], label: 'deep emerald green' },
+    { keys: ['mau xanh', 'blue', 'navy'], label: 'midnight blue' },
+    { keys: ['mau do', 'red', 'crimson'], label: 'crimson red' },
+  ], text);
+
+  return {
+    present: true,
+    name: base.name,
+    category: base.category,
+    brand,
+    colour: colour ? colour.label : '',
+    material: base.material,
+    hero: base.hero,
+    /** Chuỗi khoá sản phẩm - lặp lại y hệt ở mọi scene. */
+    lock: joinParts([
+      brand ? `"${brand}" ${base.name}` : `the hero ${base.name}`,
+      colour ? colour.label : '',
+      base.material,
+      'exactly the same shape, colour, label and proportions in every shot',
+    ]),
+  };
+}
+
+function buildSetting(text, rng) {
+  const matched = matchRule(SETTING_RULES, text);
+  const rule = matched || {
+    // Không nhận ra nơi chốn thì để model tự chọn nơi hợp với ý tưởng ở dòng Concept,
+    // thay vì áp đặt một phim trường tối cho mọi video.
+    name: 'theo ý tưởng',
+    description: 'a real location that fits the concept above, dressed and lit for filming',
+    time: 'time of day that suits the concept',
+  };
+  return {
+    present: true,
+    matched: Boolean(matched),
+    name: rule.name,
+    description: rule.description,
+    time: rule.time,
+    lock: `${rule.description}, ${rule.time}`,
+  };
+}
+
+function buildMood(text, styleId) {
+  const rule = matchRule(MOOD_RULES, text);
+  if (rule) return rule;
+  const byStyle = {
+    cinematic: MOOD_RULES[0],
+    minimal: MOOD_RULES[5],
+    documentary: MOOD_RULES[6],
+    vibrant: MOOD_RULES[2],
+    moody: MOOD_RULES[4],
+    anime: MOOD_RULES[2],
+    '3d': MOOD_RULES[5],
+    retro: MOOD_RULES[3],
+  };
+  return byStyle[styleId] || MOOD_RULES[0];
+}
+
+/**
+ * Dựng Project Bible từ ý tưởng thô + tuỳ chọn của người dùng.
+ * @param {string} idea
+ * @param {object} options {genre, style, duration, aspect, sceneCount, language}
+ * @param {number} [seed] truyền seed để tái lập; bỏ trống thì tính từ chính ý tưởng
+ */
+function buildBible(idea, options, seed) {
+  const text = normalize(idea);
+  const usedSeed = seed == null ? hashSeed(`${text}|${options.genre}|${options.style}`) : seed >>> 0;
+  const rng = makeRng(usedSeed);
+
+  const style = findPreset(STYLES, options.style);
+  const genre = findPreset(GENRES, options.genre);
+  const aspect = findPreset(ASPECTS, options.aspect);
+  const language = findPreset(LANGUAGES, options.language);
+
+  const character = buildCharacter(text, options, rng);
+  const product = buildProduct(idea, text, options, rng);
+  const setting = buildSetting(text, rng);
+  const moodRule = buildMood(text, style.id);
+
+  const lens = pick(['35mm', '50mm', '85mm', '24mm'], rng);
+
+  return {
+    seed: usedSeed,
+    idea: String(idea || '').trim(),
+    /** Ý tưởng gốc của người dùng, nhúng nguyên văn vào mọi prompt. Khi engine
+     *  không nhận ra sản phẩm hay bối cảnh, đây vẫn là nguồn ý đúng nhất. */
+    concept: String(idea || '').trim(),
+    options: { ...options },
+    genre: genre.en,
+    genreVi: genre.vi,
+    genreId: genre.id,
+    styleId: style.id,
+    style: style.en,
+    styleVi: style.vi,
+    styleLook: style.look,
+    aspect: aspect.id,
+    aspectVi: aspect.vi,
+    language: language.label,
+    languageVi: language.vi,
+    languageId: language.id,
+    mood: moodRule.mood,
+    palette: moodRule.palette,
+    paletteVi: moodRule.paletteVi || moodRule.palette,
+    lighting: LIGHTING_BY_MOOD[moodRule.mood] || LIGHTING_BY_MOOD['luxurious and confident'],
+    audio: AUDIO_BY_SETTING[setting.name] || AUDIO_BY_MOOD[moodRule.mood] || AUDIO_BY_MOOD['luxurious and confident'],
+    lens,
+    grade: `${style.en} grade, ${moodRule.palette}, filmic contrast, natural skin tones`,
+    filmStock: 'shot on ARRI Alexa with vintage prime lenses, natural 24fps motion blur, subtle film grain',
+    negative: DEFAULT_NEGATIVE,
+    character,
+    product,
+    setting,
+    title: projectTitle(idea),
+  };
+}
+
+/**
+ * Áp bản chỉnh sửa thủ công của người dùng lên bible mà vẫn giữ nguyên cấu trúc.
+ * Dùng khi người dùng sửa tên nhân vật / sản phẩm ở tab "Nhân vật & Sản phẩm".
+ */
+function patchBible(bible, patch) {
+  const next = { ...bible, ...patch };
+  next.character = { ...bible.character, ...(patch.character || {}) };
+  next.product = { ...bible.product, ...(patch.product || {}) };
+  next.setting = { ...bible.setting, ...(patch.setting || {}) };
+  return next;
+}
+
+/* ===== src/engine/project.js ===== */
+/**
+ * Project state - toàn bộ logic thao tác dự án, viết thuần tuý (không đụng DOM)
+ * để test được bằng Node.
+ *
+ * Nguyên tắc quan trọng: mọi hàm đều trả về project MỚI và chỉ thay đổi đúng
+ * scene được yêu cầu. Nhân vật/sản phẩm nằm trong bible nên sửa hay regenerate
+ * một scene không bao giờ làm lệch các scene còn lại.
+ */
+
+
+
+
+
+const SCENE_STATUS = {
+  IDLE: 'idle',
+  QUEUED: 'queued',
+  GENERATING: 'generating',
+  DONE: 'done',
+  ERROR: 'error',
+};
+
+function now() {
+  return new Date().toISOString();
+}
+
+function newId() {
+  return `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function decorate(scene) {
+  return {
+    customPrompt: null,
+    extraNotes: '',
+    status: SCENE_STATUS.IDLE,
+    video: null,
+    stale: false,
+    error: '',
+    ...scene,
+  };
+}
+
+/** Tạo dự án mới từ ý tưởng + tuỳ chọn. */
+function createProject(idea, options = {}) {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const bible = buildBible(idea, opts);
+  const scenes = compileAll(bible, buildScenes(bible)).map(decorate);
+  return {
+    id: newId(),
+    createdAt: now(),
+    updatedAt: now(),
+    idea: String(idea || '').trim(),
+    options: opts,
+    bible,
+    scenes,
+    warnings: promptWarnings(bible, scenes),
+  };
+}
+
+function touch(project, scenes, bible) {
+  const nextScenes = scenes || project.scenes;
+  const nextBible = bible || project.bible;
+  return {
+    ...project,
+    bible: nextBible,
+    scenes: nextScenes,
+    warnings: promptWarnings(nextBible, nextScenes),
+    updatedAt: now(),
+  };
+}
+
+function recompile(bible, scene, total) {
+  if (scene.customPrompt != null) {
+    return { ...scene, prompt: scene.customPrompt, compact: compileCompactPrompt(bible, scene) };
+  }
+  return {
+    ...scene,
+    prompt: compilePrompt(bible, scene, { total }),
+    compact: compileCompactPrompt(bible, scene),
+  };
+}
+
+/** Sửa các trường của một scene (thời lượng, hành động, camera, lời thoại...). */
+function updateScene(project, index, patch) {
+  const scenes = project.scenes.map((scene, i) => {
+    if (i !== index) return scene; // các scene khác giữ nguyên tuyệt đối
+    const allowed = {};
+    for (const key of EDITABLE_SCENE_FIELDS) {
+      if (Object.prototype.hasOwnProperty.call(patch, key)) allowed[key] = patch[key];
+    }
+    if (allowed.duration != null) allowed.duration = Math.max(1, Math.round(Number(allowed.duration) || scene.duration));
+    const merged = { ...scene, ...allowed, stale: scene.video ? true : false };
+    return recompile(project.bible, merged, project.scenes.length);
+  });
+  return touch(project, scenes);
+}
+
+/** Người dùng tự viết lại prompt của một scene. Không đụng tới bible và scene khác. */
+function setScenePrompt(project, index, text) {
+  const scenes = project.scenes.map((scene, i) => (
+    i === index
+      ? { ...scene, customPrompt: String(text), prompt: String(text), stale: scene.video ? true : false }
+      : scene
+  ));
+  return touch(project, scenes);
+}
+
+/** Bỏ bản prompt tự viết, quay lại prompt do app sinh ra cho riêng scene đó. */
+function resetScenePrompt(project, index) {
+  const scenes = project.scenes.map((scene, i) => (
+    i === index ? recompile(project.bible, { ...scene, customPrompt: null }, project.scenes.length) : scene
+  ));
+  return touch(project, scenes);
+}
+
+/**
+ * Tạo lại nội dung MỘT scene với một biến thể mới (góc máy, chuyển động, hành động khác)
+ * trong khi nhân vật, sản phẩm, bối cảnh và các scene khác giữ nguyên.
+ */
+function regenerateScene(project, index) {
+  const variantSeeds = {};
+  const salt = hashSeed(`${project.id}:${index}:${Date.now()}:${Math.random()}`);
+  variantSeeds[index] = salt;
+  const fresh = buildScenes(project.bible, { variantSeeds })[index];
+  if (!fresh) return project;
+
+  const scenes = project.scenes.map((scene, i) => {
+    if (i !== index) return scene;
+    const merged = {
+      ...scene,
+      ...fresh,
+      customPrompt: null,
+      extraNotes: scene.extraNotes,
+      status: scene.video ? SCENE_STATUS.DONE : SCENE_STATUS.IDLE,
+      stale: Boolean(scene.video),
+      error: '',
+    };
+    return recompile(project.bible, merged, project.scenes.length);
+  });
+  return touch(project, scenes);
+}
+
+/**
+ * Cập nhật bible (nhân vật, sản phẩm, bối cảnh, tông màu...).
+ * Áp cho tất cả các scene chưa bị viết đè prompt thủ công - đúng ý đồ "sửa một lần, đồng bộ tất cả".
+ */
+function updateBible(project, patch) {
+  const bible = patchBible(project.bible, patch);
+  const scenes = project.scenes.map((scene) => recompile(bible, scene, project.scenes.length));
+  return touch(project, scenes, bible);
+}
+
+/**
+ * Dựng lại toàn bộ kịch bản khi người dùng đổi ý tưởng / tuỳ chọn.
+ * @param {object} project
+ * @param {object} next {idea, options}
+ * @param {object} [opts] {keepVideos: giữ lại video đã tạo của các scene còn tồn tại}
+ */
+function rebuildProject(project, next, opts = {}) {
+  const idea = next.idea != null ? next.idea : project.idea;
+  const options = { ...project.options, ...(next.options || {}) };
+  const fresh = createProject(idea, options);
+
+  if (opts.keepVideos) {
+    fresh.scenes = fresh.scenes.map((scene, i) => {
+      const old = project.scenes[i];
+      if (!old || !old.video) return scene;
+      return { ...scene, video: old.video, status: SCENE_STATUS.DONE, stale: true };
+    });
+  }
+  return { ...fresh, id: project.id, createdAt: project.createdAt };
+}
+
+/** Gắn video (từ Google Flow hoặc từ API) vào một scene. */
+function attachVideo(project, index, video) {
+  const scenes = project.scenes.map((scene, i) => (
+    i === index
+      ? { ...scene, video, status: SCENE_STATUS.DONE, stale: false, error: '' }
+      : scene
+  ));
+  return touch(project, scenes);
+}
+
+function setSceneStatus(project, index, status, error = '') {
+  const scenes = project.scenes.map((scene, i) => (
+    i === index ? { ...scene, status, error } : scene
+  ));
+  return touch(project, scenes);
+}
+
+function clearVideo(project, index) {
+  const scenes = project.scenes.map((scene, i) => (
+    i === index ? { ...scene, video: null, status: SCENE_STATUS.IDLE, stale: false } : scene
+  ));
+  return touch(project, scenes);
+}
+
+function totalDuration(project) {
+  return project.scenes.reduce((sum, scene) => sum + (Number(scene.duration) || 0), 0);
+}
+
+function progress(project) {
+  const done = project.scenes.filter((scene) => scene.video).length;
+  return { done, total: project.scenes.length, percent: project.scenes.length ? Math.round((done / project.scenes.length) * 100) : 0 };
+}
+
+/* ===== src/storage.js ===== */
+/**
+ * Lưu trữ phía trình duyệt.
+ * - Dự án (text/JSON) -> localStorage, nhẹ và đọc ngay khi mở lại app.
+ * - Video (blob, có thể vài chục MB) -> IndexedDB, vì localStorage không chứa nổi.
+ */
+
+const PROJECT_KEY = 'ntl.aivideo.project.v1';
+const SETTINGS_KEY = 'ntl.aivideo.settings.v1';
+const DB_NAME = 'ntl-aivideo';
+const STORE = 'videos';
+
+function saveProject(project) {
+  try {
+    localStorage.setItem(PROJECT_KEY, JSON.stringify(project));
+    return true;
+  } catch (err) {
+    console.warn('Không lưu được dự án:', err);
+    return false;
+  }
+}
+
+function loadProject() {
+  try {
+    const raw = localStorage.getItem(PROJECT_KEY);
+    if (!raw) return null;
+    const project = JSON.parse(raw);
+    if (!project?.bible || !Array.isArray(project.scenes)) return null;
+    // objectURL của phiên trước đã chết -> dựng lại từ IndexedDB khi render.
+    project.scenes = project.scenes.map((scene) => (
+      scene.video ? { ...scene, video: { ...scene.video, url: scene.video.kind === 'idb' ? null : scene.video.url } } : scene
+    ));
+    return project;
+  } catch (err) {
+    console.warn('Không đọc được dự án đã lưu:', err);
+    return null;
+  }
+}
+
+function clearProject() {
+  localStorage.removeItem(PROJECT_KEY);
+}
+
+function saveSettings(settings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (err) {
+    console.warn('Không lưu được cấu hình:', err);
+  }
+}
+
+function loadSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  } catch (err) {
+    return {};
+  }
+}
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) {
+      reject(new Error('Trình duyệt không hỗ trợ IndexedDB.'));
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function withStore(mode, fn) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, mode);
+    const store = tx.objectStore(STORE);
+    const result = fn(store);
+    tx.oncomplete = () => { db.close(); resolve(result?.result !== undefined ? result.result : result); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+async function putVideo(key, blob) {
+  return withStore('readwrite', (store) => store.put(blob, key));
+}
+
+async function getVideo(key) {
+  return withStore('readonly', (store) => store.get(key));
+}
+
+async function deleteVideo(key) {
+  return withStore('readwrite', (store) => store.delete(key));
+}
+
+async function clearVideos() {
+  try {
+    await withStore('readwrite', (store) => store.clear());
+  } catch (err) {
+    console.warn('Không xoá được video đã lưu:', err);
+  }
+}
+
+/* ===== src/providers/flow.js ===== */
+/**
+ * Quy trình tạo video bằng Google Flow.
+ *
+ * Google Flow (labs.google/fx/tools/flow) hiện không có API công khai, nên app đi
+ * đường "bán tự động": chuẩn bị sẵn prompt đúng chuẩn, copy vào clipboard, mở Flow,
+ * người dùng dán - tạo - tải video về rồi thả lại vào app để preview và ghép.
+ */
+
+const FLOW_URL = 'https://labs.google/fx/tools/flow';
+
+function flowSteps(scene, bible) {
+  return [
+    'Bấm "Copy prompt" - prompt của cảnh này đã nằm trong clipboard.',
+    'Bấm "Mở Google Flow" để mở Flow ở tab mới (đăng nhập tài khoản Google có quyền dùng Flow).',
+    'Trong Flow chọn "Text to Video", dán prompt vào ô nhập.',
+    `Đặt tỷ lệ khung hình ${bible.aspect} và độ dài khoảng ${scene.duration}s cho khớp kịch bản.`,
+    'Bấm tạo, đợi Flow render xong rồi tải video về máy.',
+    'Quay lại app, bấm "Tải video lên" ở đúng cảnh này để xem preview và ghép vào dự án.',
+  ];
+}
+
+/** Copy an toàn: có Clipboard API thì dùng, không thì fallback textarea. */
+async function copyText(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      /* rơi xuống fallback bên dưới */
+    }
+  }
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(area);
+    return ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Mở Google Flow ở tab mới. Trả về false khi trình duyệt chặn popup
+ * (hay gặp khi app chạy trong khung nhúng) để giao diện còn báo cho người dùng.
+ */
+function openFlow() {
+  try {
+    const win = window.open(FLOW_URL, '_blank', 'noopener');
+    return Boolean(win);
+  } catch (err) {
+    return false;
+  }
+}
+
+/* ===== src/providers/gemini.js ===== */
+/**
+ * Tuỳ chọn: nối thẳng tới Gemini API (Google AI Studio) để
+ *  1) nhờ AI viết kịch bản sâu hơn engine offline, và
+ *  2) render video bằng Veo ngay trong app.
+ *
+ * Không bắt buộc - app chạy đầy đủ khi không có API key, chỉ khác là kịch bản do
+ * engine offline sinh và video tạo thủ công qua Google Flow.
+ * API key chỉ nằm trong localStorage của trình duyệt, không gửi đi đâu ngoài Google.
+ */
+
+const BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+const TEXT_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+const VIDEO_MODELS = [
+  'veo-3.0-generate-001',
+  'veo-3.0-fast-generate-001',
+  'veo-3.1-generate-preview',
+  'veo-2.0-generate-001',
+];
+
+async function callJson(url, apiKey, body, method = 'POST') {
+  const res = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (err) { data = { raw: text }; }
+  if (!res.ok) {
+    const message = data?.error?.message || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  return data;
+}
+
+/**
+ * Nhờ Gemini viết nội dung từng cảnh (hành động + lời thoại) bám theo Project Bible.
+ * Prompt cuối cùng vẫn do engine biên dịch, nên nhân vật/sản phẩm không bao giờ lệch.
+ */
+async function generateSceneContent(apiKey, bible, scenes, model = TEXT_MODELS[0]) {
+  const brief = {
+    idea: bible.idea,
+    genre: bible.genre,
+    style: bible.style,
+    mood: bible.mood,
+    aspect: bible.aspect,
+    language: bible.language,
+    character: bible.character?.present ? bible.character.lock : 'no character',
+    product: bible.product?.present ? bible.product.lock : 'no product',
+    setting: bible.setting.description,
+    scenes: scenes.map((s) => ({ number: s.number, title: s.title, purpose: s.purpose, duration: s.duration })),
+  };
+
+  const instruction = [
+    'You are a commercial film director writing a shooting script for an AI video generator.',
+    'For each scene, write:',
+    '- "action": one vivid English sentence describing exactly what happens on screen. Reuse the exact character and product wording given in the brief so every scene stays consistent.',
+    `- "voiceover": one short line of dialogue or narration in ${bible.language}. Empty string if the brief says no dialogue.`,
+    '- "title": a short Vietnamese scene title (max 6 words).',
+    'Return JSON only.',
+    '',
+    `BRIEF: ${JSON.stringify(brief)}`,
+  ].join('\n');
+
+  const data = await callJson(`${BASE}/models/${model}:generateContent`, apiKey, {
+    contents: [{ role: 'user', parts: [{ text: instruction }] }],
+    generationConfig: {
+      temperature: 0.9,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          scenes: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                number: { type: 'INTEGER' },
+                title: { type: 'STRING' },
+                action: { type: 'STRING' },
+                voiceover: { type: 'STRING' },
+              },
+              required: ['number', 'action'],
+            },
+          },
+        },
+        required: ['scenes'],
+      },
+    },
+  });
+
+  const raw = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
+  let parsed = null;
+  try { parsed = JSON.parse(raw); } catch (err) { throw new Error('Gemini trả về dữ liệu không đọc được.'); }
+  return Array.isArray(parsed?.scenes) ? parsed.scenes : [];
+}
+
+/** Lấy URI video từ operation - Veo đã đổi shape vài lần nên dò nhiều đường. */
+function extractVideoUri(op) {
+  const r = op?.response || {};
+  const candidates = [
+    r.generateVideoResponse?.generatedSamples?.[0]?.video?.uri,
+    r.generateVideoResponse?.generatedSamples?.[0]?.video?.videoUri,
+    r.generatedVideos?.[0]?.video?.uri,
+    r.videos?.[0]?.uri,
+    r.predictions?.[0]?.videoUri,
+    r.predictions?.[0]?.video?.uri,
+  ];
+  return candidates.find(Boolean) || null;
+}
+
+/** Một vài phiên bản trả video base64 thay vì URI. */
+function extractInlineVideo(op) {
+  const r = op?.response || {};
+  return r.predictions?.[0]?.bytesBase64Encoded
+    || r.generateVideoResponse?.generatedSamples?.[0]?.video?.bytesBase64Encoded
+    || null;
+}
+
+function base64ToBlob(base64, type = 'video/mp4') {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+
+/**
+ * Tạo video cho một prompt bằng Veo.
+ * @returns {Promise<Blob>}
+ */
+async function generateVideo(apiKey, prompt, opts = {}) {
+  const model = opts.model || VIDEO_MODELS[0];
+  const onProgress = opts.onProgress || (() => {});
+  const parameters = { aspectRatio: opts.aspect || '16:9' };
+  if (opts.negativePrompt) parameters.negativePrompt = opts.negativePrompt;
+  if (opts.personGeneration) parameters.personGeneration = opts.personGeneration;
+  if (opts.durationSeconds) parameters.durationSeconds = opts.durationSeconds;
+
+  onProgress('Đang gửi yêu cầu tới Veo…');
+  const start = await callJson(`${BASE}/models/${model}:predictLongRunning`, apiKey, {
+    instances: [{ prompt }],
+    parameters,
+  });
+
+  const opName = start?.name;
+  if (!opName) throw new Error('Veo không trả về operation name.');
+
+  const deadline = Date.now() + (opts.timeoutMs || 10 * 60 * 1000);
+  let op = start;
+  let tick = 0;
+  while (!op.done) {
+    if (Date.now() > deadline) throw new Error('Quá thời gian chờ Veo render (10 phút).');
+    if (opts.signal?.aborted) throw new Error('Đã huỷ.');
+    tick += 1;
+    onProgress(`Veo đang render… (${tick * 10}s)`);
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    op = await callJson(`${BASE}/${opName}`, apiKey, null, 'GET');
+  }
+  if (op.error) throw new Error(op.error.message || 'Veo báo lỗi khi render.');
+
+  const inline = extractInlineVideo(op);
+  if (inline) return base64ToBlob(inline);
+
+  const uri = extractVideoUri(op);
+  if (!uri) throw new Error('Không tìm thấy đường dẫn video trong kết quả trả về.');
+
+  onProgress('Đang tải video về…');
+  const fileRes = await fetch(uri.includes('alt=media') ? uri : `${uri}${uri.includes('?') ? '&' : '?'}alt=media`, {
+    headers: { 'x-goog-api-key': apiKey },
+  });
+  if (!fileRes.ok) throw new Error(`Không tải được video (HTTP ${fileRes.status}).`);
+  return await fileRes.blob();
+}
+
+/* ===== src/app.js ===== */
+const P = { SCENE_STATUS, createProject, updateScene, setScenePrompt, resetScenePrompt, regenerateScene, updateBible, rebuildProject, attachVideo, setSceneStatus, clearVideo, totalDuration, progress };
+const store = { saveProject, loadProject, clearProject, saveSettings, loadSettings, putVideo, getVideo, deleteVideo, clearVideos };
+/**
+ * AI Video Studio - lớp giao diện.
+ *
+ * Luồng: Ý tưởng → Kịch bản → Danh sách Scene → Prompt → Generate → Preview → Regenerate.
+ * Toàn bộ logic kịch bản/prompt nằm trong src/engine (thuần, test được bằng Node);
+ * file này chỉ lo DOM, sự kiện và lưu trữ.
+ */
+
+
+
+
+
+
+
+const EXAMPLES = [
+  'Tạo video quảng cáo một chai nước hoa dành cho nữ, phong cách sang trọng, cinematic',
+  'Tạo video quảng cáo một cô gái Việt Nam giới thiệu sản phẩm thời trang trong quán cà phê hiện đại',
+  'Video giới thiệu quán cà phê mới mở ở Đà Nẵng, ấm áp, gần gũi',
+  'Review nhanh một chiếc đồng hồ nam cao cấp, quay trong studio tối',
+];
+
+const $ = (sel) => document.querySelector(sel);
+const el = {
+  idea: $('#idea'),
+  examples: $('#examples'),
+  options: $('#options'),
+  ideaHint: $('#idea-hint'),
+  useAi: $('#use-ai'),
+  overview: $('#overview-card'),
+  logline: $('#logline'),
+  timeline: $('#timeline'),
+  title: $('#project-title'),
+  projectIdea: $('#project-idea'),
+  meta: $('#project-meta'),
+  warnings: $('#project-warnings'),
+  biblePanel: $('#bible-panel'),
+  bibleFields: $('#bible-fields'),
+  scenesCard: $('#scenes-card'),
+  sceneList: $('#scene-list'),
+  progressBar: $('#progress-bar'),
+  progressText: $('#progress-text'),
+  toast: $('#toast'),
+  flowModal: $('#flow-modal'),
+  flowTitle: $('#flow-title'),
+  flowSteps: $('#flow-steps'),
+  flowPrompt: $('#flow-prompt'),
+  flowFile: $('#flow-file'),
+  flowUrl: $('#flow-url'),
+  settingsModal: $('#settings-modal'),
+  confirmModal: $('#confirm-modal'),
+  confirmText: $('#confirm-text'),
+  exportModal: $('#export-modal'),
+  exportText: $('#export-text'),
+  apiKey: $('#api-key'),
+  videoMode: $('#video-mode'),
+  textModel: $('#text-model'),
+  videoModel: $('#video-model'),
+};
+
+let project = null;
+let settings = { apiKey: '', videoMode: 'flow', textModel: TEXT_MODELS[0], videoModel: VIDEO_MODELS[0] };
+let flowSceneIndex = null;
+const objectUrls = new Map(); // sceneId -> objectURL đang sống, revoke khi thay video
+let busy = false;
+
+/* ------------------------------------------------------------------ tiện ích */
+
+function toast(message, isError = false) {
+  el.toast.textContent = message;
+  el.toast.classList.toggle('err', Boolean(isError));
+  el.toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => el.toast.classList.remove('show'), isError ? 5200 : 2600);
+}
+
+/**
+ * Hộp thoại xác nhận trong trang, thay cho window.confirm.
+ * Hộp thoại hệ thống bị chặn khi app chạy trong khung nhúng, khi đó window.confirm
+ * trả về false ngay lập tức và người dùng bấm nút mà không có gì xảy ra.
+ */
+let pendingConfirm = null;
+
+function askConfirm(message) {
+  return new Promise((resolve) => {
+    el.confirmText.textContent = message;
+    pendingConfirm = resolve;
+    el.confirmModal.showModal();
+  });
+}
+
+function settleConfirm(answer) {
+  const resolve = pendingConfirm;
+  pendingConfirm = null;
+  if (el.confirmModal.open) el.confirmModal.close();
+  if (resolve) resolve(answer);
+}
+
+function setProject(next, { save = true } = {}) {
+  project = next;
+  if (save && project) store.saveProject(stripRuntime(project));
+  render();
+}
+
+/** Bỏ objectURL (chỉ sống trong phiên hiện tại) trước khi lưu xuống localStorage. */
+function stripRuntime(p) {
+  return {
+    ...p,
+    scenes: p.scenes.map((scene) => (
+      scene.video ? { ...scene, video: { ...scene.video, url: scene.video.kind === 'idb' ? null : scene.video.url } } : scene
+    )),
+  };
+}
+
+function currentOptions() {
+  const read = (id, fallback) => {
+    const node = document.getElementById(id);
+    return node ? node.value : fallback;
+  };
+  return {
+    genre: read('opt-genre', DEFAULT_OPTIONS.genre),
+    style: read('opt-style', DEFAULT_OPTIONS.style),
+    duration: Number(read('opt-duration', DEFAULT_OPTIONS.duration)),
+    aspect: read('opt-aspect', DEFAULT_OPTIONS.aspect),
+    sceneCount: Number(read('opt-sceneCount', DEFAULT_OPTIONS.sceneCount)),
+    language: read('opt-language', DEFAULT_OPTIONS.language),
+  };
+}
+
+function escapeHtml(text) {
+  return String(text == null ? '' : text)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ------------------------------------------------------------------ form ý tưởng */
+
+function renderIdeaForm() {
+  el.examples.innerHTML = EXAMPLES
+    .map((text) => `<button type="button" class="chip" data-action="use-example" data-text="${escapeHtml(text)}">${escapeHtml(text)}</button>`)
+    .join('');
+
+  const select = (id, label, items, value, render) => `
+    <label class="field">
+      <span>${label}</span>
+      <select id="opt-${id}">
+        ${items.map((item) => {
+          const v = render.value(item);
+          return `<option value="${escapeHtml(v)}"${String(v) === String(value) ? ' selected' : ''}>${escapeHtml(render.label(item))}</option>`;
+        }).join('')}
+      </select>
+    </label>`;
+
+  const o = project ? project.options : DEFAULT_OPTIONS;
+  el.options.innerHTML = [
+    select('genre', 'Thể loại video', GENRES, o.genre, { value: (i) => i.id, label: (i) => i.vi }),
+    select('style', 'Phong cách', STYLES, o.style, { value: (i) => i.id, label: (i) => i.vi }),
+    select('duration', 'Thời lượng', DURATIONS, o.duration, { value: (i) => i, label: (i) => `${i} giây` }),
+    select('aspect', 'Tỷ lệ khung hình', ASPECTS, o.aspect, { value: (i) => i.id, label: (i) => i.vi }),
+    select('sceneCount', 'Số lượng cảnh', SCENE_COUNTS, o.sceneCount, { value: (i) => i, label: (i) => `${i} cảnh` }),
+    select('language', 'Ngôn ngữ', LANGUAGES, o.language, { value: (i) => i.id, label: (i) => i.vi }),
+  ].join('');
+}
+
+/* ------------------------------------------------------------------ render dự án */
+
+function render() {
+  if (!project) {
+    el.overview.classList.add('hidden');
+    el.scenesCard.classList.add('hidden');
+    // Dọn luôn DOM cũ, đừng chỉ ẩn đi: reset xong mà thẻ cảnh còn nằm đó là bẩn.
+    el.sceneList.innerHTML = '';
+    el.timeline.innerHTML = '';
+    el.logline.textContent = '';
+    return;
+  }
+  el.overview.classList.remove('hidden');
+  el.scenesCard.classList.remove('hidden');
+
+  const b = project.bible;
+  el.title.textContent = b.title || 'Kịch bản video';
+  el.projectIdea.textContent = project.idea;
+
+  const total = P.totalDuration(project);
+  const chips = [
+    ['Thể loại', b.genreVi || b.genre],
+    ['Phong cách', b.styleVi || b.style],
+    ['Tỷ lệ', b.aspect],
+    ['Thời lượng', `${total}s`],
+    ['Số cảnh', String(project.scenes.length)],
+    ['Ngôn ngữ', b.languageVi || b.language || 'không lời'],
+    ['Tông màu', b.paletteVi || b.palette],
+  ];
+  el.meta.innerHTML = chips.map(([k, v]) => `<span class="meta-chip">${escapeHtml(k)}: <strong>${escapeHtml(v)}</strong></span>`).join('');
+  el.warnings.innerHTML = (project.warnings || []).map((w) => `<div class="warning">⚠️ ${escapeHtml(w)}</div>`).join('');
+
+  renderSynopsis();
+  renderBibleFields();
+  renderScenes();
+
+  const pr = P.progress(project);
+  el.progressBar.style.width = `${pr.percent}%`;
+  el.progressText.textContent = pr.done === 0
+    ? 'Chưa có cảnh nào được tạo video. Bấm Generate ở từng cảnh hoặc "Generate All Scenes".'
+    : `Đã có video cho ${pr.done}/${pr.total} cảnh (${pr.percent}%).`;
+}
+
+function renderSynopsis() {
+  el.logline.textContent = buildLogline(project.bible, project.scenes);
+  el.timeline.innerHTML = buildTimeline(project.scenes).map((item) => `
+    <li>
+      <span class="tl-time">${escapeHtml(item.range)}</span>
+      <span class="tl-shot">${escapeHtml(item.shotVi)}</span>
+      <span>
+        <a href="#${item.id}">${item.hasVideo ? '<span class="tl-done">●</span> ' : ''}Scene ${item.number}: ${escapeHtml(item.title)}</a>
+        ${item.voiceover ? `<span class="tl-vo"> — “${escapeHtml(item.voiceover)}”</span>` : ''}
+      </span>
+    </li>`).join('');
+}
+
+function bibleField(id, label, value, rows = 2) {
+  return `<label class="field">
+    <span>${escapeHtml(label)}</span>
+    <textarea data-bible="${id}" rows="${rows}">${escapeHtml(value || '')}</textarea>
+  </label>`;
+}
+
+function renderBibleFields() {
+  const b = project.bible;
+  const fields = [];
+  if (b.character?.present) fields.push(bibleField('character.lock', '🧍 Nhân vật (khoá)', b.character.lock, 3));
+  if (b.product?.present) fields.push(bibleField('product.lock', '📦 Sản phẩm (khoá)', b.product.lock, 3));
+  fields.push(bibleField('setting.description', '🏙️ Bối cảnh', b.setting.description, 3));
+  fields.push(bibleField('lighting', '💡 Ánh sáng', b.lighting, 2));
+  fields.push(bibleField('palette', '🎨 Tông màu', b.palette, 2));
+  fields.push(bibleField('audio', '🔊 Âm thanh', b.audio, 2));
+  fields.push(bibleField('negative', '🚫 Negative prompt', b.negative, 3));
+  el.bibleFields.innerHTML = fields.join('');
+}
+
+function statusBadge(scene) {
+  if (scene.status === P.SCENE_STATUS.GENERATING) return '<span class="badge live">⏳ Đang tạo…</span>';
+  if (scene.status === P.SCENE_STATUS.QUEUED) return '<span class="badge">🕒 Trong hàng đợi</span>';
+  if (scene.status === P.SCENE_STATUS.ERROR) return `<span class="badge err">⚠️ ${escapeHtml(scene.error || 'Lỗi')}</span>`;
+  if (scene.video) return '<span class="badge ok">✅ Đã có video</span>';
+  return '<span class="badge">⬜ Chưa tạo</span>';
+}
+
+function sceneCard(scene, index) {
+  const videoUrl = scene.video ? (objectUrls.get(scene.id) || scene.video.url) : null;
+  const cls = scene.status === P.SCENE_STATUS.GENERATING ? 'is-generating'
+    : scene.status === P.SCENE_STATUS.ERROR ? 'is-error'
+    : scene.video ? 'is-done' : '';
+
+  return `
+  <article class="scene ${cls}" data-index="${index}" id="${scene.id}">
+    <div class="scene-head">
+      <div>
+        <div class="scene-no">Scene ${scene.number}</div>
+        <h3 class="scene-title">${escapeHtml(scene.title)}</h3>
+      </div>
+      <div class="scene-badges">
+        <span class="badge">${scene.duration}s</span>
+        ${scene.overLimit ? '<span class="badge warn">Dài hơn 8s</span>' : ''}
+        ${scene.customPrompt != null ? '<span class="badge warn">✍️ Prompt tự sửa</span>' : ''}
+        ${scene.stale ? '<span class="badge warn">Prompt đã đổi sau khi tạo video</span>' : ''}
+        ${statusBadge(scene)}
+      </div>
+    </div>
+
+    <div class="scene-body">
+      <div class="scene-fields">
+        <label class="field">
+          <span>Nội dung / hành động trong cảnh</span>
+          <textarea data-field="action" rows="3">${escapeHtml(scene.action)}</textarea>
+        </label>
+        <div class="scene-row">
+          <label class="field"><span>Góc máy</span><input type="text" data-field="angle" value="${escapeHtml(scene.angle)}" /></label>
+          <label class="field"><span>Chuyển động máy</span><input type="text" data-field="movement" value="${escapeHtml(scene.movement)}" /></label>
+        </div>
+        <div class="scene-row">
+          <label class="field"><span>Cỡ cảnh</span><input type="text" data-field="shotLabel" value="${escapeHtml(scene.shotLabel)}" /></label>
+          <label class="field"><span>Thời lượng (giây)</span><input type="number" min="1" max="60" data-field="duration" value="${scene.duration}" /></label>
+        </div>
+        <label class="field">
+          <span>Lời thoại / voice-over</span>
+          <input type="text" data-field="voiceover" value="${escapeHtml(scene.voiceover)}" />
+        </label>
+      </div>
+
+      <div>
+        <div class="prompt-box">
+          <div class="prompt-label">
+            <span>Prompt gửi cho Google Flow</span>
+            ${scene.customPrompt != null ? '<button class="btn small" type="button" data-action="reset-prompt">↩︎ Về prompt gốc</button>' : ''}
+          </div>
+          <textarea data-field="prompt" spellcheck="false">${escapeHtml(scene.prompt)}</textarea>
+        </div>
+
+        <div class="video-wrap">
+          ${videoUrl
+            ? `<video src="${escapeHtml(videoUrl)}" controls playsinline preload="metadata"></video>
+               <div class="video-meta">
+                 <span>${escapeHtml(scene.video.name || 'Video cảnh này')}</span>
+                 <button class="btn small" type="button" data-action="clear-video">Xoá video</button>
+               </div>`
+            : '<div class="placeholder">Chưa có video cho cảnh này.<br />Bấm <strong>Generate</strong> để bắt đầu.</div>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="scene-actions">
+      <button class="btn" type="button" data-action="copy-prompt">📋 Copy prompt</button>
+      <button class="btn primary" type="button" data-action="generate-scene">🎬 Generate Scene ${scene.number}</button>
+      <button class="btn" type="button" data-action="preview-scene"${scene.video ? '' : ' disabled title="Cảnh này chưa có video"'}>▶️ Preview</button>
+      <button class="btn" type="button" data-action="regenerate-scene">🔁 Regenerate prompt</button>
+      <label class="btn small file-btn">📁 Gắn video
+        <input type="file" accept="video/*" data-action="upload-video" hidden />
+      </label>
+    </div>
+  </article>`;
+}
+
+/** Giữ nguyên ô đang gõ khi render lại (tránh mất con trỏ giữa chừng). */
+function captureFocus() {
+  const node = document.activeElement;
+  const scene = node?.closest?.('.scene');
+  if (!scene || !node.dataset.field) return null;
+  return {
+    index: scene.dataset.index,
+    field: node.dataset.field,
+    start: node.selectionStart,
+    end: node.selectionEnd,
+  };
+}
+
+function restoreFocus(snapshot) {
+  if (!snapshot) return;
+  const node = el.sceneList.querySelector(`.scene[data-index="${snapshot.index}"] [data-field="${snapshot.field}"]`);
+  if (!node) return;
+  node.focus();
+  try { node.setSelectionRange(snapshot.start, snapshot.end); } catch (err) { /* input number không hỗ trợ */ }
+}
+
+function renderScenes() {
+  const snapshot = captureFocus();
+  el.sceneList.innerHTML = project.scenes.map(sceneCard).join('');
+  restoreFocus(snapshot);
+}
+
+/* ------------------------------------------------------------------ video & storage */
+
+async function hydrateVideos() {
+  if (!project) return;
+  for (const scene of project.scenes) {
+    if (scene.video?.kind === 'idb' && !objectUrls.has(scene.id)) {
+      try {
+        const blob = await store.getVideo(scene.video.key);
+        if (blob) objectUrls.set(scene.id, URL.createObjectURL(blob));
+      } catch (err) {
+        console.warn('Không đọc được video đã lưu:', err);
+      }
+    }
+  }
+  render();
+}
+
+async function attachBlob(index, blob, name) {
+  const scene = project.scenes[index];
+  const key = `${project.id}:${scene.id}`;
+  try {
+    await store.putVideo(key, blob);
+  } catch (err) {
+    toast('Không lưu được video vào bộ nhớ trình duyệt, video chỉ xem được trong phiên này.', true);
+  }
+  const old = objectUrls.get(scene.id);
+  if (old) URL.revokeObjectURL(old);
+  objectUrls.set(scene.id, URL.createObjectURL(blob));
+  setProject(P.attachVideo(project, index, {
+    kind: 'idb', key, name: name || 'video.mp4', size: blob.size, createdAt: new Date().toISOString(),
+  }));
+}
+
+function attachUrl(index, url) {
+  setProject(P.attachVideo(project, index, { kind: 'url', url, name: url.split('/').pop() || 'video' }));
+}
+
+/* ------------------------------------------------------------------ tạo dự án */
+
+async function createProjectFromForm() {
+  const idea = el.idea.value.trim();
+  if (idea.length < 8) {
+    el.ideaHint.textContent = 'Hãy mô tả ý tưởng dài hơn một chút (ít nhất 8 ký tự) để app hiểu bạn muốn gì.';
+    el.idea.focus();
+    return;
+  }
+  el.ideaHint.textContent = '';
+  let next = P.createProject(idea, currentOptions());
+
+  if (el.useAi.checked) {
+    if (!settings.apiKey) {
+      toast('Chưa có Gemini API key - app dùng engine offline để viết kịch bản.', true);
+    } else {
+      try {
+        toast('Gemini đang viết kịch bản…');
+        const aiScenes = await generateSceneContent(settings.apiKey, next.bible, next.scenes, settings.textModel);
+        aiScenes.forEach((item) => {
+          const index = (Number(item.number) || 0) - 1;
+          if (index < 0 || index >= next.scenes.length) return;
+          const patch = {};
+          if (item.action) patch.action = item.action;
+          if (item.title) patch.title = item.title;
+          if (typeof item.voiceover === 'string') patch.voiceover = item.voiceover;
+          next = P.updateScene(next, index, patch);
+        });
+        // AI chỉ viết nội dung, phần khoá nhân vật/sản phẩm vẫn do bible quyết định.
+        next.scenes = next.scenes.map((s) => ({ ...s, stale: false }));
+        toast('Gemini đã viết xong kịch bản.');
+      } catch (err) {
+        toast(`Gemini lỗi: ${err.message}. Đã dùng kịch bản offline.`, true);
+      }
+    }
+  }
+
+  objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  objectUrls.clear();
+  setProject(next);
+  el.scenesCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ------------------------------------------------------------------ generate video */
+
+function openFlowModal(index) {
+  flowSceneIndex = index;
+  const scene = project.scenes[index];
+  el.flowTitle.textContent = `Scene ${scene.number}: ${scene.title}`;
+  el.flowSteps.innerHTML = flowSteps(scene, project.bible).map((s) => `<li>${escapeHtml(s)}</li>`).join('');
+  el.flowPrompt.value = scene.prompt;
+  el.flowUrl.value = '';
+  el.flowModal.showModal();
+  copyText(scene.prompt).then((ok) => { if (ok) toast('Đã copy prompt vào clipboard.'); });
+}
+
+async function generateScene(index, { silent = false } = {}) {
+  const scene = project.scenes[index];
+  if (settings.videoMode !== 'api' || !settings.apiKey) {
+    openFlowModal(index);
+    return false;
+  }
+  setProject(P.setSceneStatus(project, index, P.SCENE_STATUS.GENERATING), { save: false });
+  try {
+    const blob = await generateVideo(settings.apiKey, scene.prompt, {
+      model: settings.videoModel,
+      aspect: project.bible.aspect,
+      negativePrompt: project.bible.negative,
+      durationSeconds: scene.duration,
+      onProgress: (message) => { if (!silent) toast(`Scene ${scene.number}: ${message}`); },
+    });
+    await attachBlob(index, blob, `scene-${scene.number}.mp4`);
+    if (!silent) toast(`Scene ${scene.number} đã tạo xong.`);
+    return true;
+  } catch (err) {
+    setProject(P.setSceneStatus(project, index, P.SCENE_STATUS.ERROR, err.message));
+    if (!silent) toast(`Scene ${scene.number} lỗi: ${err.message}`, true);
+    return false;
+  }
+}
+
+async function generateAll() {
+  if (settings.videoMode !== 'api' || !settings.apiKey) {
+    // Chế độ Flow: dồn toàn bộ prompt vào clipboard và mở Flow một lần.
+    const all = project.scenes.map((s) => `--- SCENE ${s.number} (${s.duration}s) ---\n${s.prompt}`).join('\n\n');
+    const ok = await copyText(all);
+    toast(ok
+      ? `Đã copy prompt của ${project.scenes.length} cảnh. Mở Google Flow và dán lần lượt từng cảnh.`
+      : 'Không copy được, bạn hãy copy thủ công từng cảnh.', !ok);
+    if (ok && !openFlow()) {
+      toast('Đã copy prompt. Trình duyệt chặn mở tab mới, bạn tự mở labs.google/fx/tools/flow nhé.', true);
+    }
+    return;
+  }
+  if (busy) return;
+  busy = true;
+  setProject({ ...project, scenes: project.scenes.map((s) => (s.video ? s : { ...s, status: P.SCENE_STATUS.QUEUED })) }, { save: false });
+  for (let i = 0; i < project.scenes.length; i += 1) {
+    if (project.scenes[i].video) continue;
+    toast(`Đang tạo scene ${i + 1}/${project.scenes.length}…`);
+    // eslint-disable-next-line no-await-in-loop
+    await generateScene(i, { silent: true });
+  }
+  busy = false;
+  toast('Đã chạy xong toàn bộ hàng đợi.');
+}
+
+/* ------------------------------------------------------------------ xuất & reset */
+
+function download(filename, text, type = 'text/markdown;charset=utf-8') {
+  try {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+async function resetProject() {
+  if (!project) {
+    el.idea.value = '';
+    toast('Chưa có dự án nào để reset.');
+    return;
+  }
+  const ok = await askConfirm('Xoá toàn bộ dự án hiện tại (kịch bản, prompt, video đã gắn) và bắt đầu lại?');
+  if (!ok) return;
+  objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  objectUrls.clear();
+  await store.clearVideos();
+  store.clearProject();
+  project = null;
+  el.idea.value = '';
+  el.ideaHint.textContent = '';
+  renderIdeaForm();
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast('Đã reset dự án.');
+}
+
+/* ------------------------------------------------------------------ settings */
+
+function loadSettingsIntoForm() {
+  el.apiKey.value = settings.apiKey || '';
+  el.videoMode.value = settings.videoMode || 'flow';
+  el.textModel.value = settings.textModel || TEXT_MODELS[0];
+  el.videoModel.value = settings.videoModel || VIDEO_MODELS[0];
+  document.getElementById('text-models').innerHTML = TEXT_MODELS.map((m) => `<option value="${m}"></option>`).join('');
+  document.getElementById('video-models').innerHTML = VIDEO_MODELS.map((m) => `<option value="${m}"></option>`).join('');
+}
+
+function saveSettingsFromForm() {
+  settings = {
+    apiKey: el.apiKey.value.trim(),
+    videoMode: el.videoMode.value,
+    textModel: el.textModel.value.trim() || TEXT_MODELS[0],
+    videoModel: el.videoModel.value.trim() || VIDEO_MODELS[0],
+  };
+  store.saveSettings(settings);
+  el.settingsModal.close();
+  toast('Đã lưu cài đặt.');
+}
+
+/* ------------------------------------------------------------------ sự kiện */
+
+function sceneIndexFrom(node) {
+  const card = node.closest('.scene');
+  return card ? Number(card.dataset.index) : -1;
+}
+
+function bindEvents() {
+  document.addEventListener('click', async (event) => {
+    const trigger = event.target.closest('[data-action]');
+    if (!trigger) return;
+    const action = trigger.dataset.action;
+    const index = sceneIndexFrom(trigger);
+
+    switch (action) {
+      case 'use-example':
+        el.idea.value = trigger.dataset.text;
+        el.idea.focus();
+        break;
+      case 'create':
+        await createProjectFromForm();
+        break;
+      case 'reset-project':
+        await resetProject();
+        break;
+      case 'export':
+        if (!project) { toast('Chưa có dự án để xuất.', true); break; }
+        el.exportText.value = exportProjectText(project);
+        el.exportModal.showModal();
+        break;
+      case 'export-copy': {
+        const ok = await copyText(el.exportText.value);
+        toast(ok ? 'Đã copy toàn bộ kịch bản.' : 'Không copy được, bạn hãy bôi đen rồi copy tay.', !ok);
+        break;
+      }
+      case 'export-download':
+        if (download(`kich-ban-${project.id}.md`, el.exportText.value)) toast('Đã tải file kịch bản .md');
+        else toast('Trình duyệt chặn tải file ở đây. Hãy dùng nút Copy.', true);
+        break;
+      case 'confirm-yes':
+        settleConfirm(true);
+        break;
+      case 'confirm-no':
+        settleConfirm(false);
+        break;
+      case 'open-settings':
+        loadSettingsIntoForm();
+        el.settingsModal.showModal();
+        break;
+      case 'save-settings':
+        saveSettingsFromForm();
+        break;
+      case 'apply-bible':
+        applyBibleEdits();
+        break;
+      case 'copy-prompt': {
+        const ok = await copyText(project.scenes[index].prompt);
+        toast(ok ? `Đã copy prompt scene ${index + 1}.` : 'Không copy được.', !ok);
+        break;
+      }
+      case 'copy-all': {
+        const all = project.scenes.map((s) => `--- SCENE ${s.number} (${s.duration}s) ---\n${s.prompt}`).join('\n\n');
+        const ok = await copyText(all);
+        toast(ok ? 'Đã copy toàn bộ prompt.' : 'Không copy được.', !ok);
+        break;
+      }
+      case 'generate-scene':
+        await generateScene(index);
+        break;
+      case 'generate-all':
+        await generateAll();
+        break;
+      case 'preview-scene': {
+        const video = el.sceneList.querySelector(`.scene[data-index="${index}"] video`);
+        if (!video) { toast('Cảnh này chưa có video để xem.', true); break; }
+        video.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        video.play().catch(() => { /* trình duyệt chặn autoplay thì người dùng bấm play */ });
+        break;
+      }
+      case 'regenerate-scene':
+        setProject(P.regenerateScene(project, index));
+        toast(`Đã tạo lại prompt cho scene ${index + 1}. Các cảnh khác giữ nguyên.`);
+        break;
+      case 'reset-prompt':
+        setProject(P.resetScenePrompt(project, index));
+        toast('Đã khôi phục prompt gốc của cảnh này.');
+        break;
+      case 'clear-video': {
+        const scene = project.scenes[index];
+        const url = objectUrls.get(scene.id);
+        if (url) { URL.revokeObjectURL(url); objectUrls.delete(scene.id); }
+        if (scene.video?.kind === 'idb') await store.deleteVideo(scene.video.key);
+        setProject(P.clearVideo(project, index));
+        break;
+      }
+      case 'rebuild': {
+        const ok = await askConfirm('Dựng lại toàn bộ kịch bản theo ý tưởng và tuỳ chọn hiện tại? Prompt bạn đã tự sửa sẽ mất.');
+        if (!ok) break;
+        setProject(P.rebuildProject(project, { idea: el.idea.value.trim() || project.idea, options: currentOptions() }, { keepVideos: true }));
+        toast('Đã dựng lại kịch bản.');
+        break;
+      }
+      case 'flow-copy': {
+        const ok = await copyText(el.flowPrompt.value);
+        toast(ok ? 'Đã copy prompt.' : 'Không copy được.', !ok);
+        break;
+      }
+      case 'flow-open':
+        if (!openFlow()) {
+          await copyText(FLOW_URL);
+          toast('Trình duyệt chặn mở tab mới. Đã copy link Google Flow, bạn dán vào thanh địa chỉ nhé.', true);
+        }
+        break;
+      case 'flow-url': {
+        const url = el.flowUrl.value.trim();
+        if (!url) { toast('Hãy dán link video trước.', true); break; }
+        attachUrl(flowSceneIndex, url);
+        el.flowModal.close();
+        toast(`Đã gắn video cho scene ${flowSceneIndex + 1}.`);
+        break;
+      }
+      default:
+        break;
+    }
+  });
+
+  // Sửa trực tiếp các trường của một scene: chỉ scene đó thay đổi.
+  el.sceneList.addEventListener('change', (event) => {
+    const node = event.target;
+    const field = node.dataset.field;
+    if (!field) return;
+    const index = sceneIndexFrom(node);
+    if (index < 0) return;
+
+    if (field === 'prompt') {
+      setProject(P.setScenePrompt(project, index, node.value));
+      toast(`Đã lưu prompt riêng cho scene ${index + 1}. Nhân vật và sản phẩm ở các cảnh khác không đổi.`);
+      return;
+    }
+    setProject(P.updateScene(project, index, { [field]: node.value }));
+  });
+
+  el.sceneList.addEventListener('change', async (event) => {
+    if (event.target.dataset.action !== 'upload-video') return;
+    const file = event.target.files?.[0];
+    const index = sceneIndexFrom(event.target);
+    if (!file || index < 0) return;
+    await attachBlob(index, file, file.name);
+    toast(`Đã gắn video cho scene ${index + 1}.`);
+  });
+
+  el.flowFile.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || flowSceneIndex == null) return;
+    await attachBlob(flowSceneIndex, file, file.name);
+    el.flowModal.close();
+    toast(`Đã gắn video cho scene ${flowSceneIndex + 1}.`);
+    event.target.value = '';
+  });
+
+  el.confirmModal.addEventListener('close', () => settleConfirm(false));
+
+  window.addEventListener('beforeunload', () => {
+    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  });
+}
+
+function applyBibleEdits() {
+  const patch = { character: {}, product: {}, setting: {} };
+  el.bibleFields.querySelectorAll('[data-bible]').forEach((node) => {
+    const path = node.dataset.bible;
+    const value = node.value.trim();
+    if (path === 'character.lock') patch.character.lock = value;
+    else if (path === 'product.lock') patch.product.lock = value;
+    else if (path === 'setting.description') patch.setting.description = value;
+    else patch[path] = value;
+  });
+  if (patch.palette && patch.palette !== project.bible.palette) patch.paletteVi = patch.palette;
+  setProject(P.updateBible(project, patch));
+  toast('Đã đồng bộ nhân vật, sản phẩm và tông màu sang tất cả các cảnh.');
+}
+
+/* ------------------------------------------------------------------ khởi động */
+
+/**
+ * Khi app chạy trong khung nhúng, trình duyệt không cho trang tự tải file về.
+ * Ẩn nút tải đi thay vì để người dùng bấm vào chỗ không có gì xảy ra.
+ */
+function hideUnsupportedControls() {
+  let embedded = false;
+  try { embedded = window.self !== window.top; } catch (err) { embedded = true; }
+  if (!embedded) return;
+  document.querySelectorAll('[data-action="export-download"]').forEach((node) => node.classList.add('hidden'));
+  const hint = document.querySelector('#export-modal .hint');
+  if (hint) hint.textContent = 'Bôi đen rồi copy, hoặc bấm nút Copy tất cả bên dưới.';
+}
+
+async function init() {
+  settings = { ...settings, ...store.loadSettings() };
+  const saved = store.loadProject();
+  renderIdeaForm();
+  bindEvents();
+  hideUnsupportedControls();
+
+  if (saved) {
+    project = saved;
+    el.idea.value = saved.idea;
+    renderIdeaForm();
+    render();
+    await hydrateVideos();
+    toast('Đã mở lại dự án lần trước.');
+  }
+}
+
+init();
+
+})();
+</script>
