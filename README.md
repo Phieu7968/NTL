@@ -26,6 +26,9 @@ Chạy test engine:
 npm test           # 28 test, không cần cài dependency
 ```
 
+Mỗi pull request đều chạy lại bộ test này trên Node 20 và 22 qua GitHub Actions
+(`.github/workflows/test.yml`).
+
 ---
 
 ## Dùng như thế nào
