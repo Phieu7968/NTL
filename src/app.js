@@ -11,7 +11,7 @@ import { exportProjectText } from './engine/prompt.js';
 import { buildLogline, buildTimeline } from './engine/synopsis.js';
 import * as P from './engine/project.js';
 import * as store from './storage.js';
-import { copyText, openFlow, flowSteps } from './providers/flow.js';
+import { copyText, openFlow, flowSteps, FLOW_URL } from './providers/flow.js';
 import { generateVideo, generateSceneContent, TEXT_MODELS, VIDEO_MODELS } from './providers/gemini.js';
 
 const EXAMPLES = [
@@ -49,6 +49,10 @@ const el = {
   flowFile: $('#flow-file'),
   flowUrl: $('#flow-url'),
   settingsModal: $('#settings-modal'),
+  confirmModal: $('#confirm-modal'),
+  confirmText: $('#confirm-text'),
+  exportModal: $('#export-modal'),
+  exportText: $('#export-text'),
   apiKey: $('#api-key'),
   videoMode: $('#video-mode'),
   textModel: $('#text-model'),
@@ -69,6 +73,28 @@ function toast(message, isError = false) {
   el.toast.classList.add('show');
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => el.toast.classList.remove('show'), isError ? 5200 : 2600);
+}
+
+/**
+ * Hộp thoại xác nhận trong trang, thay cho window.confirm.
+ * Hộp thoại hệ thống bị chặn khi app chạy trong khung nhúng, khi đó window.confirm
+ * trả về false ngay lập tức và người dùng bấm nút mà không có gì xảy ra.
+ */
+let pendingConfirm = null;
+
+function askConfirm(message) {
+  return new Promise((resolve) => {
+    el.confirmText.textContent = message;
+    pendingConfirm = resolve;
+    el.confirmModal.showModal();
+  });
+}
+
+function settleConfirm(answer) {
+  const resolve = pendingConfirm;
+  pendingConfirm = null;
+  if (el.confirmModal.open) el.confirmModal.close();
+  if (resolve) resolve(answer);
 }
 
 function setProject(next, { save = true } = {}) {
@@ -143,6 +169,10 @@ function render() {
   if (!project) {
     el.overview.classList.add('hidden');
     el.scenesCard.classList.add('hidden');
+    // Dọn luôn DOM cũ, đừng chỉ ẩn đi: reset xong mà thẻ cảnh còn nằm đó là bẩn.
+    el.sceneList.innerHTML = '';
+    el.timeline.innerHTML = '';
+    el.logline.textContent = '';
     return;
   }
   el.overview.classList.remove('hidden');
@@ -445,7 +475,9 @@ async function generateAll() {
     toast(ok
       ? `Đã copy prompt của ${project.scenes.length} cảnh. Mở Google Flow và dán lần lượt từng cảnh.`
       : 'Không copy được, bạn hãy copy thủ công từng cảnh.', !ok);
-    if (ok) openFlow();
+    if (ok && !openFlow()) {
+      toast('Đã copy prompt. Trình duyệt chặn mở tab mới, bạn tự mở labs.google/fx/tools/flow nhé.', true);
+    }
     return;
   }
   if (busy) return;
@@ -464,15 +496,20 @@ async function generateAll() {
 /* ------------------------------------------------------------------ xuất & reset */
 
 function download(filename, text, type = 'text/markdown;charset=utf-8') {
-  const blob = new Blob([text], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  try {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 async function resetProject() {
@@ -481,7 +518,8 @@ async function resetProject() {
     toast('Chưa có dự án nào để reset.');
     return;
   }
-  if (!window.confirm('Xoá toàn bộ dự án hiện tại (kịch bản, prompt, video đã gắn) và bắt đầu lại?')) return;
+  const ok = await askConfirm('Xoá toàn bộ dự án hiện tại (kịch bản, prompt, video đã gắn) và bắt đầu lại?');
+  if (!ok) return;
   objectUrls.forEach((url) => URL.revokeObjectURL(url));
   objectUrls.clear();
   await store.clearVideos();
@@ -545,8 +583,23 @@ function bindEvents() {
         break;
       case 'export':
         if (!project) { toast('Chưa có dự án để xuất.', true); break; }
-        download(`kich-ban-${project.id}.md`, exportProjectText(project));
-        toast('Đã tải file kịch bản .md');
+        el.exportText.value = exportProjectText(project);
+        el.exportModal.showModal();
+        break;
+      case 'export-copy': {
+        const ok = await copyText(el.exportText.value);
+        toast(ok ? 'Đã copy toàn bộ kịch bản.' : 'Không copy được, bạn hãy bôi đen rồi copy tay.', !ok);
+        break;
+      }
+      case 'export-download':
+        if (download(`kich-ban-${project.id}.md`, el.exportText.value)) toast('Đã tải file kịch bản .md');
+        else toast('Trình duyệt chặn tải file ở đây. Hãy dùng nút Copy.', true);
+        break;
+      case 'confirm-yes':
+        settleConfirm(true);
+        break;
+      case 'confirm-no':
+        settleConfirm(false);
         break;
       case 'open-settings':
         loadSettingsIntoForm();
@@ -598,18 +651,23 @@ function bindEvents() {
         setProject(P.clearVideo(project, index));
         break;
       }
-      case 'rebuild':
-        if (!window.confirm('Dựng lại toàn bộ kịch bản theo ý tưởng và tuỳ chọn hiện tại? Prompt bạn đã tự sửa sẽ mất.')) break;
+      case 'rebuild': {
+        const ok = await askConfirm('Dựng lại toàn bộ kịch bản theo ý tưởng và tuỳ chọn hiện tại? Prompt bạn đã tự sửa sẽ mất.');
+        if (!ok) break;
         setProject(P.rebuildProject(project, { idea: el.idea.value.trim() || project.idea, options: currentOptions() }, { keepVideos: true }));
         toast('Đã dựng lại kịch bản.');
         break;
+      }
       case 'flow-copy': {
         const ok = await copyText(el.flowPrompt.value);
         toast(ok ? 'Đã copy prompt.' : 'Không copy được.', !ok);
         break;
       }
       case 'flow-open':
-        openFlow();
+        if (!openFlow()) {
+          await copyText(FLOW_URL);
+          toast('Trình duyệt chặn mở tab mới. Đã copy link Google Flow, bạn dán vào thanh địa chỉ nhé.', true);
+        }
         break;
       case 'flow-url': {
         const url = el.flowUrl.value.trim();
@@ -658,6 +716,8 @@ function bindEvents() {
     event.target.value = '';
   });
 
+  el.confirmModal.addEventListener('close', () => settleConfirm(false));
+
   window.addEventListener('beforeunload', () => {
     objectUrls.forEach((url) => URL.revokeObjectURL(url));
   });
@@ -680,11 +740,25 @@ function applyBibleEdits() {
 
 /* ------------------------------------------------------------------ khởi động */
 
+/**
+ * Khi app chạy trong khung nhúng, trình duyệt không cho trang tự tải file về.
+ * Ẩn nút tải đi thay vì để người dùng bấm vào chỗ không có gì xảy ra.
+ */
+function hideUnsupportedControls() {
+  let embedded = false;
+  try { embedded = window.self !== window.top; } catch (err) { embedded = true; }
+  if (!embedded) return;
+  document.querySelectorAll('[data-action="export-download"]').forEach((node) => node.classList.add('hidden'));
+  const hint = document.querySelector('#export-modal .hint');
+  if (hint) hint.textContent = 'Bôi đen rồi copy, hoặc bấm nút Copy tất cả bên dưới.';
+}
+
 async function init() {
   settings = { ...settings, ...store.loadSettings() };
   const saved = store.loadProject();
   renderIdeaForm();
   bindEvents();
+  hideUnsupportedControls();
 
   if (saved) {
     project = saved;

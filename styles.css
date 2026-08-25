@@ -17,8 +17,13 @@
   --shadow: 0 10px 30px rgba(0, 0, 0, .35);
 }
 
+/* Thiết kế lấy nền tối làm gốc (:root ở trên). Ba trạng thái cần phục vụ:
+   - người xem không chọn gì  -> theo hệ điều hành
+   - người xem chọn sáng      -> sáng, kể cả khi hệ điều hành đang tối
+   - người xem chọn tối       -> tối, kể cả khi hệ điều hành đang sáng
+   Vì vậy bảng màu sáng xuất hiện ở hai nơi, và cả hai đều chỉ đổi biến. */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg: #f4f6fb;
     --bg-soft: #eef1f8;
     --card: #ffffff;
@@ -28,6 +33,17 @@
     --muted: #5d6b85;
     --shadow: 0 10px 30px rgba(23, 29, 43, .08);
   }
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+    --bg-soft: #eef1f8;
+    --card: #ffffff;
+    --card-2: #f7f9fd;
+    --line: #dde3ef;
+    --text: #171d2b;
+    --muted: #5d6b85;
+    --shadow: 0 10px 30px rgba(23, 29, 43, .08);
 }
 
 * { box-sizing: border-box; }

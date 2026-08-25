@@ -112,6 +112,20 @@ function assertNoNameClash(modules) {
   }
 }
 
+/**
+ * Bản cho trang nhúng (Artifact): bỏ doctype/html/head/body vì nơi nhúng tự bọc,
+ * chỉ giữ <title>, <style> và nội dung trang.
+ */
+function toEmbeddable(html) {
+  const title = (html.match(/<title>([\s\S]*?)<\/title>/) || [, 'AI Video Studio'])[1];
+  const style = (html.match(/<style>[\s\S]*?<\/style>/) || [''])[0];
+  const bodyStart = html.indexOf('<body>');
+  const bodyEnd = html.lastIndexOf('</body>');
+  if (bodyStart < 0 || bodyEnd < 0) throw new Error('Không tìm thấy thẻ body để tách bản nhúng.');
+  const body = html.slice(bodyStart + '<body>'.length, bodyEnd).trim();
+  return `<title>${title}</title>\n${style}\n${body}\n`;
+}
+
 function build() {
   const modules = collectModules(ENTRY);
   assertNoNameClash(modules);
@@ -163,8 +177,12 @@ function build() {
   const out = resolve(ROOT, 'dist/ai-video-studio.html');
   writeFileSync(out, html, 'utf8');
 
+  const embed = toEmbeddable(html);
+  writeFileSync(resolve(ROOT, 'dist/artifact.html'), embed, 'utf8');
+
   const kb = Math.round(Buffer.byteLength(html, 'utf8') / 1024);
   console.log(`Đã gộp ${modules.length} module -> dist/ai-video-studio.html (${kb} KB)`);
+  console.log(`Bản cho trang nhúng            -> dist/artifact.html`);
   modules.forEach((m) => console.log('  ·', m.file.replace(ROOT + '/', '')));
 }
 

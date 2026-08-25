@@ -45,6 +45,15 @@ export async function copyText(text) {
   }
 }
 
+/**
+ * Mở Google Flow ở tab mới. Trả về false khi trình duyệt chặn popup
+ * (hay gặp khi app chạy trong khung nhúng) để giao diện còn báo cho người dùng.
+ */
 export function openFlow() {
-  window.open(FLOW_URL, '_blank', 'noopener');
+  try {
+    const win = window.open(FLOW_URL, '_blank', 'noopener');
+    return Boolean(win);
+  } catch (err) {
+    return false;
+  }
 }
