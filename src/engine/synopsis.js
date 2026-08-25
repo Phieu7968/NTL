@@ -26,10 +26,23 @@ const MOOD_VI = {
   'natural and grounded': 'tự nhiên, mộc mạc',
 };
 
+/** Vai/nghề nghiệp dịch sang tiếng Việt cho phần tóm tắt kịch bản. */
+const ROLE_VI = {
+  'factory worker': 'công nhân', engineer: 'kỹ sư', teacher: 'giáo viên', doctor: 'bác sĩ',
+  farmer: 'nông dân', driver: 'tài xế', 'staff member': 'nhân viên', customer: 'khách hàng',
+  chef: 'đầu bếp', executive: 'lãnh đạo doanh nghiệp', athlete: 'vận động viên', child: 'em bé',
+  'family of three': 'gia đình ba người', singer: 'ca sĩ', student: 'học sinh, sinh viên',
+  'fashion model': 'người mẫu', barista: 'nhân viên pha chế', presenter: 'người dẫn',
+  instructor: 'người hướng dẫn', 'lead character': 'nhân vật chính', performer: 'nghệ sĩ biểu diễn',
+  'young woman': 'cô gái', woman: 'người phụ nữ', 'young man': 'chàng trai', man: 'người đàn ông',
+  'person featured in the video': 'nhân vật xuất hiện trong video',
+};
+
 function characterVi(bible) {
   const c = bible.character;
   if (!c?.present) return '';
-  const gender = c.gender === 'male' ? 'chàng trai' : c.gender === 'female' ? 'cô gái' : 'nhân vật';
+  const roleVi = ROLE_VI[c.role];
+  const gender = roleVi || (c.gender === 'male' ? 'chàng trai' : c.gender === 'female' ? 'cô gái' : 'nhân vật');
   const ethnic = c.ethnicity === 'Vietnamese' ? 'Việt Nam' : c.ethnicity;
   const age = String(c.age || '').match(/\d+/);
   return `${c.name} — ${gender} ${ethnic}${age ? ` khoảng ${age[0]} tuổi` : ''}`;
@@ -52,6 +65,16 @@ function settingVi(bible) {
     countryside: 'vùng quê',
     'local market': 'khu chợ',
     'cinematic studio set': 'phim trường tối, đậm chất điện ảnh',
+    'apartment building': 'toà chung cư',
+    school: 'khuôn viên trường học',
+    factory: 'nhà máy',
+    'construction site': 'công trường xây dựng',
+    clinic: 'phòng khám',
+    restaurant: 'nhà hàng',
+    supermarket: 'siêu thị',
+    stadium: 'sân vận động',
+    warehouse: 'nhà kho',
+    'theo ý tưởng': 'bối cảnh theo đúng ý tưởng',
   };
   return map[bible.setting?.name] || bible.setting?.name || 'bối cảnh chính';
 }

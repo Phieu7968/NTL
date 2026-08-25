@@ -220,6 +220,9 @@ const VO = {
   bridge: { vi: '', en: '' },
 };
 
+/** Các thể loại mà lời thoại mẫu xoay quanh một sản phẩm cụ thể. */
+export const PRODUCT_LED_GENRES = ['ad', 'brand', 'review', 'social', 'food', 'realestate', 'tutorial'];
+
 function beatsFor(genreId) {
   return BEATS[genreId] || BEATS.ad;
 }
@@ -289,6 +292,10 @@ function fillTemplate(template, bible) {
 
 function voiceoverFor(beat, bible) {
   if (bible.languageId === 'none') return '';
+  // Lời thoại mẫu được viết cho video bán một sản phẩm. Chưa nhận ra sản phẩm mà
+  // vẫn gán vào thì ra những câu lạc đề kiểu "Chỉ một chạm, mọi thứ khác hẳn" trên
+  // một video an toàn lao động. Thà để trống cho người dùng tự viết.
+  if (!bible.product?.present && PRODUCT_LED_GENRES.includes(bible.genreId)) return '';
   const entry = VO[beat.id];
   if (!entry) return '';
   const useEn = bible.languageId === 'en';
@@ -302,7 +309,9 @@ function actionFor(beat, bible, rng) {
   const c = bible.character;
   const p = bible.product;
   const who = c?.present ? c.id : 'the camera';
-  const productName = p?.present ? (p.brand ? `the "${p.brand}" ${p.name}` : `the ${p.name}`) : 'the subject';
+  const productName = p?.present
+    ? (p.brand ? `the "${p.brand}" ${p.name}` : `the ${p.name}`)
+    : 'the main subject of the concept';
 
   const byBeat = {
     hook: p?.present
@@ -320,12 +329,12 @@ function actionFor(beat, bible, rng) {
     character: c?.present ? `${who} walks into frame and settles, at ease` : `the main subject enters the frame`,
     tension: c?.present ? `${who} hesitates, glancing down` : `a small imperfection is noticed`,
     value: `hands work carefully, showing the craft behind the product`,
-    intro: c?.present ? `${who} greets the camera and holds up ${productName}` : `the product is introduced to camera`,
-    unbox: c?.present ? `${who} opens the box and lifts ${productName} out slowly` : `the box opens and the product is lifted out`,
-    feature: p?.present ? `a macro pass highlights the key feature of ${productName}` : `the key feature is highlighted`,
+    intro: c?.present ? `${who} greets the camera and holds up ${productName}` : `${productName} is introduced to camera`,
+    unbox: c?.present ? `${who} opens the box and lifts ${productName} out slowly` : `${productName} is revealed and handled up close`,
+    feature: `a macro pass highlights the key feature of ${productName}`,
     use: c?.present && p?.present
       ? `${who} ${useAction(p, productName)}, moving naturally through the space`
-      : `the product is used in a real setting`,
+      : `${productName} is shown in real use`,
     compare: c?.present ? `${who} turns ${productName} in the hand, weighing it up` : `two options sit side by side`,
     verdict: c?.present ? `${who} looks straight into the lens and gives the verdict` : `a final hero frame lands`,
     setup: `the location wakes up quietly, small movements in the frame`,
@@ -346,7 +355,7 @@ function actionFor(beat, bible, rng) {
     sunset: `the sun drops to the horizon and floods the frame with gold`,
     outro: `the camera pulls back and holds on a final wide frame`,
     problem: c?.present ? `${who} reacts to the everyday problem with visible frustration` : `the problem is shown plainly`,
-    solution: p?.present ? `${productName} enters frame as the answer` : `the solution appears`,
+    solution: `${productName} enters frame as the answer`,
     proof: `a clear before-and-after comparison plays out in frame`,
     exterior: `the building is revealed from above in one continuous move`,
     entrance: `the door opens and the camera glides through`,

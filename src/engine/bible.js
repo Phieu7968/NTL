@@ -26,6 +26,14 @@ const CHARACTER_RULES = [
   { keys: ['sinh vien', 'hoc sinh', 'student'], gender: 'neutral', age: '20-year-old', role: 'student', wardrobe: 'casual campus outfit, canvas backpack' },
   { keys: ['nguoi mau', 'model', 'fashionista'], gender: 'neutral', age: '24-year-old', role: 'fashion model', wardrobe: 'editorial designer outfit' },
   { keys: ['barista', 'pha che'], gender: 'neutral', age: '27-year-old', role: 'barista', wardrobe: 'denim apron over a plain tee' },
+  { keys: ['cong nhan', 'worker'], gender: 'neutral', age: '30-year-old', role: 'factory worker', wardrobe: 'company work uniform, safety helmet and gloves' },
+  { keys: ['ky su', 'ky thuat vien', 'engineer', 'technician'], gender: 'neutral', age: '32-year-old', role: 'engineer', wardrobe: 'work shirt with company logo, safety helmet' },
+  { keys: ['giao vien', 'thay giao', 'co giao', 'teacher'], gender: 'neutral', age: '35-year-old', role: 'teacher', wardrobe: 'neat smart-casual outfit' },
+  { keys: ['bac si', 'y ta', 'doctor', 'nurse'], gender: 'neutral', age: '36-year-old', role: 'doctor', wardrobe: 'clean white coat over scrubs' },
+  { keys: ['nong dan', 'farmer'], gender: 'neutral', age: '45-year-old', role: 'farmer', wardrobe: 'worn work clothes and a wide-brim hat' },
+  { keys: ['tai xe', 'lai xe', 'driver'], gender: 'neutral', age: '38-year-old', role: 'driver', wardrobe: 'company driver uniform' },
+  { keys: ['nhan vien', 'staff', 'employee', 'nhan su'], gender: 'neutral', age: '29-year-old', role: 'staff member', wardrobe: 'company uniform or neat office wear' },
+  { keys: ['khach hang', 'customer', 'client'], gender: 'neutral', age: '33-year-old', role: 'customer', wardrobe: 'ordinary everyday clothes' },
 ];
 
 const ETHNICITIES = [
@@ -40,7 +48,7 @@ const ETHNICITIES = [
 
 const PRODUCT_RULES = [
   { keys: ['nuoc hoa', 'perfume', 'fragrance', 'eau de parfum'], name: 'perfume bottle', category: 'fragrance', material: 'faceted crystal glass with a polished metal cap', hero: 'the bottle catching a thin rim of light as it turns' },
-  { keys: ['thoi trang', 'fashion', 'quan ao', 'vay', 'dam', 'ao dai', 'outfit', 'clothing'], name: 'fashion outfit', category: 'fashion', material: 'soft flowing fabric with visible weave and stitching', hero: 'fabric moving in slow motion as the model turns' },
+  { keys: ['thoi trang', 'fashion', 'quan ao', 'chiec vay', 'vay dam', 'ao dai', 'outfit', 'clothing', 'bo suu tap'], name: 'fashion outfit', category: 'fashion', material: 'soft flowing fabric with visible weave and stitching', hero: 'fabric moving in slow motion as the model turns' },
   { keys: ['my pham', 'cosmetic', 'skincare', 'serum', 'kem duong', 'son moi', 'lipstick'], name: 'skincare bottle', category: 'beauty', material: 'frosted glass dropper bottle with matte label', hero: 'a single drop of serum falling in macro' },
   { keys: ['dien thoai', 'smartphone', 'phone', 'iphone'], name: 'smartphone', category: 'tech', material: 'brushed aluminium frame and glossy glass back', hero: 'the screen lighting up in a dark frame' },
   { keys: ['laptop', 'may tinh'], name: 'laptop', category: 'tech', material: 'anodised aluminium unibody', hero: 'the lid opening to reveal a glowing display' },
@@ -50,12 +58,12 @@ const PRODUCT_RULES = [
   { keys: ['tra sua', 'bubble tea', 'milk tea', 'nuoc ep', 'sinh to'], name: 'drink cup', category: 'beverage', material: 'clear cup with layered liquid and condensation', hero: 'ice tumbling into the cup in slow motion' },
   { keys: ['o to', 'xe hoi', 'car', 'suv', 'sedan'], name: 'car', category: 'automotive', material: 'metallic paint with sharp specular highlights', hero: 'a slow reflection sweeping along the body line' },
   { keys: ['xe may', 'motorbike', 'scooter'], name: 'motorbike', category: 'automotive', material: 'painted metal with chrome accents', hero: 'wheels spinning as light streaks past' },
-  { keys: ['trang suc', 'jewel', 'nhan', 'vong co', 'necklace', 'ring'], name: 'jewellery piece', category: 'luxury', material: '18k gold with brilliant-cut stones', hero: 'stones throwing tiny rainbow highlights in macro' },
-  { keys: ['banh ngot', 'banh', 'cake', 'pastry', 'do an', 'food', 'mon an', 'pho bo', 'bun bo', 'nha hang'], name: 'dish', category: 'food', material: 'fresh ingredients with visible texture and steam', hero: 'a close macro of texture and rising steam' },
+  { keys: ['trang suc', 'jewellery', 'jewelry', 'nhan cuoi', 'chiec nhan', 'vong co', 'day chuyen', 'bong tai', 'necklace', 'bracelet'], name: 'jewellery piece', category: 'luxury', material: '18k gold with brilliant-cut stones', hero: 'stones throwing tiny rainbow highlights in macro' },
+  { keys: ['banh ngot', 'banh', 'cake', 'pastry', 'do an', 'food', 'mon an', 'am thuc', 'pho bo', 'bun bo', 'nha hang'], name: 'dish', category: 'food', material: 'fresh ingredients with visible texture and steam', hero: 'a close macro of texture and rising steam' },
   { keys: ['sua tuoi', 'sua chua', 'sua hat', 'milk', 'yogurt'], name: 'dairy product', category: 'food', material: 'chilled bottle with condensation on the surface', hero: 'a splash of milk frozen mid-air' },
   { keys: ['noi that', 'furniture', 'sofa', 'ban ghe'], name: 'furniture piece', category: 'interior', material: 'natural oak and woven textile', hero: 'light moving slowly across the surface' },
   { keys: ['can ho', 'bat dong san', 'nha pho', 'villa', 'apartment', 'real estate'], name: 'apartment', category: 'space', material: 'stone, glass and warm wood finishes', hero: 'a smooth glide through the living space' },
-  { keys: ['app', 'ung dung', 'phan mem', 'website', 'saas'], name: 'mobile app', category: 'digital', material: 'clean UI on a floating device mockup', hero: 'the interface animating under the fingertip' },
+  { keys: ['app', 'ung dung', 'phan mem', 'website', 'saas', 'nen tang', 'he thong quan ly'], name: 'software product', category: 'digital', material: 'clean UI on a floating device mockup', hero: 'the interface animating under the fingertip' },
   { keys: ['khoa hoc', 'course', 'workshop'], name: 'course', category: 'education', material: 'notebooks, laptop and warm desk light', hero: 'a hand writing while the screen glows' },
 ];
 
@@ -67,13 +75,22 @@ const SETTING_RULES = [
   { keys: ['van phong', 'office', 'coworking'], name: 'office', description: 'a bright modern office with glass partitions, minimalist desks and city view windows', time: 'daytime' },
   { keys: ['nha bep', 'kitchen', 'bep'], name: 'kitchen', description: 'a clean contemporary kitchen with marble counters and morning light from a side window', time: 'morning' },
   { keys: ['rung', 'forest', 'nui', 'mountain'], name: 'forest', description: 'a misty forest with tall trees, soft fog and shafts of light between branches', time: 'early morning' },
-  { keys: ['phong khach', 'living room', 'trong nha', 'căn hộ', 'can ho'], name: 'living room', description: 'a warm minimalist living room with linen sofa, oak floor and sheer curtains', time: 'afternoon' },
+  { keys: ['phong khach', 'living room', 'can ho', 'noi that nha'], name: 'living room', description: 'a warm minimalist living room with linen sofa, oak floor and sheer curtains', time: 'afternoon' },
   { keys: ['showroom', 'cua hang', 'store', 'boutique'], name: 'boutique showroom', description: 'a premium boutique showroom with spotlit displays and polished stone floor', time: 'evening' },
   { keys: ['san thuong', 'rooftop'], name: 'rooftop', description: 'a rooftop terrace overlooking a glittering skyline', time: 'sunset' },
   { keys: ['gym', 'phong tap'], name: 'gym', description: 'an industrial gym with black rubber floor, chalk dust in the air and hard top light', time: 'early morning' },
   { keys: ['khach san', 'hotel', 'resort'], name: 'luxury hotel suite', description: 'a luxury hotel suite with marble surfaces, silk drapes and layered practical lighting', time: 'dusk' },
   { keys: ['ruong', 'lang que', 'nong thon', 'countryside'], name: 'countryside', description: 'terraced rice fields with a soft haze rolling over the hills', time: 'sunrise' },
   { keys: ['khu cho', 'cho dem', 'cho truyen thong', 'market'], name: 'local market', description: 'a lively local market with colourful stalls, hanging lamps and moving crowds', time: 'morning' },
+  { keys: ['chung cu', 'toa nha', 'apartment building', 'hanh lang'], name: 'apartment building', description: 'a modern apartment building with clean corridors, stairwells and a shared lobby', time: 'daytime' },
+  { keys: ['truong hoc', 'truong thpt', 'truong tieu hoc', 'lop hoc', 'san truong', 'school', 'classroom'], name: 'school', description: 'a school campus with classrooms, a courtyard and rows of desks', time: 'morning' },
+  { keys: ['nha may', 'xuong san xuat', 'factory', 'day chuyen'], name: 'factory', description: 'a working factory floor with production lines, machinery and overhead lighting', time: 'daytime' },
+  { keys: ['cong truong', 'construction site', 'cong trinh'], name: 'construction site', description: 'an active construction site with scaffolding, steel frames and dust in the air', time: 'morning' },
+  { keys: ['benh vien', 'phong kham', 'hospital', 'clinic'], name: 'clinic', description: 'a clean modern clinic with bright corridors and medical equipment', time: 'daytime' },
+  { keys: ['nha hang', 'quan an', 'restaurant'], name: 'restaurant', description: 'a warm restaurant interior with set tables and soft pendant lighting', time: 'evening' },
+  { keys: ['sieu thi', 'cua hang tien loi', 'supermarket'], name: 'supermarket', description: 'a bright supermarket aisle with stocked shelves and clean flooring', time: 'daytime' },
+  { keys: ['san van dong', 'san bong', 'stadium'], name: 'stadium', description: 'a large stadium with floodlights and an open pitch', time: 'evening' },
+  { keys: ['kho hang', 'nha kho', 'warehouse'], name: 'warehouse', description: 'a large warehouse with tall racking, pallets and forklift lanes', time: 'daytime' },
 ];
 
 const MOOD_RULES = [
@@ -104,6 +121,22 @@ const AUDIO_BY_MOOD = {
   'mysterious and cinematic': 'low drone, slow pulsing bass, distant reverb tail',
   'sleek and modern': 'minimal electronic pulse, clean UI clicks, airy pad',
   'natural and grounded': 'ambient nature bed, soft wind, organic foley',
+};
+
+/** Nơi chốn có tiếng đặc trưng riêng, đè lên nền âm thanh chọn theo tâm trạng. */
+const AUDIO_BY_SETTING = {
+  factory: 'steady machinery hum, rhythmic production line clatter, distant industrial tones',
+  'construction site': 'power tools, metal impacts, distant machinery and site chatter',
+  warehouse: 'forklift hum, pallet movement, wide indoor room tone',
+  school: 'children chatter in the distance, school bell, open courtyard ambience',
+  clinic: 'quiet corridor tone, soft equipment beeps, calm footsteps',
+  gym: 'weight plates, controlled breathing, low room reverb',
+  'city street': 'traffic hum, passing motorbikes, distant street chatter',
+  'local market': 'market chatter, footsteps, small bells and handling sounds',
+  restaurant: 'cutlery, low conversation, kitchen sounds behind',
+  supermarket: 'trolley wheels, faint background music, checkout beeps',
+  stadium: 'crowd murmur, distant whistle, open-air reverb',
+  'apartment building': 'quiet corridor tone, lift chime, muffled everyday life',
 };
 
 const DEFAULT_NEGATIVE = 'no text overlays, no watermark, no logo distortion, no extra fingers, no deformed hands or faces, no warped product label, no duplicated subject, no subtitles, no jitter, no blurry frames, no oversaturated skin tones';
@@ -142,34 +175,63 @@ function detectGender(text, fallback) {
   return fallback || 'neutral';
 }
 
+/** Các từ cho thấy trong video có người. Không thấy từ nào thì đừng bịa ra nhân vật. */
+const PERSON_HINTS = [
+  'nguoi', 'co gai', 'chang trai', 'phu nu', 'dan ong', 'em be', 'tre em', 'gia dinh',
+  'nhan vien', 'khach hang', 'hoc sinh', 'sinh vien', 'giao vien', 'dau bep', 'ca si',
+  'dien vien', 'mc', 'host', 'model', 'nguoi mau', 'doanh nhan', 'ceo', 'van dong vien',
+  'barista', 'ban', 'toi', 'chung toi', 'anh', 'chi', 'co ay', 'anh ay', 'nhan vat',
+  'presenter', 'woman', 'man', 'girl', 'boy', 'family', 'team', 'doi ngu', 'cong nhan',
+  'ky su', 'bac si', 'y ta', 'nong dan', 'tai xe', 'phong van', 'dan chuong trinh',
+];
+
+function mentionsPerson(text) {
+  return PERSON_HINTS.some((hint) => containsPhrase(text, hint));
+}
+
 function buildCharacter(text, options, rng) {
   const rule = matchRule(CHARACTER_RULES, text);
-  const genreNeedsPerson = ['ad', 'brand', 'review', 'story', 'tutorial', 'social', 'music'].includes(options.genre);
-  if (!rule && !genreNeedsPerson) {
+  // Trước đây mọi video quảng cáo đều bị gán một cô người mẫu, kể cả video tuyển
+  // dụng nhà máy hay giới thiệu trường học. Giờ phải có dấu hiệu thật mới dựng.
+  if (!rule && !mentionsPerson(text)) {
     return { present: false };
   }
 
   const DEFAULT_ROLE = {
-    ad: 'model', brand: 'model', review: 'presenter', tutorial: 'instructor',
-    social: 'presenter', story: 'lead character', music: 'performer',
+    ad: 'person featured in the video', brand: 'person featured in the video',
+    review: 'presenter', tutorial: 'instructor', social: 'presenter',
+    story: 'lead character', music: 'performer',
   };
   const base = rule || { gender: 'neutral', age: '26-year-old', role: DEFAULT_ROLE[options.genre] || 'presenter' };
   const gender = detectGender(text, base.gender);
   const ethnicity = (matchRule(ETHNICITIES, text) || { label: 'Vietnamese' }).label;
-  const namePool = gender === 'male' ? MALE_NAMES : FEMALE_NAMES;
+  // Không rõ giới tính thì bốc từ cả hai danh sách, đừng mặc định là nữ.
+  const namePool = gender === 'male' ? MALE_NAMES : gender === 'female' ? FEMALE_NAMES : [...FEMALE_NAMES, ...MALE_NAMES];
   const name = pick(namePool, rng);
 
   const hairOptions = gender === 'male'
     ? ['short neatly parted black hair', 'textured black hair swept back']
-    : ['long straight black hair', 'shoulder-length black hair with a soft wave', 'black hair in a low elegant bun'];
+    : gender === 'female'
+      ? ['long straight black hair', 'shoulder-length black hair with a soft wave', 'black hair in a low elegant bun']
+      : ['neat short dark hair', 'dark hair tied back neatly'];
 
   const hair = pick(hairOptions, rng);
-  const wardrobe = base.wardrobe || pick(
-    gender === 'male'
-      ? ['a tailored off-white linen shirt and dark trousers', 'a fitted black knit and slim charcoal trousers']
-      : ['a minimalist cream silk blouse and tailored trousers', 'an elegant off-white slip dress', 'a soft beige knit top with wide-leg trousers'],
-    rng,
-  );
+  // Trang phục sang trọng chỉ dùng khi ý tưởng thật sự thuộc nhóm thời trang / làm đẹp /
+  // cao cấp. Mặc định phải trung tính, nếu không một video an toàn lao động cũng ra váy lụa.
+  const glamour = ['model', 'fashion model', 'singer', 'performer'].includes(base.role)
+    || ['thoi trang', 'fashion', 'my pham', 'lam dep', 'nuoc hoa', 'trang suc', 'sang trong', 'luxury'].some((k) => containsPhrase(text, k));
+
+  const wardrobe = base.wardrobe || (glamour
+    ? pick(
+      gender === 'male'
+        ? ['a tailored off-white linen shirt and dark trousers', 'a fitted black knit and slim charcoal trousers']
+        : ['a minimalist cream silk blouse and tailored trousers', 'an elegant off-white slip dress', 'a soft beige knit top with wide-leg trousers'],
+      rng,
+    )
+    : pick(
+      ['neat everyday clothes appropriate to the setting', 'simple smart-casual clothing suited to the location'],
+      rng,
+    ));
 
   const descriptor = joinParts([
     base.age,
@@ -187,13 +249,15 @@ function buildCharacter(text, options, rng) {
     age: base.age,
     hair,
     wardrobe,
-    skin: 'natural glowing skin with visible pores, no heavy retouching',
+    skin: glamour
+      ? 'natural glowing skin with visible pores, no heavy retouching'
+      : 'natural skin texture with visible pores, no heavy retouching, no glamour makeup',
     expression: 'calm confident expression with a subtle warm smile',
     /** Chuỗi này được nhúng nguyên văn vào mọi scene để giữ nhân vật nhất quán. */
     lock: joinParts([
       `${name.toUpperCase()} (${descriptor})`,
       hair,
-      'natural glowing skin, soft natural makeup',
+      glamour ? 'natural glowing skin, soft natural makeup' : 'natural skin texture, no heavy makeup',
       `wearing ${wardrobe}`,
       'same face, same hairstyle and same outfit in every shot',
     ]),
@@ -202,15 +266,11 @@ function buildCharacter(text, options, rng) {
 
 function buildProduct(idea, text, options, rng) {
   const rule = matchRule(PRODUCT_RULES, text);
-  const sellsSomething = ['ad', 'brand', 'review', 'food', 'realestate', 'social'].includes(options.genre);
-  if (!rule && !sellsSomething) return { present: false };
+  // Không nhận ra sản phẩm thì nói thẳng là không biết, đừng dựng ra "chiếc đồng hồ
+  // vàng 18k" cho một video mà người dùng không hề nhắc tới sản phẩm nào.
+  if (!rule) return { present: false };
 
-  const base = rule || {
-    name: 'hero product',
-    category: 'general',
-    material: 'clean matte surface with a subtle branded label',
-    hero: 'a slow rotating hero shot on a lit pedestal',
-  };
+  const base = rule;
 
   const brandMatch = String(idea).match(/["“”']([^"“”']{2,40})["“”']/);
   const brand = brandMatch ? brandMatch[1].trim() : '';
@@ -243,13 +303,17 @@ function buildProduct(idea, text, options, rng) {
 }
 
 function buildSetting(text, rng) {
-  const rule = matchRule(SETTING_RULES, text) || {
-    name: 'cinematic studio set',
-    description: 'a dark cinematic studio set with a reflective floor and layered practical lights',
-    time: 'evening',
+  const matched = matchRule(SETTING_RULES, text);
+  const rule = matched || {
+    // Không nhận ra nơi chốn thì để model tự chọn nơi hợp với ý tưởng ở dòng Concept,
+    // thay vì áp đặt một phim trường tối cho mọi video.
+    name: 'theo ý tưởng',
+    description: 'a real location that fits the concept above, dressed and lit for filming',
+    time: 'time of day that suits the concept',
   };
   return {
     present: true,
+    matched: Boolean(matched),
     name: rule.name,
     description: rule.description,
     time: rule.time,
@@ -299,6 +363,9 @@ export function buildBible(idea, options, seed) {
   return {
     seed: usedSeed,
     idea: String(idea || '').trim(),
+    /** Ý tưởng gốc của người dùng, nhúng nguyên văn vào mọi prompt. Khi engine
+     *  không nhận ra sản phẩm hay bối cảnh, đây vẫn là nguồn ý đúng nhất. */
+    concept: String(idea || '').trim(),
     options: { ...options },
     genre: genre.en,
     genreVi: genre.vi,
@@ -316,7 +383,7 @@ export function buildBible(idea, options, seed) {
     palette: moodRule.palette,
     paletteVi: moodRule.paletteVi || moodRule.palette,
     lighting: LIGHTING_BY_MOOD[moodRule.mood] || LIGHTING_BY_MOOD['luxurious and confident'],
-    audio: AUDIO_BY_MOOD[moodRule.mood] || AUDIO_BY_MOOD['luxurious and confident'],
+    audio: AUDIO_BY_SETTING[setting.name] || AUDIO_BY_MOOD[moodRule.mood] || AUDIO_BY_MOOD['luxurious and confident'],
     lens,
     grade: `${style.en} grade, ${moodRule.palette}, filmic contrast, natural skin tones`,
     filmStock: 'shot on ARRI Alexa with vintage prime lenses, natural 24fps motion blur, subtle film grain',

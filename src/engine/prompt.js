@@ -12,6 +12,7 @@
 import { joinParts } from './text.js';
 import { MAX_CLIP_SECONDS } from './presets.js';
 import { buildLogline, buildTimeline } from './synopsis.js';
+import { PRODUCT_LED_GENRES } from './script.js';
 
 const LANG_LABEL = {
   vi: 'Vietnamese',
@@ -23,11 +24,22 @@ const LANG_LABEL = {
 /** Các trường của scene mà người dùng được phép sửa mà không đụng tới bible. */
 export const EDITABLE_SCENE_FIELDS = ['title', 'duration', 'action', 'shotLabel', 'angle', 'movement', 'voiceover', 'onScreenText', 'extraNotes'];
 
+/**
+ * Khối chủ thể. Luôn có một dòng Subject vì model cần biết ai/cái gì là trung tâm khung hình.
+ * Không có nhân vật lẫn sản phẩm thì trỏ về dòng Concept, chứ không khẳng định
+ * "không có người trong khung" - một video khai giảng dĩ nhiên phải có người.
+ */
 function subjectBlock(bible) {
   const lines = [];
-  if (bible.character?.present) lines.push(`Subject: ${bible.character.lock}.`);
-  if (bible.product?.present) lines.push(`Product (must stay identical): ${bible.product.lock}.`);
-  if (!lines.length) lines.push('Subject: the environment itself is the subject, no people in frame.');
+  if (bible.character?.present) {
+    lines.push(`Subject: ${bible.character.lock}.`);
+    if (bible.product?.present) lines.push(`Product (must stay identical): ${bible.product.lock}.`);
+  } else if (bible.product?.present) {
+    lines.push(`Subject (must stay identical): ${bible.product.lock}.`);
+  } else {
+    lines.push('Subject: the main subject described in the concept above, framed as the hero of the shot.');
+    lines.push('People: include only the people the concept implies, dressed appropriately for that setting.');
+  }
   return lines.join('\n');
 }
 
@@ -57,6 +69,9 @@ export function compilePrompt(bible, scene, opts = {}) {
   const header = `Scene ${scene.number}/${total} - "${scene.title}" - ${scene.duration}s - ${bible.aspect}`;
 
   const body = [
+    // Ý tưởng gốc đứng đầu prompt: khi engine không nhận ra sản phẩm hay bối cảnh,
+    // đây vẫn là mô tả đúng nhất về thứ người dùng muốn.
+    bible.concept ? `Concept (follow this intent exactly): ${bible.concept}` : '',
     subjectBlock(bible),
     `Action: ${scene.action}.`,
     `Setting: ${bible.setting.description}, ${bible.setting.time}.`,
@@ -110,6 +125,12 @@ export function promptWarnings(bible, scenes) {
   }
   if (bible.product?.present && !bible.product.brand) {
     warnings.push('Chưa có tên thương hiệu - prompt đang dùng placeholder [TÊN THƯƠNG HIỆU]. Thêm tên vào ô ý tưởng trong dấu ngoặc kép, ví dụ: "Elysia".');
+  }
+  if (!bible.product?.present && PRODUCT_LED_GENRES.includes(bible.genreId)) {
+    warnings.push('App chưa nhận ra sản phẩm cụ thể trong ý tưởng, nên prompt sẽ chung chung và phần lời thoại để trống. Hãy viết rõ sản phẩm/chủ thể trong ô ý tưởng, hoặc mở panel "Nhân vật & sản phẩm" điền tay.');
+  }
+  if (!bible.character?.present && PRODUCT_LED_GENRES.includes(bible.genreId)) {
+    warnings.push('Ý tưởng không nhắc tới người nào nên app không tự thêm nhân vật. Muốn có người trong video, hãy ghi rõ trong ý tưởng (ví dụ "một nữ nhân viên", "một kỹ sư").');
   }
   return warnings;
 }

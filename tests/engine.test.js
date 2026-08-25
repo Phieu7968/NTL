@@ -73,7 +73,7 @@ test('prompt của mỗi cảnh có đủ các thành phần bắt buộc', () =
   const bible = buildBible(IDEA_FASHION, OPTS);
   const scenes = compileAll(bible, buildScenes(bible));
   for (const scene of scenes) {
-    for (const label of ['Subject:', 'Action:', 'Setting:', 'Camera:', 'Lighting:', 'Look:', 'Audio:', 'Continuity:', 'Negative prompt:']) {
+    for (const label of ['Concept (', 'Subject', 'Action:', 'Setting:', 'Camera:', 'Lighting:', 'Look:', 'Audio:', 'Continuity:', 'Negative prompt:']) {
       assert.ok(scene.prompt.includes(label), `scene ${scene.number} thiếu "${label}"`);
     }
     assert.ok(scene.prompt.includes(bible.character.id), 'thiếu khoá nhân vật');
@@ -105,7 +105,8 @@ test('sửa một cảnh không đụng tới các cảnh khác', () => {
 });
 
 test('regenerate một cảnh giữ nguyên nhân vật, sản phẩm và các cảnh khác', () => {
-  let project = P.createProject(IDEA_PERFUME, OPTS);
+  // Dùng ý tưởng có nhắc tới người: engine chỉ dựng nhân vật khi ý tưởng thật sự có.
+  let project = P.createProject(IDEA_FASHION, OPTS);
   const before = project.scenes.map((s) => s.prompt);
   const charLock = project.bible.character.lock;
 
@@ -145,7 +146,7 @@ test('prompt tự viết được giữ và khôi phục lại được', () => 
 
   project = P.resetScenePrompt(project, 1);
   assert.notEqual(project.scenes[1].prompt, 'PROMPT DO TÔI TỰ VIẾT');
-  assert.ok(project.scenes[1].prompt.includes('Subject:'));
+  assert.match(project.scenes[1].prompt, /^Subject.*:/m);
   assert.notEqual(project.scenes[1].prompt, original, 'prompt gốc được dựng lại theo bible mới nhất');
 });
 
