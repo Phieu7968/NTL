@@ -23,7 +23,7 @@ Hoặc mở thẳng `index.html` bằng trình duyệt (Chrome/Edge/Safari đề
 Chạy test engine:
 
 ```bash
-npm test           # 22 test, không cần cài dependency
+npm test           # 28 test, không cần cài dependency
 ```
 
 ---
@@ -42,6 +42,21 @@ Có sẵn 4 ý tưởng mẫu bấm một phát là điền.
 Bấm **"Tạo kịch bản & prompt"**. App phân tích ý tưởng để rút ra nhân vật, sản phẩm, bối cảnh, tâm trạng, tông màu — rồi dựng kịch bản theo cấu trúc kể chuyện của đúng thể loại đó (quảng cáo có hook → khơi gợi → lộ diện sản phẩm → sử dụng → cận cảnh → cảm xúc → CTA).
 
 Mỗi cảnh có: **thời lượng · nội dung · hành động · mô tả hình ảnh · góc máy · chuyển động máy · lời thoại**. Tổng thời lượng các cảnh luôn khớp đúng con số bạn chọn.
+
+Ngay dưới phần tổng quan là khối **📖 Kịch bản**: một đoạn tóm tắt tiếng Việt (thể loại, thời lượng, nhân vật, bối cảnh, không khí, tông màu) kèm **dòng thời gian** từng cảnh — bấm vào mốc nào là nhảy thẳng xuống cảnh đó.
+
+```
+Quảng cáo sản phẩm dài 30 giây, 5 cảnh, phong cách cinematic sang trọng; Vy — cô gái
+Việt Nam khoảng 25 tuổi cùng thiết kế thời trang tại quán cà phê hiện đại; không khí
+hiện đại, tinh gọn, tông màu xám chì lạnh, trắng kính và điểm nhấn cyan; khép lại bằng
+khung hình chốt chừa chỗ đặt logo.
+
+00:00 – 00:06  Macro chi tiết      Scene 1: Mở đầu gây chú ý
+00:06 – 00:12  Trung cảnh          Scene 2: Khơi gợi mong muốn
+00:12 – 00:19  Trung cảnh          Scene 3: Sản phẩm trong sử dụng
+00:19 – 00:25  Đặc tả gương mặt    Scene 4: Cao trào cảm xúc
+00:25 – 00:30  Toàn cảnh           Scene 5: Chốt & kêu gọi hành động
+```
 
 ### 3. Prompt chi tiết cho từng cảnh
 Mỗi cảnh được biên dịch thành một prompt đầy đủ cho Flow/Veo:
@@ -118,12 +133,13 @@ src/
     text.js              bỏ dấu tiếng Việt, seed, PRNG tái lập
     bible.js             phân tích ý tưởng → Project Bible (nhân vật/sản phẩm/bối cảnh)
     script.js            beat kể chuyện theo thể loại → danh sách cảnh + thời lượng
+    synopsis.js          tóm tắt kịch bản tiếng Việt + dòng thời gian
     prompt.js            biên dịch prompt hoàn chỉnh cho Flow/Veo
     project.js           thao tác dự án: sửa/regenerate/gắn video từng cảnh
   providers/
     flow.js              quy trình Google Flow (copy prompt, mở Flow, gắn video)
     gemini.js            tuỳ chọn: Gemini viết kịch bản + Veo render video
-tests/engine.test.js     22 test cho toàn bộ engine
+tests/engine.test.js     28 test cho toàn bộ engine
 ```
 
 ---

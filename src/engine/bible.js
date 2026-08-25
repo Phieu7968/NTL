@@ -77,13 +77,13 @@ const SETTING_RULES = [
 ];
 
 const MOOD_RULES = [
-  { keys: ['sang trong', 'luxury', 'cao cap', 'premium'], mood: 'luxurious and confident', palette: 'deep black, champagne gold and warm amber' },
-  { keys: ['nhe nhang', 'diu dang', 'soft', 'gentle', 'lang man', 'romantic'], mood: 'soft and romantic', palette: 'blush pink, cream and pale gold' },
-  { keys: ['nang dong', 'tre trung', 'energetic', 'youthful', 'vui'], mood: 'energetic and playful', palette: 'coral, electric blue and sunlit yellow' },
-  { keys: ['cam dong', 'am ap', 'warm', 'emotional', 'gia dinh'], mood: 'warm and heartfelt', palette: 'honey amber, terracotta and soft ivory' },
-  { keys: ['bi an', 'huyen bi', 'mysterious', 'dark'], mood: 'mysterious and cinematic', palette: 'midnight blue, smoke grey and cold silver' },
-  { keys: ['hien dai', 'modern', 'cong nghe', 'tech', 'futuristic'], mood: 'sleek and modern', palette: 'cool graphite, glass white and cyan accents' },
-  { keys: ['thien nhien', 'natural', 'moc mac', 'organic'], mood: 'natural and grounded', palette: 'sage green, sand beige and warm wood' },
+  { keys: ['sang trong', 'luxury', 'cao cap', 'premium'], mood: 'luxurious and confident', palette: 'deep black, champagne gold and warm amber', paletteVi: 'đen sâu, vàng champagne và hổ phách ấm' },
+  { keys: ['nhe nhang', 'diu dang', 'soft', 'gentle', 'lang man', 'romantic'], mood: 'soft and romantic', palette: 'blush pink, cream and pale gold', paletteVi: 'hồng phấn, kem và vàng nhạt' },
+  { keys: ['nang dong', 'tre trung', 'energetic', 'youthful', 'vui'], mood: 'energetic and playful', palette: 'coral, electric blue and sunlit yellow', paletteVi: 'san hô, xanh điện và vàng nắng' },
+  { keys: ['cam dong', 'am ap', 'warm', 'emotional', 'gia dinh'], mood: 'warm and heartfelt', palette: 'honey amber, terracotta and soft ivory', paletteVi: 'hổ phách mật ong, đất nung và ngà mềm' },
+  { keys: ['bi an', 'huyen bi', 'mysterious', 'dark'], mood: 'mysterious and cinematic', palette: 'midnight blue, smoke grey and cold silver', paletteVi: 'xanh đêm, xám khói và bạc lạnh' },
+  { keys: ['hien dai', 'modern', 'cong nghe', 'tech', 'futuristic'], mood: 'sleek and modern', palette: 'cool graphite, glass white and cyan accents', paletteVi: 'xám chì lạnh, trắng kính và điểm nhấn cyan' },
+  { keys: ['thien nhien', 'natural', 'moc mac', 'organic'], mood: 'natural and grounded', palette: 'sage green, sand beige and warm wood', paletteVi: 'xanh xô thơm, be cát và gỗ ấm' },
 ];
 
 const LIGHTING_BY_MOOD = {
@@ -112,6 +112,20 @@ const DEFAULT_NEGATIVE = 'no text overlays, no watermark, no logo distortion, no
 function containsPhrase(text, phrase) {
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(text);
+}
+
+/** Tên dự án: bỏ phần "Tạo video…" ở đầu câu để tiêu đề đọc gọn hơn. */
+function projectTitle(idea) {
+  let text = String(idea || '').split(/[.,;\n]/)[0].trim();
+  text = text.replace(/^(hãy\s+|giúp\s+(tôi|mình)\s+)?(tạo|làm|dựng|quay|viết|lên)\s+(một\s+)?(video|clip|đoạn\s+video|phim|kịch\s+bản)\s*/i, '');
+  text = text.replace(/^(video|clip|phim)\s+/i, '');
+  text = text.trim();
+  if (text.length > 60) {
+    const cut = text.slice(0, 60);
+    const lastSpace = cut.lastIndexOf(' ');
+    text = (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trim();
+  }
+  return titleCase(text) || 'Dự Án Video Mới';
 }
 
 function matchRule(rules, text) {
@@ -300,6 +314,7 @@ export function buildBible(idea, options, seed) {
     languageId: language.id,
     mood: moodRule.mood,
     palette: moodRule.palette,
+    paletteVi: moodRule.paletteVi || moodRule.palette,
     lighting: LIGHTING_BY_MOOD[moodRule.mood] || LIGHTING_BY_MOOD['luxurious and confident'],
     audio: AUDIO_BY_MOOD[moodRule.mood] || AUDIO_BY_MOOD['luxurious and confident'],
     lens,
@@ -309,7 +324,7 @@ export function buildBible(idea, options, seed) {
     character,
     product,
     setting,
-    title: titleCase(String(idea || 'Video project').split(/[.,;]/)[0].slice(0, 60)),
+    title: projectTitle(idea),
   };
 }
 

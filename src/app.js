@@ -8,6 +8,7 @@
 
 import { GENRES, STYLES, ASPECTS, LANGUAGES, DURATIONS, SCENE_COUNTS, DEFAULT_OPTIONS } from './engine/presets.js';
 import { exportProjectText } from './engine/prompt.js';
+import { buildLogline, buildTimeline } from './engine/synopsis.js';
 import * as P from './engine/project.js';
 import * as store from './storage.js';
 import { copyText, openFlow, flowSteps } from './providers/flow.js';
@@ -28,6 +29,8 @@ const el = {
   ideaHint: $('#idea-hint'),
   useAi: $('#use-ai'),
   overview: $('#overview-card'),
+  logline: $('#logline'),
+  timeline: $('#timeline'),
   title: $('#project-title'),
   projectIdea: $('#project-idea'),
   meta: $('#project-meta'),
@@ -157,11 +160,12 @@ function render() {
     ['Thời lượng', `${total}s`],
     ['Số cảnh', String(project.scenes.length)],
     ['Ngôn ngữ', b.languageVi || b.language || 'không lời'],
-    ['Tông màu', b.palette],
+    ['Tông màu', b.paletteVi || b.palette],
   ];
   el.meta.innerHTML = chips.map(([k, v]) => `<span class="meta-chip">${escapeHtml(k)}: <strong>${escapeHtml(v)}</strong></span>`).join('');
   el.warnings.innerHTML = (project.warnings || []).map((w) => `<div class="warning">⚠️ ${escapeHtml(w)}</div>`).join('');
 
+  renderSynopsis();
   renderBibleFields();
   renderScenes();
 
@@ -170,6 +174,19 @@ function render() {
   el.progressText.textContent = pr.done === 0
     ? 'Chưa có cảnh nào được tạo video. Bấm Generate ở từng cảnh hoặc "Generate All Scenes".'
     : `Đã có video cho ${pr.done}/${pr.total} cảnh (${pr.percent}%).`;
+}
+
+function renderSynopsis() {
+  el.logline.textContent = buildLogline(project.bible, project.scenes);
+  el.timeline.innerHTML = buildTimeline(project.scenes).map((item) => `
+    <li>
+      <span class="tl-time">${escapeHtml(item.range)}</span>
+      <span class="tl-shot">${escapeHtml(item.shotVi)}</span>
+      <span>
+        <a href="#${item.id}">${item.hasVideo ? '<span class="tl-done">●</span> ' : ''}Scene ${item.number}: ${escapeHtml(item.title)}</a>
+        ${item.voiceover ? `<span class="tl-vo"> — “${escapeHtml(item.voiceover)}”</span>` : ''}
+      </span>
+    </li>`).join('');
 }
 
 function bibleField(id, label, value, rows = 2) {
@@ -656,6 +673,7 @@ function applyBibleEdits() {
     else if (path === 'setting.description') patch.setting.description = value;
     else patch[path] = value;
   });
+  if (patch.palette && patch.palette !== project.bible.palette) patch.paletteVi = patch.palette;
   setProject(P.updateBible(project, patch));
   toast('Đã đồng bộ nhân vật, sản phẩm và tông màu sang tất cả các cảnh.');
 }

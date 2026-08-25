@@ -11,6 +11,7 @@ import { buildScenes, planBeats, distributeDuration } from '../src/engine/script
 import { compilePrompt, compileAll, promptWarnings, exportProjectText } from '../src/engine/prompt.js';
 import * as P from '../src/engine/project.js';
 import { normalize } from '../src/engine/text.js';
+import { buildLogline, buildTimeline } from '../src/engine/synopsis.js';
 
 const IDEA_PERFUME = 'Tạo video quảng cáo một chai nước hoa dành cho nữ, phong cách sang trọng, cinematic';
 const IDEA_FASHION = 'Tạo video quảng cáo một cô gái Việt Nam giới thiệu sản phẩm thời trang trong quán cà phê hiện đại';
@@ -229,4 +230,65 @@ test('compilePrompt không phụ thuộc thứ tự - gọi lại cho kết qu�
   const a = compilePrompt(bible, scenes[2], { total: scenes.length });
   const b = compilePrompt(bible, scenes[2], { total: scenes.length });
   assert.equal(a, b);
+});
+
+/* ---------------------------------------------- phần Kịch bản (logline + timeline) */
+
+test('logline tiếng Việt nêu đúng thể loại, thời lượng, nhân vật và bối cảnh', () => {
+  const project = P.createProject(IDEA_FASHION, OPTS);
+  const line = buildLogline(project.bible, project.scenes);
+  assert.ok(line.includes('30 giây'), 'phải nêu tổng thời lượng');
+  assert.ok(line.includes('5 cảnh'), 'phải nêu số cảnh');
+  assert.ok(line.includes(project.bible.character.name), 'phải nhắc tên nhân vật');
+  assert.ok(line.includes('quán cà phê hiện đại'), 'phải mô tả bối cảnh bằng tiếng Việt');
+  assert.ok(!/[a-z]{3,} [a-z]{3,} and [a-z]{3,}/.test(line), 'tông màu phải hiển thị tiếng Việt');
+});
+
+test('logline vẫn chạy khi không có nhân vật hay sản phẩm', () => {
+  const project = P.createProject('Video phong cảnh ruộng bậc thang mùa lúa chín', { ...OPTS, genre: 'travel' });
+  const line = buildLogline(project.bible, project.scenes);
+  assert.ok(line.length > 40);
+  assert.ok(!line.includes('undefined'));
+});
+
+test('timeline nối liền nhau và kết thúc đúng tổng thời lượng', () => {
+  const project = P.createProject(IDEA_PERFUME, OPTS);
+  const timeline = buildTimeline(project.scenes);
+  assert.equal(timeline.length, project.scenes.length);
+  assert.equal(timeline[0].start, 0);
+  timeline.forEach((item, i) => {
+    assert.equal(item.end - item.start, project.scenes[i].duration, `độ dài cảnh ${i + 1}`);
+    if (i > 0) assert.equal(item.start, timeline[i - 1].end, `cảnh ${i + 1} phải nối tiếp cảnh trước`);
+  });
+  assert.equal(timeline[timeline.length - 1].end, P.totalDuration(project));
+  assert.match(timeline[0].range, /^00:00 – 00:\d\d$/);
+});
+
+test('timeline cập nhật theo thời lượng người dùng sửa', () => {
+  let project = P.createProject(IDEA_PERFUME, OPTS);
+  project = P.updateScene(project, 0, { duration: 4 });
+  const timeline = buildTimeline(project.scenes);
+  assert.equal(timeline[0].end, 4);
+  assert.equal(timeline[1].start, 4);
+});
+
+test('bản xuất .md có cả phần kịch bản lẫn dòng thời gian', () => {
+  const project = P.createProject(IDEA_FASHION, OPTS);
+  const text = exportProjectText(project);
+  assert.ok(text.includes('## Kịch bản'));
+  assert.ok(text.includes(buildLogline(project.bible, project.scenes)));
+  buildTimeline(project.scenes).forEach((item) => {
+    assert.ok(text.includes(item.range), `thiếu mốc thời gian ${item.range}`);
+  });
+});
+
+test('tên dự án bỏ phần "Tạo video…" ở đầu câu', () => {
+  const fashionTitle = buildBible(IDEA_FASHION, OPTS).title;
+  assert.ok(fashionTitle.startsWith('Quảng Cáo Một Cô Gái Việt Nam'), `tên dự án không nên bắt đầu bằng "Tạo video": ${fashionTitle}`);
+  assert.equal(buildBible('Làm một clip du lịch Hà Giang', OPTS).title, 'Du Lịch Hà Giang');
+  assert.equal(buildBible('Video giới thiệu quán cà phê mới', OPTS).title, 'Giới Thiệu Quán Cà Phê Mới');
+  assert.ok(buildBible('', OPTS).title.length > 0, 'ý tưởng rỗng vẫn phải có tên');
+  const long = buildBible('Tạo video quảng cáo một dòng sản phẩm chăm sóc da hoàn toàn mới dành cho phụ nữ hiện đại', OPTS).title;
+  assert.ok(long.length <= 60, 'tên dài phải được cắt gọn');
+  assert.ok(!long.endsWith(' '), 'không được cắt giữa chừng để lại khoảng trắng');
 });

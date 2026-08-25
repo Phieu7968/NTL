@@ -11,6 +11,7 @@
 
 import { joinParts } from './text.js';
 import { MAX_CLIP_SECONDS } from './presets.js';
+import { buildLogline, buildTimeline } from './synopsis.js';
 
 const LANG_LABEL = {
   vi: 'Vietnamese',
@@ -121,6 +122,11 @@ export function exportProjectText(project) {
     '',
     `Ý tưởng: ${bible.idea}`,
     `Thể loại: ${bible.genre} | Phong cách: ${bible.style} | Tỷ lệ: ${bible.aspect} | Tổng: ${scenes.reduce((a, s) => a + s.duration, 0)}s | ${scenes.length} cảnh`,
+    '',
+    '## Kịch bản',
+    buildLogline(bible, scenes),
+    '',
+    ...buildTimeline(scenes).map((item) => `- ${item.range} · Scene ${item.number} — ${item.title} (${item.shotVi})${item.voiceover ? ` — “${item.voiceover}”` : ''}`),
     '',
     '## Nhân vật & sản phẩm (giữ nguyên ở mọi cảnh)',
     bible.character?.present ? `- Nhân vật: ${bible.character.lock}` : '- Nhân vật: không có',

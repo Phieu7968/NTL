@@ -133,6 +133,26 @@ body {
   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
 }
 
+.synopsis { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--card-2); }
+.synopsis-title { margin: 0 0 8px; font-size: 15px; }
+.logline { margin: 0 0 12px; font-size: 14.5px; line-height: 1.6; color: var(--text); }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.timeline li {
+  display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: baseline;
+  padding: 8px 10px; border-radius: 8px; font-size: 13.5px;
+}
+.timeline li:nth-child(odd) { background: color-mix(in srgb, var(--line) 30%, transparent); }
+.timeline a { color: inherit; text-decoration: none; font-weight: 600; }
+.timeline a:hover { color: var(--brand); text-decoration: underline; }
+.tl-time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.tl-shot { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.tl-vo { color: var(--muted); font-style: italic; }
+.tl-done { color: var(--ok); }
+@media (max-width: 620px) {
+  .timeline li { grid-template-columns: auto 1fr; }
+  .tl-shot { display: none; }
+}
+
 .bible { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--card-2); }
 .bible summary { cursor: pointer; font-weight: 600; font-size: 14.5px; }
 .bible-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 12px 0; }
