@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>AI Video Studio - Từ ý tưởng đến prompt Google Flow</title>
+<meta name="description" content="Nhập ý tưởng, app tự viết kịch bản, chia cảnh, tạo prompt chi tiết cho từng cảnh và dựng quy trình tạo video bằng Google Flow." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Bỏ qua tới nội dung chính</a>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🎬</span>
+      <div>
+        <strong>AI Video Studio</strong>
+        <span class="brand-sub">Ý tưởng → Kịch bản → Cảnh → Prompt → Video</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn ghost" type="button" data-action="open-settings" title="Cấu hình API (tuỳ chọn)">⚙️ <span class="hide-sm">Cài đặt</span></button>
+      <button class="btn ghost" type="button" data-action="export" title="Xuất toàn bộ kịch bản + prompt">⬇️ <span class="hide-sm">Xuất kịch bản</span></button>
+      <button class="btn danger-ghost" type="button" data-action="reset-project" title="Xoá dự án và bắt đầu lại">♻️ <span class="hide-sm">Reset Project</span></button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <!-- BƯỚC 1: Ý TƯỞNG -->
+  <section class="card" id="idea-card">
+    <div class="card-head">
+      <span class="step-badge">1</span>
+      <div>
+        <h1 class="card-title">Bạn muốn tạo video gì?</h1>
+        <p class="card-sub">Viết ý tưởng bằng tiếng Việt bình thường. App sẽ lo phần kịch bản và prompt.</p>
+      </div>
+    </div>
+
+    <textarea id="idea" class="idea-input" rows="3"
+      placeholder="Ví dụ: Quảng cáo chai nước hoa nữ, phong cách sang trọng, cinematic"
+      aria-label="Ý tưởng video"></textarea>
+
+    <div class="examples" id="examples" aria-label="Ý tưởng mẫu"></div>
+
+    <div class="options-grid" id="options"></div>
+
+    <div class="idea-actions">
+      <button class="btn primary big" type="button" data-action="create">✨ Tạo kịch bản &amp; prompt</button>
+      <label class="checkbox" title="Cần API key Gemini trong phần Cài đặt">
+        <input type="checkbox" id="use-ai" /> Dùng Gemini AI để viết kịch bản sâu hơn
+      </label>
+    </div>
+    <p class="hint" id="idea-hint"></p>
+  </section>
+
+  <!-- BƯỚC 2: TỔNG QUAN DỰ ÁN -->
+  <section class="card hidden" id="overview-card">
+    <div class="card-head">
+      <span class="step-badge">2</span>
+      <div>
+        <h2 class="card-title" id="project-title">Kịch bản</h2>
+        <p class="card-sub" id="project-idea"></p>
+      </div>
+    </div>
+    <div class="meta-chips" id="project-meta"></div>
+    <div id="project-warnings"></div>
+
+    <details class="bible" id="bible-panel">
+      <summary>🔒 Nhân vật &amp; sản phẩm (khoá xuyên suốt mọi cảnh) — bấm để chỉnh</summary>
+      <p class="hint">Sửa ở đây sẽ đồng bộ sang <strong>tất cả</strong> các cảnh. Còn sửa trong một cảnh thì chỉ cảnh đó đổi.</p>
+      <div class="bible-grid" id="bible-fields"></div>
+      <button class="btn" type="button" data-action="apply-bible">Áp dụng cho tất cả cảnh</button>
+    </details>
+  </section>
+
+  <!-- BƯỚC 3: DANH SÁCH CẢNH -->
+  <section class="hidden" id="scenes-card">
+    <div class="scenes-head">
+      <div class="card-head no-margin">
+        <span class="step-badge">3</span>
+        <div>
+          <h2 class="card-title">Danh sách cảnh &amp; prompt</h2>
+          <p class="card-sub" id="progress-text">Chưa có cảnh nào được tạo video.</p>
+        </div>
+      </div>
+      <div class="scenes-actions">
+        <button class="btn primary" type="button" data-action="generate-all">🎬 Generate Video — tất cả cảnh</button>
+        <button class="btn" type="button" data-action="copy-all">📋 Copy tất cả prompt</button>
+        <button class="btn" type="button" data-action="rebuild">🔄 Dựng lại kịch bản</button>
+      </div>
+    </div>
+    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="scene-list" id="scene-list"></div>
+  </section>
+
+</main>
+
+<footer class="wrap footer">
+  <p>Dự án được lưu tự động trong trình duyệt của bạn. Video tạo bằng <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">Google Flow</a>.</p>
+</footer>
+
+<!-- MODAL: quy trình Google Flow -->
+<dialog id="flow-modal" class="modal">
+  <form method="dialog" class="modal-head">
+    <h3 id="flow-title">Tạo video bằng Google Flow</h3>
+    <button class="icon-btn" value="close" aria-label="Đóng">✕</button>
+  </form>
+  <div class="modal-body">
+    <ol class="steps" id="flow-steps"></ol>
+    <label class="field">
+      <span>Prompt của cảnh này</span>
+      <textarea id="flow-prompt" rows="8" readonly></textarea>
+    </label>
+    <div class="modal-actions">
+      <button class="btn primary" type="button" data-action="flow-copy">📋 Copy prompt</button>
+      <button class="btn" type="button" data-action="flow-open">↗️ Mở Google Flow</button>
+    </div>
+    <hr />
+    <p class="hint">Sau khi tải video từ Flow về máy, gắn vào đúng cảnh này:</p>
+    <div class="modal-actions">
+      <label class="btn file-btn">
+        📁 Tải video lên
+        <input type="file" id="flow-file" accept="video/*" hidden />
+      </label>
+      <div class="url-row">
+        <input type="url" id="flow-url" placeholder="hoặc dán link video (.mp4)" />
+        <button class="btn" type="button" data-action="flow-url">Gắn link</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- MODAL: cài đặt -->
+<dialog id="settings-modal" class="modal">
+  <form method="dialog" class="modal-head">
+    <h3>Cài đặt</h3>
+    <button class="icon-btn" value="close" aria-label="Đóng">✕</button>
+  </form>
+  <div class="modal-body">
+    <p class="hint">App chạy đầy đủ mà <strong>không cần</strong> API key: kịch bản do engine trong máy sinh, video tạo thủ công qua Google Flow. Nhập key nếu bạn muốn AI viết kịch bản sâu hơn và render video Veo ngay trong app.</p>
+    <label class="field">
+      <span>Gemini API key (Google AI Studio)</span>
+      <input type="password" id="api-key" placeholder="AIza…" autocomplete="off" />
+    </label>
+    <label class="field">
+      <span>Chế độ tạo video</span>
+      <select id="video-mode">
+        <option value="flow">Google Flow (thủ công, không cần key)</option>
+        <option value="api">Veo qua Gemini API (cần key)</option>
+      </select>
+    </label>
+    <div class="two-col">
+      <label class="field">
+        <span>Model viết kịch bản</span>
+        <input type="text" id="text-model" list="text-models" />
+        <datalist id="text-models"></datalist>
+      </label>
+      <label class="field">
+        <span>Model tạo video</span>
+        <input type="text" id="video-model" list="video-models" />
+        <datalist id="video-models"></datalist>
+      </label>
+    </div>
+    <p class="hint">Key chỉ được lưu trong localStorage của trình duyệt này và chỉ gửi tới Google.</p>
+    <div class="modal-actions">
+      <button class="btn primary" type="button" data-action="save-settings">Lưu cài đặt</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="./src/app.js"></script>
+</body>
+</html>
