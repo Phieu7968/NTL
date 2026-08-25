@@ -7,8 +7,15 @@
   "scripts": {
     "start": "python3 -m http.server 4173",
     "dev": "python3 -m http.server 4173",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "build": "node build.js"
   },
-  "keywords": ["ai-video", "google-flow", "veo", "prompt-engineering", "vietnamese"],
+  "keywords": [
+    "ai-video",
+    "google-flow",
+    "veo",
+    "prompt-engineering",
+    "vietnamese"
+  ],
   "license": "MIT"
 }

@@ -4,13 +4,17 @@ App tạo video AI tự động: **nhập một ý tưởng → có ngay kịch 
 
 > Ý tưởng → Kịch bản → Chia cảnh → Prompt từng cảnh → Generate → Preview → Regenerate
 
-Không cần build, không cần cài package. Mở `index.html` là chạy.
+Không dependency, không cần cài gì. Bản gộp một file `dist/ai-video-studio.html` bấm đúp là chạy, kể cả khi không có mạng.
 
 ![Giao diện desktop](assets/screenshot-desktop.png)
 
 ---
 
-## Chạy app
+## Mở app
+
+**Cách dễ nhất — một file, bấm đúp là chạy:** tải `dist/ai-video-studio.html` về máy rồi mở bằng trình duyệt. File này đã gộp sẵn toàn bộ CSS và JS, không cần cài gì, không cần mạng, không cần server.
+
+**Chạy từ mã nguồn (khi muốn sửa code):**
 
 ```bash
 git clone https://github.com/Phieu7968/NTL.git
@@ -18,12 +22,20 @@ cd NTL
 npm start          # mở http://localhost:4173
 ```
 
-Hoặc mở thẳng `index.html` bằng trình duyệt (Chrome/Edge/Safari đều được).
+> ⚠️ Đừng bấm đúp thẳng vào `index.html`. Bản mã nguồn nạp code bằng ES module, mà
+> trình duyệt chặn module trên giao thức `file://`, nên trang sẽ hiện ra trống trơn.
+> Muốn mở kiểu bấm đúp thì dùng `dist/ai-video-studio.html`.
+
+Sau khi sửa code trong `src/`, dựng lại bản gộp:
+
+```bash
+npm run build      # -> dist/ai-video-studio.html
+```
 
 Chạy test engine:
 
 ```bash
-npm test           # 28 test, không cần cài dependency
+npm test           # 29 test, không cần cài dependency
 ```
 
 Mỗi pull request đều chạy lại bộ test này trên Node 20 và 22 qua GitHub Actions
@@ -143,6 +155,8 @@ src/
     flow.js              quy trình Google Flow (copy prompt, mở Flow, gắn video)
     gemini.js            tuỳ chọn: Gemini viết kịch bản + Veo render video
 tests/engine.test.js     28 test cho toàn bộ engine
+tests/build.test.js      test bản gộp một file
+build.js                 gộp toàn bộ app thành một file HTML chạy offline
 ```
 
 ---

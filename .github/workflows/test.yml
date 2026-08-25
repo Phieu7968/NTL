@@ -26,3 +26,6 @@ jobs:
       # App không có dependency nào nên không cần bước cài đặt.
       - name: Chạy test engine
         run: npm test
+
+      - name: Dựng bản gộp một file
+        run: npm run build
