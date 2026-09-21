@@ -61,7 +61,8 @@ Muốn xem thử giao diện trước khi nhập dữ liệu thật: **Cài đ�
 
 - Bàn làm việc: sĩ số, GPA trung bình, số em đang cảnh báo, tổng tín chỉ nợ; biểu đồ phân
   bố học lực và cơ cấu cảnh báo; danh sách em cần gặp sớm xếp theo mức ưu tiên; lịch hẹn sắp tới.
-- Lớp cố vấn: thêm, sửa, xoá; xem sĩ số và GPA trung bình từng lớp.
+- Lớp cố vấn: thêm, sửa, xoá; khai riêng Cố vấn học tập và Giáo viên chủ nhiệm; xem sĩ số,
+  giờ quy đổi và GPA trung bình từng lớp.
 - Sinh viên: tìm kiếm không dấu, lọc theo lớp / diện cảnh báo / còn nợ / chưa có điểm /
   cán bộ lớp; thêm sửa xoá; nhập và xuất CSV.
 - Hồ sơ từng em: thông tin cá nhân, lý do cảnh báo ghi rõ con số, biểu đồ GPA theo học kỳ,
@@ -69,6 +70,10 @@ Muốn xem thử giao diện trước khi nhập dữ liệu thật: **Cài đ�
 - Nhập điểm: quản lý học kỳ; nhập điểm cả lớp theo học phần, gõ tới đâu quy đổi điểm chữ
   tới đó, Enter nhảy xuống ô kế tiếp; nhập điểm hàng loạt từ CSV.
 - Lịch tư vấn: sinh viên gửi yêu cầu, cố vấn duyệt; số việc chờ hiện ngay trên menu.
+- Sổ họp lớp: ghi nhận từng buổi sinh hoạt kèm biên bản, đối chiếu với mức tối thiểu
+  4 buổi mỗi học kỳ và tính sẵn điểm tiêu chí tương ứng.
+- Đánh giá công tác: tự chấm 6 tiêu chí 100 điểm, ra xếp loại, phần trăm được hưởng và
+  số giờ quy đổi theo sĩ số từng lớp; in được thành phiếu.
 - Báo cáo: bảng chỉ tiêu theo lớp hoặc toàn bộ, danh sách sinh viên cần lưu ý kèm lý do,
   xuất CSV hoặc in ra PDF. Báo cáo luôn in kèm thang điểm và quy tắc cảnh báo đang áp dụng.
 - Cài đặt: thông tin đơn vị, thang điểm, ngưỡng cảnh báo, quy tắc học lại, cách sinh viên
@@ -77,7 +82,8 @@ Muốn xem thử giao diện trước khi nhập dữ liệu thật: **Cài đ�
 **Sinh viên**
 
 - Tổng quan: GPA tích luỹ, tín chỉ tích luỹ, tín chỉ nợ, điểm rèn luyện, tình trạng học vụ
-  nói rõ bằng chữ, danh sách học phần chưa đạt, thông tin liên hệ của cố vấn.
+  nói rõ bằng chữ, danh sách học phần chưa đạt, liên hệ của cả Cố vấn học tập lẫn Giáo viên
+  chủ nhiệm.
 - Bảng điểm: xem theo từng học kỳ kèm GPA học kỳ, in được.
 - Lịch tư vấn: xin gặp cố vấn, theo dõi trạng thái, tự huỷ.
 - Hồ sơ: tự sửa số điện thoại, email, địa chỉ; tự đổi mã PIN.
@@ -218,6 +224,11 @@ MSSV;Mã học phần;Tên học phần;Số tín chỉ;Điểm hệ 10;Học k�
 26XD01001;MTU101;Toán cao cấp 1;3;8,5;2025-1
 ```
 
+Bộ nhập đọc thẳng được mẫu *Danh sách lớp sinh viên* của Trường (các cột STT, CCCD, HỌ VÀ
+TÊN, NGÀY SINH, MSSV, GHI CHÚ). **Cột CCCD bị bỏ qua có chủ ý**: ứng dụng không dùng số căn
+cước vào chức năng nào, mà dữ liệu lại nằm ngay trong trình duyệt, nên không lưu là an toàn
+hơn. Báo cáo sau khi nhập sẽ nói rõ điều này.
+
 Khi nhập, ứng dụng đọc được cả `dd/mm/yyyy` lẫn `yyyy-mm-dd`, cả dấu phẩy lẫn dấu chấm
 thập phân, và tự nhận dấu phân cách `;` `,` hay tab. Dòng nào sai thì bị bỏ qua và **báo
 rõ sai ở dòng nào, sai cái gì**; những dòng còn lại vẫn nhập bình thường. Trùng MSSV thì
@@ -250,13 +261,13 @@ cvht-mtu/
 │   ├── icons/              5 tệp PNG sinh bằng scripts/make-icons.cjs
 │   └── js/
 │       ├── util.js         DOM, định dạng số và ngày kiểu Việt, SHA-256 viết thuần
-│       ├── store.js        11 bảng dữ liệu, phiên đăng nhập, sao lưu, đồng bộ giữa các tab
-│       ├── academic.js     ★ Thang điểm, GPA, tín chỉ nợ, xếp loại, cảnh báo, kiểm tra dữ liệu
+│       ├── store.js        13 bảng dữ liệu, phiên đăng nhập, sao lưu, đồng bộ giữa các tab
+│       ├── academic.js     ★ Thang điểm, GPA, cảnh báo, quy định của Trường, kiểm tra dữ liệu
 │       ├── charts.js       Biểu đồ cột / thanh xếp chồng / đường, vẽ bằng SVG thuần
 │       ├── io.js           Đọc ghi CSV, sao lưu JSON, in báo cáo
 │       ├── ui.js           Thẻ 3D, hộp thoại, biểu mẫu, bảng, thông báo
 │       ├── view-auth.js    Cài đặt lần đầu, chọn vai trò, đăng nhập, chặn dò mật khẩu
-│       ├── view-advisor.js 8 màn hình của giảng viên cố vấn
+│       ├── view-advisor.js 10 màn hình của giảng viên cố vấn
 │       ├── view-student.js 4 màn hình của cổng sinh viên
 │       └── app.js          Định tuyến, khung điều hướng, khởi động, đăng ký service worker
 └── scripts/make-icons.cjs  Sinh lại bộ icon PNG
