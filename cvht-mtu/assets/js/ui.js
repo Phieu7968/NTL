@@ -422,6 +422,7 @@ CV.ui = (function () {
     const items = [
       el("p", { text: `Thêm mới: ${res.added} · Cập nhật: ${res.updated} · Tổng dòng đọc được: ${res.total}` })
     ];
+    (res.notes || []).forEach((n) => items.push(note(n, "info")));
     if (res.errors && res.errors.length) {
       items.push(note(`<strong>${res.errors.length} dòng có vấn đề</strong> — những dòng còn lại đã được nhập bình thường.`, "warn"));
       const list = el("ul", { style: "margin:0;padding-left:1.1rem;font-size:.85rem;max-height:260px;overflow:auto" });

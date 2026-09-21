@@ -26,7 +26,9 @@ CV.store = (function () {
     "notes",        // nhật ký cố vấn
     "schedules",    // thời khoá biểu
     "handbook",     // cẩm nang học vụ
-    "templates"     // mẫu thông báo
+    "templates",    // mẫu thông báo
+    "meetings",     // sổ họp lớp (QĐ 758, Điều 9)
+    "evaluations"   // phiếu tự đánh giá công tác (QĐ 758, Điều 13)
   ];
 
   /* ---------- thiết lập mặc định ---------- */
@@ -64,6 +66,19 @@ CV.store = (function () {
       // Cách tính khi sinh viên học lại một học phần:
       // "best" = lấy điểm cao nhất, "latest" = lấy điểm của lần học gần nhất.
       retakeRule: "best",
+      // Định mức công tác theo Quy định công tác CVHT & GVCN
+      // (Quyết định 758/QĐ-ĐHXDMT ngày 10/12/2025).
+      duty: {
+        meetingsPerTerm: 4,      // Điều 9.1: họp lớp tối thiểu 4 lần mỗi học kỳ
+        officeHoursPerWeek: 1,   // Điều 11.3: trực tại văn phòng Khoa tối thiểu 1 giờ/tuần
+        // Điều 18.3: giờ quy đổi theo sĩ số lớp phụ trách
+        hoursBySize: [
+          { max: 9,  hours: 30 },
+          { max: 40, hours: 52.5 },
+          { max: 50, hours: 57.75 },
+          { max: 60, hours: 63 }
+        ]
+      },
       studentLogin: "pin",   // "pin" = MSSV + mã PIN do CVHT cấp; "dob" = MSSV + ngày sinh
       theme: "auto",
       createdAt: new Date().toISOString()
@@ -126,6 +141,10 @@ CV.store = (function () {
     const out = { version: SCHEMA_VERSION };
     out.settings = Object.assign({}, fresh.settings, raw.settings || {});
     out.settings.warning = Object.assign({}, fresh.settings.warning, (raw.settings || {}).warning || {});
+    out.settings.duty = Object.assign({}, fresh.settings.duty, (raw.settings || {}).duty || {});
+    if (!Array.isArray(out.settings.duty.hoursBySize) || !out.settings.duty.hoursBySize.length) {
+      out.settings.duty.hoursBySize = fresh.settings.duty.hoursBySize;
+    }
     if (!Array.isArray(out.settings.gradeScale) || !out.settings.gradeScale.length) {
       out.settings.gradeScale = fresh.settings.gradeScale;
     }
@@ -201,6 +220,7 @@ CV.store = (function () {
       return { ok: false, reason: "Lớp vẫn còn sinh viên. Hãy chuyển hoặc xoá sinh viên trước." };
     }
     data().schedules = all("schedules").filter((r) => r.classId !== classId);
+    data().meetings = all("meetings").filter((r) => r.classId !== classId);
     remove("classes", classId);
     return { ok: true };
   }

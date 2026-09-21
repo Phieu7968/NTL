@@ -256,6 +256,103 @@ CV.academic = (function () {
     };
   }
 
+  /* =====================================================================
+     6. Quy định riêng của Trường Đại học Xây dựng Miền Tây
+     Các con số dưới đây chép thẳng từ văn bản, có ghi rõ điều khoản để
+     sau này đối chiếu lại cho nhanh.
+     ===================================================================== */
+
+  /* --- Ban cán sự lớp — Quyết định 724/QĐ-ĐHXDMT ngày 28/11/2025 --- */
+
+  /** Điều 2.2: mỗi lớp có 01 lớp trưởng, 01 lớp phó và Bí thư Chi đoàn (nếu có). */
+  const CADRE_ROLES = [
+    { value: "", label: "— Không giữ chức vụ —" },
+    { value: "Lớp trưởng", label: "Lớp trưởng", unique: true },
+    { value: "Lớp phó", label: "Lớp phó", unique: true },
+    { value: "Bí thư Chi đoàn", label: "Bí thư Chi đoàn", unique: true },
+    { value: "Lớp phó kiêm Bí thư", label: "Lớp phó kiêm Bí thư (lớp dưới 20 sinh viên)", unique: true }
+  ];
+
+  /**
+   * Điều 3.3: ban cán sự phải có điểm trung bình học tập từ 5,5 (thang 10)
+   * trở lên và điểm rèn luyện từ loại Khá. Sinh viên năm nhất chưa có điểm
+   * thì căn cứ điểm xét tuyển hoặc tinh thần tự nguyện, nên không kết luận.
+   */
+  function cadreStandard(stats) {
+    if (stats.gpa10 === null) {
+      return { key: "unknown", ok: true,
+        note: "Chưa có điểm học tập — theo Điều 3.3 thì xét theo điểm tuyển sinh hoặc tinh thần tự nguyện." };
+    }
+    const reasons = [];
+    if (stats.gpa10 < 5.5) reasons.push(`điểm trung bình ${U.num(stats.gpa10)} dưới 5,5 (thang 10)`);
+    const conduct = classifyConduct(stats.conductAvg);
+    const goodConduct = stats.conductAvg !== null && stats.conductAvg >= 65;
+    if (stats.conductAvg === null) reasons.push("chưa chấm điểm rèn luyện");
+    else if (!goodConduct) reasons.push(`rèn luyện xếp loại ${conduct.label}, chưa đạt từ Khá`);
+    return reasons.length
+      ? { key: "fail", ok: false, note: "Chưa đạt tiêu chuẩn ban cán sự: " + reasons.join("; ") + "." }
+      : { key: "pass", ok: true,
+          note: `Đạt tiêu chuẩn ban cán sự: điểm trung bình ${U.num(stats.gpa10)}, rèn luyện ${conduct.label}.` };
+  }
+
+  /** Kiểm tra một lớp có bị trùng chức vụ không. */
+  function cadreConflicts(classId, exceptStudentId) {
+    const list = CV.store.find("students", (s) => s.classId === classId && s.cadreRole &&
+      s.id !== exceptStudentId);
+    const taken = {};
+    list.forEach((s) => { taken[s.cadreRole] = (taken[s.cadreRole] || []).concat(s.name); });
+    return taken;
+  }
+
+  /* --- Công tác CVHT & GVCN — Quyết định 758/QĐ-ĐHXDMT ngày 10/12/2025 --- */
+
+  /**
+   * Điều 13.4: sáu tiêu chí, tổng 100 điểm. Mỗi tiêu chí chấm từ mức trừ
+   * điểm ghi trong quy định, nên ở đây để người dùng tự nhập số điểm đạt.
+   */
+  const EVAL_CRITERIA = [
+    { key: "meetings", label: "Tổ chức họp lớp", max: 20,
+      rule: "Thiếu mỗi buổi họp lớp trừ 05 điểm." },
+    { key: "office", label: "Lịch gặp sinh viên hằng tuần", max: 20,
+      rule: "Thiếu mỗi buổi trực gặp sinh viên trừ 05 điểm." },
+    { key: "register", label: "Tư vấn đăng ký môn học", max: 30,
+      rule: "Mỗi trường hợp tư vấn sai trừ 05 điểm. Không duyệt đăng ký môn học đúng thời hạn trừ 10 điểm." },
+    { key: "notify", label: "Thông báo tới sinh viên", max: 10,
+      rule: "Không thông báo lịch tiếp sinh viên trừ 05 điểm. Không phổ biến thông báo của Nhà trường trừ 05 điểm." },
+    { key: "training", label: "Tham dự tập huấn, hội nghị, hội thảo", max: 10,
+      rule: "Vắng không lý do 01 buổi tập huấn trừ 05 điểm. Vắng sự kiện khác được triệu tập trừ 05 điểm/lần." },
+    { key: "report", label: "Nộp báo cáo / điểm đánh giá rèn luyện", max: 10,
+      rule: "Trừ 05 điểm mỗi lần trễ hạn." }
+  ];
+  const EVAL_TOTAL = 100;
+
+  /** Điều 13.4 và Điều 18: xếp loại và mức hưởng giờ quy đổi. */
+  function evalLevel(score) {
+    const v = U.parseNum(score);
+    if (isNaN(v)) return { key: "none", label: "Chưa chấm", percent: 0, badge: "badge-info" };
+    if (v >= 90) return { key: "xs", label: "Hoàn thành xuất sắc nhiệm vụ", percent: 100, badge: "badge-ok" };
+    if (v >= 70) return { key: "tot", label: "Hoàn thành tốt nhiệm vụ", percent: 75, badge: "badge-ok" };
+    if (v >= 50) return { key: "ht", label: "Hoàn thành nhiệm vụ", percent: 50, badge: "badge-watch" };
+    return { key: "kht", label: "Không hoàn thành nhiệm vụ", percent: 0, badge: "badge-critical" };
+  }
+
+  /** Điều 18.3: giờ quy đổi theo sĩ số lớp phụ trách. */
+  function advisorHours(size) {
+    const table = ((S().duty || {}).hoursBySize || []).slice().sort((a, b) => a.max - b.max);
+    if (!table.length) return null;
+    const row = table.find((r) => size <= r.max);
+    return row ? row.hours : table[table.length - 1].hours;
+  }
+
+  /** Số buổi họp lớp đã ghi nhận trong một học kỳ, so với mức tối thiểu. */
+  function meetingStatus(classId, semesterId) {
+    const need = (S().duty || {}).meetingsPerTerm || 0;
+    const rows = CV.store.find("meetings", (m) =>
+      m.classId === classId && (!semesterId || m.semesterId === semesterId));
+    const withMinutes = rows.filter((m) => m.minutes && String(m.minutes).trim()).length;
+    return { count: rows.length, need, withMinutes, enough: rows.length >= need };
+  }
+
   /* ---------- 6. Kiểm tra dữ liệu nhập ---------- */
   const V = {
     mssv(v) {
@@ -328,6 +425,8 @@ CV.academic = (function () {
     bestAttempts, gpaOf, statsOf, profileOf, summarize,
     classifyLearning, classifyConduct,
     warningOf, warningRuleText, LEVELS,
+    CADRE_ROLES, cadreStandard, cadreConflicts,
+    EVAL_CRITERIA, EVAL_TOTAL, evalLevel, advisorHours, meetingStatus,
     validate: V
   };
 })();

@@ -130,7 +130,33 @@ vào diện cảnh báo — nếu không thì mọi báo cáo gửi Khoa đều 
 Mỗi mức cảnh báo luôn đi kèm lý do ghi rõ con số, ví dụ *"GPA tích luỹ 1,32 dưới 1,50;
 Nợ 12 tín chỉ, quá 8"*. Nhờ vậy mọi số liệu trên báo cáo đều truy ngược được.
 
-## 6. Dữ liệu nằm ở đâu
+## 6. Ứng dụng bám theo văn bản nào của Trường
+
+Những chỗ ứng dụng ra quyết định thay người dùng đều dẫn chiếu văn bản cụ thể, để sau này
+Trường sửa quy định thì biết ngay phải sửa chỗ nào trong mã nguồn.
+
+| Việc ứng dụng làm | Căn cứ |
+|---|---|
+| Lớp có thể có Cố vấn học tập và Giáo viên chủ nhiệm là **hai người khác nhau**; ai phụ trách vai trò nào thì thấy lớp đó | QĐ 758/QĐ-ĐHXDMT (10/12/2025), Điều 2.3 |
+| Sổ họp lớp nhắc **tối thiểu 4 buổi mỗi học kỳ**, mỗi buổi phải có biên bản | QĐ 758, Điều 9.1 và 9.3 |
+| Lịch trực gặp sinh viên **tối thiểu 1 giờ/tuần** tại văn phòng Khoa | QĐ 758, Điều 11.3 |
+| Phiếu tự đánh giá: 6 tiêu chí, thang 100 điểm | QĐ 758, Điều 13.4 |
+| Xếp loại và mức hưởng: 90–100 xuất sắc (100% giờ), 70–dưới 90 tốt (75%), 50–dưới 70 hoàn thành (50%), dưới 50 không hoàn thành (0%) | QĐ 758, Điều 13.4 |
+| Giờ quy đổi theo sĩ số: dưới 10 SV 30 giờ; 10–40 SV 52,5 giờ; 41–50 SV 57,75 giờ; 51–60 SV 63 giờ | QĐ 758, Điều 18.3 |
+| Chức vụ ban cán sự chỉ gồm **Lớp trưởng, Lớp phó, Bí thư Chi đoàn**; mỗi lớp một người một chức | QĐ 724/QĐ-ĐHXDMT (28/11/2025), Điều 2.2 |
+| Đối chiếu tiêu chuẩn ban cán sự: điểm trung bình từ **5,5 (thang 10)** và rèn luyện **từ loại Khá** | QĐ 724, Điều 3.3 |
+| Thang điểm chữ A/B+/…/F | *Chưa có văn bản.* Đang dùng Thông tư 08/2021/TT-BGDĐT, sửa được trong Cài đặt |
+| Ngưỡng cảnh báo học vụ | *Chưa có văn bản.* Đang dùng mức tạm, sửa được trong Cài đặt |
+
+Hai dòng cuối là chỗ **còn thiếu căn cứ**: thang điểm và ngưỡng cảnh báo nằm trong Quy định
+Đào tạo trình độ đại học (Quyết định 183/QĐ-ĐHXDMT ngày 12/4/2023) — văn bản này được
+QĐ 758 dẫn chiếu nhưng chưa có trong tay. Trước khi dùng thật, hãy mở Cài đặt và chỉnh
+hai mục đó cho khớp.
+
+Những con số trên đều nằm trong `assets/js/academic.js` và mục Cài đặt, không rải rác
+trong giao diện.
+
+## 7. Dữ liệu nằm ở đâu
 
 Dữ liệu lưu trong `localStorage` của trình duyệt, **trên chính thiết bị đang dùng**.
 
@@ -145,9 +171,9 @@ Dữ liệu lưu trong `localStorage` của trình duyệt, **trên chính thi�
 - Sức chứa thường khoảng 5 MB, đủ cho vài nghìn sinh viên kèm điểm. Màn hình Cài đặt hiện
   dung lượng đang dùng và cảnh báo khi gần đầy.
 
-Cần dùng chung thật sự giữa nhiều máy thì phải có cơ sở dữ liệu trên máy chủ — xem mục 9.
+Cần dùng chung thật sự giữa nhiều máy thì phải có cơ sở dữ liệu trên máy chủ — xem mục 10.
 
-## 7. Bảo mật — làm được gì và chưa làm được gì
+## 8. Bảo mật — làm được gì và chưa làm được gì
 
 **Đã làm:**
 
@@ -171,9 +197,9 @@ Cần dùng chung thật sự giữa nhiều máy thì phải có cơ sở dữ 
   đọc lỏm mật khẩu, **không** biến thiết bị dùng chung thành nơi an toàn.
 - Vì vậy: đừng dùng máy tính công cộng, nên đặt mật khẩu/mã PIN màn hình cho máy, và nhớ
   đăng xuất.
-- Muốn bảo vệ đúng nghĩa thì phải kiểm tra quyền ở phía máy chủ — xem mục 9.
+- Muốn bảo vệ đúng nghĩa thì phải kiểm tra quyền ở phía máy chủ — xem mục 10.
 
-## 8. Mẫu tệp CSV
+## 9. Mẫu tệp CSV
 
 Tải tệp mẫu ngay trong app (Cài đặt → *Tải tệp mẫu nhập sinh viên*, hoặc Nhập điểm →
 *Tải tệp mẫu*). Tệp dùng dấu chấm phẩy và có sẵn BOM nên Excel tiếng Việt mở là đúng chữ.
@@ -197,7 +223,7 @@ thập phân, và tự nhận dấu phân cách `;` `,` hay tab. Dòng nào sai 
 rõ sai ở dòng nào, sai cái gì**; những dòng còn lại vẫn nhập bình thường. Trùng MSSV thì
 cập nhật chứ không tạo bản ghi trùng.
 
-## 9. Muốn dùng chung giữa nhiều thiết bị
+## 10. Muốn dùng chung giữa nhiều thiết bị
 
 Tầng dữ liệu đã được gom sẵn để đổi chỗ lưu mà không phải viết lại giao diện:
 
@@ -212,7 +238,7 @@ Lưu ý pháp lý: đưa họ tên, MSSV, điểm và số điện thoại sinh 
 đặt ở nước ngoài là chuyển dữ liệu cá nhân ra nước ngoài theo Nghị định 13/2023/NĐ-CP. Nếu
 Trường có máy chủ nội bộ thì đặt cơ sở dữ liệu ở đó là sạch nhất.
 
-## 10. Cấu trúc mã nguồn
+## 11. Cấu trúc mã nguồn
 
 ```
 cvht-mtu/
@@ -236,7 +262,7 @@ cvht-mtu/
 └── scripts/make-icons.cjs  Sinh lại bộ icon PNG
 ```
 
-## 11. Biểu tượng ứng dụng
+## 12. Biểu tượng ứng dụng
 
 Mọi chỗ hiển thị logo trong app — thanh bên, màn hình đăng nhập, biểu tượng khi cài vào
 máy, biểu tượng trên thẻ trình duyệt — đều lấy từ **logo chính thức của Trường**.
@@ -261,7 +287,7 @@ Script tự cắt lề trắng, thu nhỏ bằng cách lấy trung bình vùng c
 số màu rồi đóng gói PNG bảng màu — cả sáu tệp cộng lại chỉ khoảng 30 KB. Chạy xong nhớ
 tăng số `VERSION` trong `sw.js` để máy đã cài nhận bộ biểu tượng mới.
 
-## 12. Vài điểm đáng lưu ý khi bảo trì
+## 13. Vài điểm đáng lưu ý khi bảo trì
 
 - **Sửa mã nguồn xong nhớ tăng `VERSION` trong `sw.js`.** Không tăng thì máy đã cài app vẫn
   chạy bản cũ đã lưu đệm.

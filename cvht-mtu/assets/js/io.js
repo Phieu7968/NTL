@@ -132,11 +132,17 @@ CV.io = (function () {
     download(`bang-diem-${stamp()}.csv`, toCsv(H_SCORE, rows), "text/csv;charset=utf-8");
   }
 
-  /** Tệp mẫu để người dùng điền rồi nhập ngược lại. */
+  /**
+   * Tệp mẫu để người dùng điền rồi nhập ngược lại. Thứ tự cột đặt theo
+   * mẫu "Danh sách lớp sinh viên" của Trường cho dễ chép qua lại, và có
+   * thêm cột STT để khớp với bản in.
+   */
   function templateStudents() {
+    const head = ["STT", "MSSV", "Họ và tên", "Ngày sinh", "Giới tính", "Điện thoại",
+      "Email", "Lớp", "Chức vụ", "Trạng thái", "Ghi chú"];
     download("mau-nhap-sinh-vien.csv",
-      toCsv(H_STUDENT, [["26XD01001", "Nguyễn Văn An", "Nam", "15/03/2008", "0900000001",
-        "an.nv@example.edu.vn", "26XD01", "Lớp trưởng", "Đang học", ""]]),
+      toCsv(head, [["1", "26D15802010320", "NGUYỄN VĂN MẪU", "03/06/2008", "Nam", "0900000001",
+        "mau@example.edu.vn", "XD26CT01", "Lớp trưởng", "Đang học", ""]]),
       "text/csv;charset=utf-8");
   }
   function templateScores() {
@@ -182,10 +188,20 @@ CV.io = (function () {
     const iR = pick("Chuc vu", "Chức vụ");
     const iS = pick("Trang thai", "Trạng thái");
     const iNo = pick("Ghi chu", "Ghi chú");
+    const iCccd = pick("CCCD", "So CCCD", "Số CCCD", "CMND", "Can cuoc cong dan");
 
     const classes = CV.store.all("classes");
     const errors = [], seen = new Set();
+    const notes = [];
     let added = 0, updated = 0;
+
+    // Danh sách lớp của Trường có cột CCCD. Ứng dụng không dùng số căn cước
+    // vào bất kỳ chức năng nào, mà dữ liệu lại nằm ngay trong trình duyệt,
+    // nên cột này được bỏ qua có chủ ý thay vì lưu lại.
+    if (iCccd >= 0) {
+      notes.push("Tệp có cột CCCD. Ứng dụng không lưu số căn cước công dân — " +
+        "cột này đã được bỏ qua.");
+    }
 
     rows.slice(1).forEach((r, n) => {
       const line = n + 2;
@@ -232,7 +248,7 @@ CV.io = (function () {
     });
 
     CV.store.save("import:students");
-    return { ok: true, added, updated, errors, total: rows.length - 1 };
+    return { ok: true, added, updated, errors, notes, total: rows.length - 1 };
   }
 
   /** Nhập điểm từ CSV. Trùng (MSSV + mã học phần + học kỳ) thì ghi đè điểm cũ. */

@@ -17,7 +17,28 @@ CV.viewAdvisor = (function () {
     const m = me();
     if (!m) return [];
     const all = S.all("classes");
-    return isOwner() ? all : all.filter((c) => c.advisorId === m.id);
+    // Một người có thể làm CVHT lớp này và GVCN lớp kia (Quyết định 758, Điều 2.3),
+    // nên phải xét cả hai vai trò.
+    return isOwner() ? all : all.filter((c) => c.advisorId === m.id || c.gvcnId === m.id);
+  }
+
+  /** Vai trò của người đang đăng nhập với một lớp cụ thể. */
+  function roleInClass(klass) {
+    const m = me();
+    if (!m || !klass) return "";
+    const isCv = klass.advisorId === m.id;
+    const isGv = klass.gvcnId ? klass.gvcnId === m.id : isCv;
+    if (isCv && isGv) return "CVHT & GVCN";
+    if (isCv) return "CVHT";
+    if (isGv) return "GVCN";
+    return "";
+  }
+
+  /** Tên hai người phụ trách lớp, dùng để hiển thị. */
+  function staffOf(klass) {
+    const cv = klass && klass.advisorId ? S.get("advisors", klass.advisorId) : null;
+    const gv = klass && klass.gvcnId ? S.get("advisors", klass.gvcnId) : cv;
+    return { cvht: cv, gvcn: gv, same: !klass || !klass.gvcnId || klass.gvcnId === klass.advisorId };
   }
   function myStudents() {
     const ids = new Set(myClasses().map((c) => c.id));
@@ -142,11 +163,15 @@ CV.viewAdvisor = (function () {
         { name: "course", label: "Khoá", placeholder: "K26" },
         { name: "major", label: "Ngành", placeholder: "Kỹ thuật xây dựng" },
         { name: "startYear", label: "Năm nhập học", type: "number", min: 2000, max: 2100 },
-        isOwner()
-          ? { name: "advisorId", label: "Cố vấn phụ trách", type: "select",
-              value: (klass && klass.advisorId) || (me() || {}).id,
-              options: advisors.map((a) => ({ value: a.id, label: a.name })) }
-          : { name: "sep", type: "separator", label: "" },
+        { name: "advisorId", label: "Cố vấn học tập (CVHT)", type: "select", required: true,
+          value: (klass && klass.advisorId) || (me() || {}).id,
+          hint: "Người tư vấn học tập cho lớp.",
+          options: advisors.map((a) => ({ value: a.id, label: a.name })) },
+        { name: "gvcnId", label: "Giáo viên chủ nhiệm (GVCN)", type: "select",
+          value: (klass && klass.gvcnId) || "",
+          hint: "Để trống nếu một người kiêm cả hai nhiệm vụ.",
+          options: [{ value: "", label: "— Cùng người với CVHT —" }]
+            .concat(advisors.map((a) => ({ value: a.id, label: a.name }))) },
         { name: "note", label: "Ghi chú", type: "textarea", full: true }
       ],
       check: (d) => {
@@ -157,7 +182,6 @@ CV.viewAdvisor = (function () {
     }).then((d) => {
       if (!d) return;
       const payload = Object.assign({}, d, { advisorId: d.advisorId || (klass && klass.advisorId) || (me() || {}).id });
-      delete payload.sep;
       if (klass) payload.id = klass.id;
       S.put("classes", payload);
       ui.toast(klass ? "Đã lưu lớp." : "Đã thêm lớp.", "ok");
@@ -176,8 +200,20 @@ CV.viewAdvisor = (function () {
       ui.table([
         { key: "code", label: "Mã lớp", render: (r) => el("div", { class: "t-name" }, [
             el("strong", { text: r.klass.code }), el("small", { text: r.klass.name }) ]) },
-        { key: "major", label: "Ngành", render: (r) => r.klass.major || "—" },
-        { key: "n", label: "Sĩ số", num: true, render: (r) => String(r.count) },
+        { key: "staff", label: "Phụ trách", render: (r) => {
+            const st = staffOf(r.klass);
+            return el("div", { class: "t-name" }, [
+              el("strong", { text: st.cvht ? st.cvht.name : "—" }),
+              el("small", { text: st.same ? "CVHT & GVCN" : `CVHT · GVCN: ${st.gvcn ? st.gvcn.name : "—"}` })
+            ]);
+          } },
+        { key: "n", label: "Sĩ số", num: true, render: (r) => {
+            const h = A.advisorHours(r.count);
+            return el("div", { class: "t-name" }, [
+              el("strong", { text: String(r.count) }),
+              el("small", { text: h === null ? "" : `${U.num(h, 2)} giờ quy đổi` })
+            ]);
+          } },
         { key: "gpa", label: "GPA TB", num: true, render: (r) => U.num(r.sum.gpaAvg) },
         { key: "warn", label: "Cảnh báo", num: true,
           render: (r) => String(r.sum.counts.warn + r.sum.counts.critical) },
@@ -230,7 +266,10 @@ CV.viewAdvisor = (function () {
         { name: "dob", label: "Ngày sinh", type: "date", validate: (v) => A.validate.dob(v) },
         { name: "phone", label: "Điện thoại", type: "tel", validate: (v) => A.validate.phone(v) },
         { name: "email", label: "Email", type: "email", validate: (v) => A.validate.email(v) },
-        { name: "cadreRole", label: "Chức vụ trong lớp", placeholder: "Lớp trưởng, Bí thư…" },
+        { name: "cadreRole", label: "Chức vụ trong lớp", type: "select",
+          value: (student && student.cadreRole) || "",
+          hint: "Theo Quyết định 724: mỗi lớp có 01 lớp trưởng, 01 lớp phó và Bí thư Chi đoàn (nếu có).",
+          options: A.CADRE_ROLES.map((r) => ({ value: r.value, label: r.label })) },
         { name: "status", label: "Trạng thái", type: "select", value: (student && student.status) || "Đang học",
           options: ["Đang học", "Bảo lưu", "Đình chỉ", "Thôi học", "Đã tốt nghiệp"]
             .map((x) => ({ value: x, label: x })) },
@@ -240,7 +279,15 @@ CV.viewAdvisor = (function () {
       check: (d) => {
         const dup = S.all("students").find((s) =>
           String(s.mssv).toUpperCase() === d.mssv.toUpperCase() && (!student || s.id !== student.id));
-        return dup ? `MSSV ${d.mssv} đã có trong hệ thống.` : null;
+        if (dup) return `MSSV ${d.mssv} đã có trong hệ thống.`;
+        if (d.cadreRole) {
+          const taken = A.cadreConflicts(d.classId, student && student.id);
+          if (taken[d.cadreRole]) {
+            return `Lớp này đã có ${d.cadreRole}: ${taken[d.cadreRole].join(", ")}. ` +
+              "Hãy gỡ chức vụ của bạn ấy trước.";
+          }
+        }
+        return null;
       }
     }).then((d) => {
       if (!d) return;
@@ -439,8 +486,17 @@ CV.viewAdvisor = (function () {
         p.warning.reasons.map((r) => el("li", { text: r })))
     ]);
 
+    const cadreBox = st.cadreRole ? (function () {
+      const std = A.cadreStandard(p.stats);
+      return ui.note(
+        `<strong>${U.esc(st.cadreRole)}</strong> — ${U.esc(std.note)}`,
+        std.key === "fail" ? "warn" : "info");
+    })() : null;
+
     host.appendChild(el("div", { class: "grid-2" }, [
-      ui.card("Thông tin sinh viên", [info]),
+      ui.card("Thông tin sinh viên", [info, cadreBox,
+        st.cadreRole ? el("p", { class: "card-sub",
+          text: "Tiêu chuẩn theo Quyết định 724/QĐ-ĐHXDMT, Điều 3.3." }) : null].filter(Boolean)),
       ui.card("Tình trạng học vụ", [warnBox, el("p", { class: "card-sub", style: "margin-top:.8rem",
         text: A.warningRuleText().join(" ") })])
     ]));
@@ -1345,6 +1401,294 @@ CV.viewAdvisor = (function () {
   }
 
   /* =====================================================================
+     9. SỔ HỌP LỚP — Quyết định 758, Điều 9
+     ===================================================================== */
+  const meetingState = { classId: "", semesterId: "" };
+
+  function editMeeting(klassId, semesterId, row) {
+    const sems = semesters();
+    ui.formModal({
+      title: row ? "Sửa buổi họp lớp" : "Ghi nhận buổi họp lớp",
+      size: "lg",
+      values: row || {},
+      intro: "Theo Điều 9, mỗi học kỳ họp lớp tối thiểu 4 lần và mỗi buổi phải có biên bản.",
+      fields: [
+        { name: "date", label: "Ngày họp", type: "date", required: true,
+          value: (row && row.date) || U.todayISO() },
+        { name: "semesterId", label: "Học kỳ", type: "select", required: true,
+          value: (row && row.semesterId) || semesterId,
+          options: sems.map((x) => ({ value: x.id, label: x.name || x.code })) },
+        { name: "kind", label: "Loại buổi họp", type: "select", value: (row && row.kind) || "Trong học kỳ",
+          options: ["Đầu học kỳ", "Trong học kỳ", "Đột xuất"].map((x) => ({ value: x, label: x })) },
+        { name: "format", label: "Hình thức", type: "select", value: (row && row.format) || "Trực tiếp",
+          options: ["Trực tiếp", "Trực tuyến"].map((x) => ({ value: x, label: x })) },
+        { name: "attended", label: "Số sinh viên dự", type: "number", min: 0, max: 200 },
+        { name: "place", label: "Địa điểm / đường dẫn" },
+        { name: "content", label: "Nội dung chính", type: "textarea", full: true, rows: 3 },
+        { name: "minutes", label: "Biên bản", type: "textarea", full: true, rows: 5,
+          hint: "Ghi tóm tắt hoặc dán nội dung biên bản. Buổi chưa có biên bản sẽ bị đánh dấu." }
+      ]
+    }).then((d) => {
+      if (!d) return;
+      const payload = Object.assign({ classId: klassId }, d);
+      payload.attended = d.attended === "" ? null : U.parseNum(d.attended);
+      if (row) payload.id = row.id;
+      S.put("meetings", payload);
+      ui.toast("Đã lưu buổi họp lớp.", "ok");
+      CV.app.render();
+    });
+  }
+
+  function meetings(host) {
+    const ks = myClasses();
+    const sems = semesters();
+    if (!ks.length) { host.appendChild(ui.card(null, needClass())); return; }
+    if (!sems.length) {
+      host.appendChild(ui.card("Chưa có học kỳ", [
+        ui.empty("Cần tạo học kỳ trước", "Mỗi buổi họp lớp đều thuộc về một học kỳ.",
+          el("button", { class: "btn btn-primary", text: "Tạo học kỳ",
+            onclick: () => editSemester(null, () => CV.app.render()) }))
+      ]));
+      return;
+    }
+    if (!meetingState.classId || !ks.some((k) => k.id === meetingState.classId)) meetingState.classId = ks[0].id;
+    if (!meetingState.semesterId || !sems.some((x) => x.id === meetingState.semesterId)) {
+      meetingState.semesterId = sems[sems.length - 1].id;
+    }
+
+    const bar = el("div", { class: "row", style: "margin-bottom:1rem" });
+    const classSel = el("select", { style: "max-width:230px" },
+      ks.map((k) => el("option", { value: k.id, text: `${k.code} — ${k.name}`, selected: k.id === meetingState.classId })));
+    const semSel = el("select", { style: "max-width:260px" },
+      sems.map((x) => el("option", { value: x.id, text: x.name || x.code, selected: x.id === meetingState.semesterId })));
+    classSel.addEventListener("change", () => { meetingState.classId = classSel.value; draw(); });
+    semSel.addEventListener("change", () => { meetingState.semesterId = semSel.value; draw(); });
+    bar.appendChild(el("label", { text: "Lớp", style: "font-size:.85rem;font-weight:650" }));
+    bar.appendChild(classSel);
+    bar.appendChild(el("label", { text: "Học kỳ", style: "font-size:.85rem;font-weight:650" }));
+    bar.appendChild(semSel);
+    bar.appendChild(el("div", { class: "row row-end" },
+      el("button", { class: "btn btn-primary btn-sm", text: "+ Ghi nhận buổi họp",
+        onclick: () => editMeeting(meetingState.classId, meetingState.semesterId, null) })));
+    host.appendChild(bar);
+
+    const body = el("div");
+    host.appendChild(body);
+
+    function draw() {
+      body.innerHTML = "";
+      const st = A.meetingStatus(meetingState.classId, meetingState.semesterId);
+      const rows = U.sortBy(S.find("meetings", (m) =>
+        m.classId === meetingState.classId && m.semesterId === meetingState.semesterId), (m) => m.date, "desc");
+
+      body.appendChild(el("div", { class: "deck" }, [
+        ui.stat({ label: "Buổi họp trong kỳ", value: `${st.count}/${st.need}`, icon: "cal",
+          tone: st.enough ? "ok" : "warn",
+          note: st.enough ? "Đã đủ mức tối thiểu" : `Còn thiếu ${Math.max(0, st.need - st.count)} buổi` }),
+        ui.stat({ label: "Buổi có biên bản", value: String(st.withMinutes), icon: "note",
+          tone: st.withMinutes === st.count && st.count ? "ok" : st.count ? "warn" : undefined,
+          note: st.count === st.withMinutes ? "Đủ biên bản" : `${st.count - st.withMinutes} buổi chưa có biên bản` }),
+        ui.stat({ label: "Điểm tiêu chí họp lớp", value: String(suggestMeetingScore(st)), icon: "report",
+          note: "Tối đa 20, thiếu mỗi buổi trừ 5" })
+      ]));
+
+      body.appendChild(ui.card(`Các buổi họp đã ghi nhận (${rows.length})`, [
+        ui.table([
+          { key: "d", label: "Ngày", render: (r) => U.dmy(r.date) },
+          { key: "k", label: "Loại", render: (r) => r.kind || "—" },
+          { key: "f", label: "Hình thức", render: (r) => r.format || "—" },
+          { key: "a", label: "SV dự", num: true, render: (r) => r.attended === null || r.attended === undefined ? "—" : String(r.attended) },
+          { key: "c", label: "Nội dung", render: (r) => r.content || "—" },
+          { key: "m", label: "Biên bản", render: (r) => r.minutes && String(r.minutes).trim()
+              ? el("span", { class: "badge badge-ok", text: "Đã có" })
+              : el("span", { class: "badge badge-watch", text: "Chưa có" }) },
+          { key: "act", label: "", render: (r) => el("div", { class: "row" }, [
+              el("button", { class: "btn btn-ghost btn-sm", text: "Sửa",
+                onclick: () => editMeeting(r.classId, r.semesterId, r) }),
+              el("button", { class: "btn btn-ghost btn-sm", text: "Xoá", onclick: async () => {
+                if (!(await ui.confirm({ title: "Xoá buổi họp", danger: true,
+                  message: `Xoá buổi họp ngày ${U.dmy(r.date)}?` }))) return;
+                S.remove("meetings", r.id); CV.app.render();
+              } })
+            ]) }
+        ], rows, {
+          emptyTitle: "Chưa ghi nhận buổi họp nào trong học kỳ này",
+          emptyText: "Theo Điều 9, mỗi học kỳ cần họp lớp tối thiểu 4 lần và lập biên bản."
+        })
+      ], { sub: "Quyết định 758/QĐ-ĐHXDMT, Điều 9" }));
+    }
+    draw();
+  }
+
+  /** Gợi ý điểm tiêu chí "Tổ chức họp lớp": tối đa 20, thiếu mỗi buổi trừ 5. */
+  function suggestMeetingScore(st) {
+    return U.clamp(20 - Math.max(0, st.need - st.count) * 5, 0, 20);
+  }
+
+  /* =====================================================================
+     10. TỰ ĐÁNH GIÁ CÔNG TÁC — Quyết định 758, Điều 13 và Điều 18
+     ===================================================================== */
+  function evaluation(host) {
+    const m = me();
+    const sems = semesters();
+    const ks = myClasses();
+    if (!sems.length) {
+      host.appendChild(ui.card("Chưa có học kỳ", [
+        ui.empty("Cần tạo học kỳ trước", "Phiếu đánh giá được lập theo từng học kỳ.",
+          el("button", { class: "btn btn-primary", text: "Tạo học kỳ",
+            onclick: () => editSemester(null, () => CV.app.render()) }))
+      ]));
+      return;
+    }
+
+    const state = { semesterId: sems[sems.length - 1].id };
+    const bar = el("div", { class: "row", style: "margin-bottom:1rem" });
+    const semSel = el("select", { style: "max-width:280px" },
+      sems.map((x) => el("option", { value: x.id, text: x.name || x.code })));
+    semSel.value = state.semesterId;
+    semSel.addEventListener("change", () => { state.semesterId = semSel.value; draw(); });
+    bar.appendChild(el("label", { text: "Học kỳ", style: "font-size:.85rem;font-weight:650" }));
+    bar.appendChild(semSel);
+    host.appendChild(bar);
+
+    const body = el("div");
+    host.appendChild(body);
+
+    function draw() {
+      body.innerHTML = "";
+      const saved = S.first("evaluations", (e) => e.advisorId === m.id && e.semesterId === state.semesterId);
+
+      // Giờ quy đổi tính theo từng lớp phụ trách rồi cộng lại
+      const perClass = ks.map((k) => {
+        const size = S.all("students").filter((x) => x.classId === k.id).length;
+        return { klass: k, size, hours: A.advisorHours(size) || 0, role: roleInClass(k) };
+      });
+      const totalHours = U.sum(perClass, (x) => x.hours);
+
+      // Gợi ý điểm cho tiêu chí họp lớp từ chính sổ họp lớp
+      const meetingSuggest = ks.length
+        ? Math.round(U.sum(ks, (k) => suggestMeetingScore(A.meetingStatus(k.id, state.semesterId))) / ks.length)
+        : 20;
+
+      const inputs = {};
+      const tbody = el("tbody");
+      A.EVAL_CRITERIA.forEach((c) => {
+        const preset = saved && saved.scores && saved.scores[c.key] !== undefined
+          ? saved.scores[c.key]
+          : (c.key === "meetings" ? meetingSuggest : c.max);
+        const input = el("input", { type: "number", min: 0, max: c.max, value: String(preset),
+          style: "max-width:110px" });
+        input.addEventListener("input", recalc);
+        inputs[c.key] = input;
+        tbody.appendChild(el("tr", {}, [
+          el("td", {}, el("div", { class: "t-name" }, [
+            el("strong", { text: c.label }),
+            el("small", { text: c.rule })
+          ])),
+          el("td", { class: "num" }, String(c.max)),
+          el("td", {}, input)
+        ]));
+      });
+
+      const t = el("table");
+      t.appendChild(el("thead", {}, el("tr", {}, [
+        el("th", { text: "Tiêu chí đánh giá" }),
+        el("th", { class: "num", text: "Tổng điểm" }),
+        el("th", { text: "Điểm đạt" })
+      ])));
+      t.appendChild(tbody);
+
+      const resultBox = el("div", { class: "deck", style: "margin-top:1rem" });
+
+      function total() {
+        return A.EVAL_CRITERIA.reduce((sum, c) => {
+          const v = U.clamp(U.parseNum(inputs[c.key].value) || 0, 0, c.max);
+          return sum + v;
+        }, 0);
+      }
+      function recalc() {
+        const tt = total();
+        const lv = A.evalLevel(tt);
+        resultBox.innerHTML = "";
+        resultBox.appendChild(ui.stat({ label: "Tổng điểm", value: String(tt), icon: "report",
+          note: `trên ${A.EVAL_TOTAL} điểm` }));
+        resultBox.appendChild(ui.stat({ label: "Xếp loại", value: lv.percent + "%", icon: "users",
+          tone: lv.key === "kht" ? "critical" : lv.key === "ht" ? "warn" : "ok",
+          note: lv.label }));
+        resultBox.appendChild(ui.stat({ label: "Giờ quy đổi", value: U.num(totalHours * lv.percent / 100, 2),
+          icon: "cal", note: `${U.num(totalHours, 2)} giờ định mức × ${lv.percent}%` }));
+      }
+
+      const saveBtn = el("button", { class: "btn btn-primary", text: "Lưu phiếu đánh giá" });
+      saveBtn.addEventListener("click", () => {
+        const scores = {};
+        A.EVAL_CRITERIA.forEach((c) => {
+          scores[c.key] = U.clamp(U.parseNum(inputs[c.key].value) || 0, 0, c.max);
+        });
+        const tt = total();
+        const lv = A.evalLevel(tt);
+        const payload = {
+          advisorId: m.id, semesterId: state.semesterId, scores, total: tt,
+          level: lv.label, percent: lv.percent,
+          baseHours: totalHours, hours: totalHours * lv.percent / 100
+        };
+        if (saved) payload.id = saved.id;
+        S.put("evaluations", payload);
+        ui.toast("Đã lưu phiếu đánh giá.", "ok");
+        CV.app.render();
+      });
+
+      const printBtn = el("button", { class: "btn btn-ghost", text: "In phiếu" });
+      printBtn.addEventListener("click", () => {
+        const tt = total();
+        const lv = A.evalLevel(tt);
+        const sem = S.get("semesters", state.semesterId);
+        const doc = el("div");
+        doc.appendChild(el("h2", { text: "Phiếu đánh giá công tác Cố vấn học tập và Giáo viên chủ nhiệm" }));
+        doc.appendChild(el("p", { text: `Giảng viên: ${(m.title ? m.title + " " : "") + m.name}` }));
+        doc.appendChild(el("p", { text: `Học kỳ: ${sem ? (sem.name || sem.code) : "—"}` }));
+        doc.appendChild(el("p", { text: `Lớp phụ trách: ${perClass.map((x) => `${x.klass.code} (${x.size} SV, ${x.role})`).join("; ") || "—"}` }));
+        doc.appendChild(ui.table([
+          { key: "k", label: "Tiêu chí" }, { key: "m", label: "Tổng điểm", num: true },
+          { key: "v", label: "Điểm đạt", num: true }
+        ], A.EVAL_CRITERIA.map((c) => ({
+          k: c.label, m: c.max, v: U.clamp(U.parseNum(inputs[c.key].value) || 0, 0, c.max)
+        }))));
+        doc.appendChild(el("p", { text: `Tổng điểm: ${tt}/${A.EVAL_TOTAL} — ${lv.label} — hưởng ${lv.percent}% giờ quy đổi.` }));
+        doc.appendChild(el("p", { text: `Giờ định mức: ${U.num(totalHours, 2)} giờ. Giờ thực hưởng: ${U.num(totalHours * lv.percent / 100, 2)} giờ.` }));
+        doc.appendChild(el("p", { style: "margin-top:1rem;font-size:.85rem",
+          text: "Tiêu chí và mức hưởng theo Quyết định 758/QĐ-ĐHXDMT ngày 10/12/2025, Điều 13 và Điều 18." }));
+        CV.io.print("Phiếu đánh giá công tác CVHT & GVCN", doc);
+      });
+
+      body.appendChild(ui.card("Tự đánh giá mức độ hoàn thành nhiệm vụ", [
+        ui.note("Sáu tiêu chí và thang 100 điểm lấy từ <strong>Quyết định 758/QĐ-ĐHXDMT, Điều 13.4</strong>. " +
+          "Điểm tiêu chí họp lớp được điền sẵn từ sổ họp lớp, sửa lại được. " +
+          "Kết quả cuối cùng do Khoa chấm và Ban CVHT xác nhận; phiếu này chỉ để tự theo dõi.", "info"),
+        el("div", { class: "table-wrap" }, t),
+        resultBox,
+        el("div", { class: "row", style: "margin-top:1rem" }, [saveBtn, printBtn])
+      ], { sub: saved ? `Đã lưu lúc ${U.dmyhm(saved.updatedAt)}` : "Chưa lưu phiếu nào cho học kỳ này" }));
+
+      body.appendChild(ui.card("Giờ quy đổi theo lớp phụ trách", [
+        ui.table([
+          { key: "c", label: "Lớp", render: (r) => `${r.klass.code} — ${r.klass.name}` },
+          { key: "r", label: "Vai trò", render: (r) => r.role || "—" },
+          { key: "n", label: "Sĩ số", num: true, render: (r) => String(r.size) },
+          { key: "h", label: "Giờ định mức", num: true, render: (r) => U.num(r.hours, 2) }
+        ], perClass, { emptyTitle: "Chưa phụ trách lớp nào", emptyText: "" }),
+        ui.note("Bảng giờ theo sĩ số lấy từ <strong>Điều 18.3</strong>: dưới 10 sinh viên 30 giờ; " +
+          "10–40 sinh viên 52,5 giờ; 41–50 sinh viên 57,75 giờ; 51–60 sinh viên 63 giờ. " +
+          "Ứng dụng tính giờ cho <em>từng lớp</em> rồi cộng lại — nếu Ban CVHT tính theo tổng số sinh viên " +
+          "thay vì theo từng lớp thì con số sẽ khác, nên đối chiếu lại trước khi nộp.", "warn")
+      ]));
+
+      recalc();
+    }
+    draw();
+  }
+
+  /* =====================================================================
      Khai báo các màn hình cho bộ định tuyến
      ===================================================================== */
   const routes = {
@@ -1354,9 +1698,11 @@ CV.viewAdvisor = (function () {
     "advisor/classes":      { title: "Lớp cố vấn", icon: "class", nav: "Lớp cố vấn", render: classes },
     "advisor/scores":       { title: "Nhập điểm", icon: "score", nav: "Nhập điểm", render: scoreEntry },
     "advisor/appointments": { title: "Lịch tư vấn", icon: "cal", nav: "Lịch tư vấn", render: appointments },
+    "advisor/meetings":     { title: "Sổ họp lớp", icon: "note", nav: "Sổ họp lớp", render: meetings },
+    "advisor/evaluation":   { title: "Đánh giá công tác", icon: "user", nav: "Đánh giá công tác", render: evaluation },
     "advisor/reports":      { title: "Báo cáo", icon: "report", nav: "Báo cáo", render: reports },
     "advisor/settings":     { title: "Cài đặt", icon: "gear", nav: "Cài đặt", render: settings }
   };
 
-  return { routes, myClasses, myStudents, me, isOwner, editAppointment, seedDemo };
+  return { routes, myClasses, myStudents, me, isOwner, roleInClass, staffOf, editAppointment, seedDemo };
 })();

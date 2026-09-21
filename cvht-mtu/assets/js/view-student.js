@@ -17,8 +17,26 @@ CV.viewStudent = (function () {
     return m ? A.profileOf(m.id) : null;
   }
 
-  function advisorOf(p) {
-    return p.klass && p.klass.advisorId ? S.get("advisors", p.klass.advisorId) : null;
+  /**
+   * Lớp có thể có Cố vấn học tập và Giáo viên chủ nhiệm là hai người khác nhau
+   * (Quyết định 758/QĐ-ĐHXDMT, Điều 2.3), nên trả về cả hai.
+   */
+  function staffOf(p) {
+    const cv = p.klass && p.klass.advisorId ? S.get("advisors", p.klass.advisorId) : null;
+    const gv = p.klass && p.klass.gvcnId ? S.get("advisors", p.klass.gvcnId) : cv;
+    return { cvht: cv, gvcn: gv, same: !p.klass || !p.klass.gvcnId || p.klass.gvcnId === p.klass.advisorId };
+  }
+
+  function contactCard(person, role) {
+    return el("div", {}, [
+      el("h3", { text: role, style: "margin:0 0 .4rem;font-size:.9rem;color:var(--muted)" }),
+      el("dl", { class: "kv" }, [
+        el("dt", { text: "Họ tên" }),
+        el("dd", { text: `${person.title ? person.title + " " : ""}${person.name}` }),
+        el("dt", { text: "Email" }), el("dd", { text: person.email || "—" }),
+        el("dt", { text: "Điện thoại" }), el("dd", { text: person.phone || "—" })
+      ])
+    ]);
   }
 
   /* ---------- buộc đổi mã PIN lần đầu ---------- */
@@ -56,7 +74,7 @@ CV.viewStudent = (function () {
     const p = myProfile();
     if (!p) return;
     const st = p.student;
-    const adv = advisorOf(p);
+    const staff = staffOf(p);
 
     host.appendChild(ui.card3d([
       el("div", { class: "lift-1", style: "display:flex;gap:1rem;align-items:center;flex-wrap:wrap" }, [
@@ -108,16 +126,18 @@ CV.viewStudent = (function () {
       })), { ariaLabel: "GPA qua các học kỳ" });
     }
 
-    host.appendChild(ui.card("Giảng viên cố vấn của em", [
-      adv
-        ? el("dl", { class: "kv" }, [
-            el("dt", { text: "Họ tên" }), el("dd", { text: `${adv.title ? adv.title + " " : ""}${adv.name}` }),
-            el("dt", { text: "Email" }), el("dd", { text: adv.email || "—" }),
-            el("dt", { text: "Điện thoại" }), el("dd", { text: adv.phone || "—" })
-          ])
-        : ui.empty("Lớp chưa có cố vấn phụ trách", "")
-    ], { actions: [el("button", { class: "btn btn-primary btn-sm", text: "Đặt lịch gặp",
-      onclick: () => requestAppointment() })] }));
+    const staffBody = !staff.cvht
+      ? [ui.empty("Lớp chưa có giảng viên phụ trách", "")]
+      : staff.same
+        ? [contactCard(staff.cvht, "Cố vấn học tập kiêm Giáo viên chủ nhiệm")]
+        : [el("div", { class: "grid-2" }, [
+            contactCard(staff.cvht, "Cố vấn học tập"),
+            staff.gvcn ? contactCard(staff.gvcn, "Giáo viên chủ nhiệm") : null
+          ].filter(Boolean))];
+
+    host.appendChild(ui.card("Giảng viên phụ trách lớp của em", staffBody,
+      { actions: [el("button", { class: "btn btn-primary btn-sm", text: "Đặt lịch gặp",
+        onclick: () => requestAppointment() })] }));
 
     // ghi chú cố vấn mà sinh viên được xem
     const notes = S.find("notes", (n) => n.studentId === st.id && !n.privateNote)

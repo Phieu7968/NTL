@@ -4,7 +4,7 @@
    nên lưu đệm được hết. Mất mạng vẫn mở và dùng bình thường.
    Mỗi lần sửa mã nguồn, đổi số VERSION để trình duyệt nạp bản mới.
    ===================================================================== */
-const VERSION = "cvht-mtu-v2";
+const VERSION = "cvht-mtu-v3";
 const ASSETS = [
   "./",
   "./index.html",
