@@ -453,6 +453,9 @@ CV.io = (function () {
   function warningRows(students) {
     const rows = [];
     let stt = 0;
+    // Cột "Số TC ĐK" nói về học kỳ sắp tới, lấy từ màn hình Đăng ký học phần
+    const sems = U.sortBy(CV.store.all("semesters"), (x) => x.code);
+    const nextSem = sems.length ? sems[sems.length - 1] : null;
     U.sortBy(students, (s) => {
       const k = CV.store.get("classes", s.classId);
       return (k ? k.code : "") + "|" + s.mssv;
@@ -473,7 +476,12 @@ CV.io = (function () {
         last.credits === null || last.credits === undefined ? 0 : Number(last.credits),
         Number(p.stats.debtCredits || (last.debtCredits || 0)),
         w.termWarning.status,
-        "",
+        (function () {
+          if (!nextSem) return "";
+          const reg = A().registrationOf(s.id, nextSem.id);
+          const n = reg ? U.parseNum(reg.credits) : NaN;
+          return isNaN(n) ? "" : n;
+        })(),
         w.termWarning.lastShort || w.termWarning.lastReason || "",
         /Thôi học|Bảo lưu|Đình chỉ/.test(s.status || "") ? "Nghỉ" : ""
       ]);

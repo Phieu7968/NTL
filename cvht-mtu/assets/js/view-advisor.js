@@ -748,6 +748,11 @@ CV.viewAdvisor = (function () {
         { name: "name", label: "Tên hiển thị", required: true, placeholder: "Học kỳ 1 năm học 2025-2026" },
         { name: "startDate", label: "Bắt đầu", type: "date" },
         { name: "endDate", label: "Kết thúc", type: "date" },
+        { name: "sepReg", type: "separator", label: "Đăng ký học phần (theo thông báo của Trường)" },
+        { name: "regStart", label: "Sinh viên bắt đầu đăng ký", type: "date" },
+        { name: "regEnd", label: "Hạn sinh viên đăng ký", type: "date" },
+        { name: "regDeadline", label: "Hạn cố vấn gửi Phòng QLĐT", type: "date", full: true,
+          hint: "Thông báo 411/TB-ĐHXDMT giao cố vấn kiểm tra, xác nhận kết quả đăng ký rồi gửi về Phòng Quản lý Đào tạo." },
         { name: "firstOfCourse", label: "Là học kỳ đầu khoá?", type: "select", full: true,
           value: sem && sem.firstOfCourse ? "1" : "",
           hint: "Học kỳ đầu khoá xét cảnh báo ở ngưỡng 0,8; các học kỳ sau là 1,0.",
@@ -762,6 +767,7 @@ CV.viewAdvisor = (function () {
       if (!d) return;
       if (sem) d.id = sem.id;
       d.firstOfCourse = d.firstOfCourse === "1";
+      delete d.sepReg;
       S.put("semesters", d);
       ui.toast("Đã lưu học kỳ.", "ok");
       done && done();
@@ -1605,13 +1611,17 @@ CV.viewAdvisor = (function () {
       const meetingSuggest = ks.length
         ? Math.round(U.sum(ks, (k) => suggestMeetingScore(A.meetingStatus(k.id, state.semesterId))) / ks.length)
         : 20;
+      // Tiêu chí "Tư vấn đăng ký môn học" lấy từ màn hình Đăng ký học phần
+      const registerSuggest = A.suggestRegisterScore(
+        A.registrationSummary(myStudents(), state.semesterId));
 
       const inputs = {};
       const tbody = el("tbody");
       A.EVAL_CRITERIA.forEach((c) => {
         const preset = saved && saved.scores && saved.scores[c.key] !== undefined
           ? saved.scores[c.key]
-          : (c.key === "meetings" ? meetingSuggest : c.max);
+          : (c.key === "meetings" ? meetingSuggest
+            : c.key === "register" ? registerSuggest : c.max);
         const input = el("input", { type: "number", min: 0, max: c.max, value: String(preset),
           style: "max-width:110px" });
         input.addEventListener("input", recalc);
@@ -1699,7 +1709,8 @@ CV.viewAdvisor = (function () {
 
       body.appendChild(ui.card("Tự đánh giá mức độ hoàn thành nhiệm vụ", [
         ui.note("Sáu tiêu chí và thang 100 điểm lấy từ <strong>Quyết định 758/QĐ-ĐHXDMT, Điều 13.4</strong>. " +
-          "Điểm tiêu chí họp lớp được điền sẵn từ sổ họp lớp, sửa lại được. " +
+          "Điểm tiêu chí họp lớp và tư vấn đăng ký môn học được điền sẵn từ sổ họp lớp và " +
+          "màn hình đăng ký học phần, sửa lại được. " +
           "Kết quả cuối cùng do Khoa chấm và Ban CVHT xác nhận; phiếu này chỉ để tự theo dõi.", "info"),
         el("div", { class: "table-wrap" }, t),
         resultBox,
@@ -1872,6 +1883,222 @@ CV.viewAdvisor = (function () {
   }
 
   /* =====================================================================
+     12. ĐĂNG KÝ HỌC PHẦN — Thông báo 411/TB-ĐHXDMT ngày 30/7/2026
+     "Cố vấn học tập ... kiểm tra, xác nhận kết quả đăng ký học phần của
+     sinh viên và gửi về Phòng Quản lý Đào tạo chậm nhất ngày ..."
+     ===================================================================== */
+  const regState = { semesterId: "", classId: "" };
+
+  function registration(host) {
+    const ks = myClasses();
+    const sems = semesters();
+    if (!ks.length) { host.appendChild(ui.card(null, needClass())); return; }
+    if (!sems.length) {
+      host.appendChild(ui.card("Chưa có học kỳ", [
+        ui.empty("Cần tạo học kỳ trước", "Mỗi đợt đăng ký học phần gắn với một học kỳ.",
+          el("button", { class: "btn btn-primary", text: "Tạo học kỳ",
+            onclick: () => editSemester(null, () => CV.app.render()) }))
+      ]));
+      return;
+    }
+    if (!regState.semesterId || !sems.some((x) => x.id === regState.semesterId)) {
+      regState.semesterId = sems[sems.length - 1].id;
+    }
+    if (regState.classId && !ks.some((k) => k.id === regState.classId)) regState.classId = "";
+
+    const bar = el("div", { class: "row", style: "margin-bottom:1rem" });
+    const semSel = el("select", { style: "max-width:260px" },
+      sems.map((x) => el("option", { value: x.id, text: x.name || x.code, selected: x.id === regState.semesterId })));
+    const classSel = el("select", { style: "max-width:220px" },
+      [el("option", { value: "", text: "Tất cả lớp" })]
+        .concat(ks.map((k) => el("option", { value: k.id, text: k.code, selected: k.id === regState.classId }))));
+    semSel.addEventListener("change", () => { regState.semesterId = semSel.value; draw(); });
+    classSel.addEventListener("change", () => { regState.classId = classSel.value; draw(); });
+    bar.appendChild(el("label", { text: "Học kỳ", style: "font-size:.85rem;font-weight:650" }));
+    bar.appendChild(semSel);
+    bar.appendChild(el("label", { text: "Lớp", style: "font-size:.85rem;font-weight:650" }));
+    bar.appendChild(classSel);
+    bar.appendChild(el("div", { class: "row row-end" }, [
+      el("button", { class: "btn btn-ghost btn-sm", text: "Nhập số TC từ tệp", onclick: doImport }),
+      el("button", { class: "btn btn-ghost btn-sm", text: "Mốc thời gian",
+        onclick: () => editSemester(S.get("semesters", regState.semesterId), () => CV.app.render()) })
+    ]));
+    host.appendChild(bar);
+
+    const body = el("div");
+    host.appendChild(body);
+
+    async function doImport() {
+      const f = await ui.pickSheet();
+      if (!f) return;
+      const hi = CV.io.findHeaderRow(f.rows);
+      if (hi < 0) { ui.toast('Không tìm thấy dòng tiêu đề có cột "MSSV".', "err"); return; }
+      const head = f.rows[hi].map((c) => U.fold(c));
+      const iM = head.findIndex((c) => ["mssv", "ma sv", "ma so sinh vien"].includes(c));
+      const iC = head.findIndex((c) => c.includes("tin chi") && (c.includes("dk") || c.includes("dang ky")));
+      if (iM < 0 || iC < 0) {
+        ui.toast('Tệp cần có cột "MSSV" và một cột số tín chỉ đăng ký.', "err", 7000);
+        return;
+      }
+      const all = S.all("students");
+      let added = 0, updated = 0;
+      const errors = [];
+      f.rows.slice(hi + 1).forEach((r, n) => {
+        const mssv = String(r[iM] || "").trim().toUpperCase();
+        if (!mssv) return;
+        const st = all.find((x) => String(x.mssv).toUpperCase() === mssv);
+        if (!st) { errors.push(`Dòng ${hi + n + 2}: không có sinh viên mang mã ${mssv}.`); return; }
+        const credits = U.parseNum(r[iC]);
+        if (isNaN(credits) || credits < 0 || credits > 40) {
+          errors.push(`Dòng ${hi + n + 2} (${mssv}): số tín chỉ "${r[iC]}" không hợp lệ.`);
+          return;
+        }
+        const old = A.registrationOf(st.id, regState.semesterId);
+        const payload = { studentId: st.id, semesterId: regState.semesterId, credits,
+          status: old && old.status === "confirmed" ? "confirmed" : "pending" };
+        if (old) { payload.id = old.id; updated++; } else added++;
+        S.put("registrations", payload, { save: false });
+      });
+      S.save("import:registrations");
+      ui.importReport("Kết quả nhập số tín chỉ đăng ký",
+        { added, updated, total: f.rows.length - hi - 1, errors });
+      draw();
+    }
+
+    function draw() {
+      body.innerHTML = "";
+      const list = U.sortBy(myStudents().filter((s) =>
+        !regState.classId || s.classId === regState.classId), (s) => s.mssv);
+      const sum = A.registrationSummary(list, regState.semesterId);
+      const sem = S.get("semesters", regState.semesterId) || {};
+
+      const deadlineNote = !sum.deadline
+        ? ui.note("Học kỳ này chưa ghi hạn cố vấn gửi Phòng Quản lý Đào tạo. " +
+            "Bấm <strong>Mốc thời gian</strong> để điền theo thông báo của Trường.", "warn")
+        : ui.note(`Hạn gửi Phòng Quản lý Đào tạo: <strong>${U.dmy(sum.deadline)}</strong>` +
+            (sum.daysLeft === null ? "" :
+              sum.daysLeft < 0 ? ` — đã quá hạn ${-sum.daysLeft} ngày.` :
+              sum.daysLeft === 0 ? " — hạn chót là hôm nay." :
+              ` — còn ${sum.daysLeft} ngày.`) +
+            (sem.regStart || sem.regEnd
+              ? `<br>Sinh viên đăng ký: ${U.dmy(sem.regStart)} – ${U.dmy(sem.regEnd)}.` : ""),
+            sum.daysLeft !== null && sum.daysLeft < 0 && !sum.done ? "danger"
+              : sum.done ? "info" : "warn");
+
+      body.appendChild(el("div", { class: "deck" }, [
+        ui.stat({ label: "Đã xác nhận", value: `${sum.counts.confirmed}/${sum.total}`, icon: "users",
+          tone: sum.done ? "ok" : "warn",
+          note: sum.done ? "Xong, có thể gửi Phòng QLĐT" : `${sum.counts.pending} em chờ xác nhận` }),
+        ui.stat({ label: "Chưa đăng ký", value: String(sum.counts.none), icon: "report",
+          tone: sum.counts.none ? "critical" : "ok", note: "cần nhắc các em đăng ký" }),
+        ui.stat({ label: "Cần sửa lại", value: String(sum.counts.fix), icon: "note",
+          tone: sum.counts.fix ? "warn" : "ok", note: "đã báo sinh viên điều chỉnh" }),
+        ui.stat({ label: "TC đăng ký trung bình", value: U.num(sum.avgCredits, 1), icon: "score",
+          note: `tổng ${sum.totalCredits} tín chỉ` })
+      ]));
+
+      body.appendChild(ui.card("Tình hình đăng ký học phần", [
+        deadlineNote,
+        ui.table([
+          { key: "sv", label: "Sinh viên", render: (r) => el("div", { class: "t-name" }, [
+              el("strong", { text: r.student.name }),
+              el("small", { text: `${r.student.mssv} · ${(classOf(r.student.classId) || {}).code || "—"}` })]) },
+          { key: "cr", label: "Số TC đăng ký", num: true, render: (r) => {
+              const input = el("input", { type: "number", min: 0, max: 40,
+                value: r.state.credits ? String(r.state.credits) : "", style: "max-width:100px" });
+              input.addEventListener("change", () => {
+                const v = U.parseNum(input.value);
+                if (isNaN(v) || v < 0 || v > 40) { ui.toast("Số tín chỉ phải trong khoảng 0–40.", "err"); return; }
+                const old = A.registrationOf(r.student.id, regState.semesterId);
+                S.put("registrations", Object.assign({
+                  studentId: r.student.id, semesterId: regState.semesterId
+                }, old ? { id: old.id } : {}, { credits: v, status: "pending" }));
+                draw();
+              });
+              return input;
+            } },
+          { key: "st", label: "Trạng thái", render: (r) =>
+              el("span", { class: `badge ${r.state.badge}`, text: r.state.label }) },
+          { key: "note", label: "Ghi chú", render: (r) =>
+              (r.state.notes && r.state.notes.length && r.state.key !== "none"
+                ? r.state.notes.join(" ") : (r.reg && r.reg.note) || "—") },
+          { key: "act", label: "", render: (r) => el("div", { class: "row" }, [
+              r.state.key === "none" ? null
+                : el("button", { class: "btn btn-primary btn-sm",
+                    text: r.state.key === "confirmed" ? "Bỏ xác nhận" : "Xác nhận",
+                    onclick: () => {
+                      const old = A.registrationOf(r.student.id, regState.semesterId);
+                      if (!old) return;
+                      S.put("registrations", { id: old.id,
+                        status: old.status === "confirmed" ? "pending" : "confirmed",
+                        confirmedAt: old.status === "confirmed" ? "" : new Date().toISOString(),
+                        confirmedBy: (me() || {}).id });
+                      draw();
+                    } }),
+              r.state.key === "none" ? null
+                : el("button", { class: "btn btn-ghost btn-sm", text: "Cần sửa", onclick: () => {
+                    const old = A.registrationOf(r.student.id, regState.semesterId);
+                    if (!old) return;
+                    ui.formModal({
+                      title: "Yêu cầu sinh viên điều chỉnh đăng ký",
+                      values: old,
+                      fields: [{ name: "note", label: "Nội dung cần sửa", type: "textarea",
+                        required: true, full: true, rows: 3 }]
+                    }).then((d) => {
+                      if (!d) return;
+                      S.put("registrations", { id: old.id, status: "fix", note: d.note });
+                      ui.toast("Đã ghi nhận yêu cầu điều chỉnh.", "ok");
+                      draw();
+                    });
+                  } })
+            ].filter(Boolean)) }
+        ], sum.rows, {
+          emptyTitle: "Chưa có sinh viên nào",
+          emptyText: "Thêm sinh viên vào lớp trước khi theo dõi đăng ký học phần."
+        })
+      ], { sub: "Gõ thẳng số tín chỉ vào ô, rồi bấm Xác nhận từng em." ,
+        actions: [
+          el("button", { class: "btn btn-ghost btn-sm", text: "Xác nhận tất cả em đã đăng ký",
+            onclick: async () => {
+              const todo = sum.rows.filter((r) => r.state.key === "pending");
+              if (!todo.length) { ui.toast("Không còn em nào chờ xác nhận.", "warn"); return; }
+              if (!(await ui.confirm({ title: "Xác nhận hàng loạt",
+                message: `Xác nhận kết quả đăng ký cho ${todo.length} sinh viên?`,
+                detail: "Chỉ nên làm sau khi đã kiểm tra từng em." }))) return;
+              todo.forEach((r) => S.put("registrations", { id: r.reg.id, status: "confirmed",
+                confirmedAt: new Date().toISOString(), confirmedBy: (me() || {}).id }, { save: false }));
+              S.save("confirm-registrations");
+              ui.toast(`Đã xác nhận ${todo.length} sinh viên.`, "ok");
+              draw();
+            } }),
+          el("button", { class: "btn btn-primary btn-sm", text: "In danh sách gửi Phòng QLĐT",
+            onclick: () => printRegistration(sum, sem) })
+        ] }));
+    }
+    draw();
+  }
+
+  function printRegistration(sum, sem) {
+    const doc = el("div");
+    doc.appendChild(el("h2", { text: "Xác nhận kết quả đăng ký học phần" }));
+    doc.appendChild(el("p", { text: `Học kỳ: ${sem.name || sem.code || "—"}` }));
+    doc.appendChild(el("p", { text: `Cố vấn học tập: ${(me() || {}).name || "—"}` }));
+    if (sum.deadline) doc.appendChild(el("p", { text: `Hạn gửi Phòng Quản lý Đào tạo: ${U.dmy(sum.deadline)}` }));
+    doc.appendChild(ui.table([
+      { key: "stt", label: "STT", num: true, render: (r) => String(sum.rows.indexOf(r) + 1) },
+      { key: "mssv", label: "MSSV", render: (r) => r.student.mssv },
+      { key: "name", label: "Họ và tên", render: (r) => r.student.name },
+      { key: "lop", label: "Lớp", render: (r) => (classOf(r.student.classId) || {}).code || "" },
+      { key: "cr", label: "Số TC đăng ký", num: true, render: (r) => String(r.state.credits) },
+      { key: "st", label: "Xác nhận", render: (r) => r.state.label }
+    ], sum.rows, {}));
+    doc.appendChild(el("p", { style: "margin-top:1rem",
+      text: `Tổng: ${sum.total} sinh viên, ${sum.counts.confirmed} em đã xác nhận, ` +
+        `${sum.counts.none} em chưa đăng ký.` }));
+    CV.io.print("Xác nhận kết quả đăng ký học phần", doc);
+  }
+
+  /* =====================================================================
      Khai báo các màn hình cho bộ định tuyến
      ===================================================================== */
   const routes = {
@@ -1881,6 +2108,7 @@ CV.viewAdvisor = (function () {
     "advisor/classes":      { title: "Lớp cố vấn", icon: "class", nav: "Lớp cố vấn", render: classes },
     "advisor/scores":       { title: "Nhập điểm", icon: "score", nav: "Nhập điểm", render: scoreEntry },
     "advisor/terms":        { title: "Kết quả học kỳ", icon: "report", nav: "Kết quả học kỳ", render: termResults },
+    "advisor/registration": { title: "Đăng ký học phần", icon: "class", nav: "Đăng ký học phần", render: registration },
     "advisor/appointments": { title: "Lịch tư vấn", icon: "cal", nav: "Lịch tư vấn", render: appointments },
     "advisor/meetings":     { title: "Sổ họp lớp", icon: "note", nav: "Sổ họp lớp", render: meetings },
     "advisor/evaluation":   { title: "Đánh giá công tác", icon: "user", nav: "Đánh giá công tác", render: evaluation },

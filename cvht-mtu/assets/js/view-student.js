@@ -148,6 +148,29 @@ CV.viewStudent = (function () {
             staff.gvcn ? contactCard(staff.gvcn, "Giáo viên chủ nhiệm") : null
           ].filter(Boolean))];
 
+    // Đăng ký học phần của học kỳ sắp tới
+    const sems = U.sortBy(S.all("semesters"), (x) => x.code);
+    const nextSem = sems.length ? sems[sems.length - 1] : null;
+    if (nextSem) {
+      const reg = A.registrationOf(st.id, nextSem.id);
+      const state = A.registrationState(reg);
+      const tone = state.key === "confirmed" ? "info" : state.key === "none" ? "danger" : "warn";
+      host.appendChild(ui.card("Đăng ký học phần " + (nextSem.name || nextSem.code), [
+        ui.note(`<strong>${U.esc(state.label)}</strong>` +
+          (state.credits ? ` — đã đăng ký ${state.credits} tín chỉ.` : ".") +
+          (reg && reg.note ? `<br>Cố vấn nhắn: ${U.esc(reg.note)}` : ""), tone),
+        el("dl", { class: "kv" }, [
+          el("dt", { text: "Thời gian đăng ký" }),
+          el("dd", { text: nextSem.regStart || nextSem.regEnd
+            ? `${U.dmy(nextSem.regStart)} – ${U.dmy(nextSem.regEnd)}` : "Chưa có thông báo" }),
+          el("dt", { text: "Cố vấn xác nhận trước" }),
+          el("dd", { text: U.dmy(nextSem.regDeadline) })
+        ]),
+        ui.note("Sinh viên đăng ký trực tuyến tại cổng thông tin của Trường. " +
+          "Ô này chỉ để em và cố vấn cùng theo dõi kết quả.", "info")
+      ]));
+    }
+
     host.appendChild(ui.card("Giảng viên phụ trách lớp của em", staffBody,
       { actions: [el("button", { class: "btn btn-primary btn-sm", text: "Đặt lịch gặp",
         onclick: () => requestAppointment() })] }));

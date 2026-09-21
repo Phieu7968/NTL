@@ -430,6 +430,81 @@ CV.academic = (function () {
     return taken;
   }
 
+  /* --- Đăng ký học phần — Thông báo 411/TB-ĐHXDMT ngày 30/7/2026 --- */
+
+  const REG_STATUS = {
+    none:      { label: "Chưa đăng ký", badge: "badge-critical" },
+    pending:   { label: "Chờ cố vấn xác nhận", badge: "badge-watch" },
+    confirmed: { label: "Đã xác nhận", badge: "badge-ok" },
+    fix:       { label: "Cần sửa lại", badge: "badge-warn" }
+  };
+
+  /** Bản đăng ký của một sinh viên trong một học kỳ. */
+  function registrationOf(studentId, semesterId) {
+    return CV.store.first("registrations",
+      (r) => r.studentId === studentId && r.semesterId === semesterId);
+  }
+
+  /** Trạng thái đăng ký, kèm nhận xét về số tín chỉ nếu Trường có đặt giới hạn. */
+  function registrationState(reg) {
+    const cfg = S().registration || {};
+    if (!reg || reg.credits === null || reg.credits === undefined || U.parseNum(reg.credits) === 0) {
+      return { key: "none", ...REG_STATUS.none, credits: 0, notes: ["Chưa có tín chỉ nào đăng ký."] };
+    }
+    const credits = U.parseNum(reg.credits);
+    const notes = [];
+    if (cfg.maxCredits > 0 && credits > cfg.maxCredits) {
+      notes.push(`Đăng ký ${credits} tín chỉ, vượt mức tối đa ${cfg.maxCredits}.`);
+    }
+    if (cfg.minCredits > 0 && credits < cfg.minCredits) {
+      notes.push(`Đăng ký ${credits} tín chỉ, thấp hơn mức tối thiểu ${cfg.minCredits}.`);
+    }
+    const key = reg.status === "confirmed" ? "confirmed" : reg.status === "fix" ? "fix" : "pending";
+    return { key, ...REG_STATUS[key], credits, notes };
+  }
+
+  /**
+   * Tổng hợp tình hình đăng ký của một nhóm sinh viên trong một học kỳ.
+   * Thông báo 411 giao cho cố vấn "kiểm tra, xác nhận kết quả đăng ký học phần
+   * của sinh viên và gửi về Phòng Quản lý Đào tạo" trước một mốc hạn.
+   */
+  function registrationSummary(students, semesterId) {
+    const counts = { none: 0, pending: 0, confirmed: 0, fix: 0 };
+    let credits = 0;
+    const rows = students.map((st) => {
+      const reg = registrationOf(st.id, semesterId);
+      const state = registrationState(reg);
+      counts[state.key]++;
+      credits += state.credits;
+      return { student: st, reg, state };
+    });
+    const sem = CV.store.get("semesters", semesterId) || {};
+    const deadline = sem.regDeadline || "";
+    let daysLeft = null;
+    if (deadline) {
+      const d = new Date(deadline + "T23:59:59");
+      if (!isNaN(d)) daysLeft = Math.ceil((d - new Date()) / 86400000);
+    }
+    return {
+      rows, counts, totalCredits: credits, total: students.length,
+      deadline, daysLeft,
+      done: counts.confirmed === students.length && students.length > 0,
+      avgCredits: students.length ? credits / students.length : 0
+    };
+  }
+
+  /**
+   * Gợi ý điểm tiêu chí "Tư vấn đăng ký môn học" (tối đa 30) từ tình hình thực tế.
+   * Quy định trừ 10 điểm khi không duyệt đăng ký đúng thời hạn.
+   */
+  function suggestRegisterScore(summary) {
+    const max = 30;
+    if (!summary.total) return max;
+    if (summary.done) return max;
+    const overdue = summary.daysLeft !== null && summary.daysLeft < 0;
+    return overdue ? Math.max(0, max - 10) : max;
+  }
+
   /* --- Công tác CVHT & GVCN — Quyết định 758/QĐ-ĐHXDMT ngày 10/12/2025 --- */
 
   /**
@@ -552,6 +627,7 @@ CV.academic = (function () {
     classifyLearning, classifyConduct,
     warningOf, warningRuleText, LEVELS,
     termResultsOf, termFlagged, termWarning,
+    REG_STATUS, registrationOf, registrationState, registrationSummary, suggestRegisterScore,
     CADRE_ROLES, cadreStandard, cadreConflicts,
     EVAL_CRITERIA, EVAL_TOTAL, evalLevel, advisorHours, meetingStatus,
     validate: V

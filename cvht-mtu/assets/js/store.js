@@ -29,7 +29,8 @@ CV.store = (function () {
     "templates",    // mẫu thông báo
     "meetings",     // sổ họp lớp (QĐ 758, Điều 9)
     "evaluations",  // phiếu tự đánh giá công tác (QĐ 758, Điều 13)
-    "termResults"   // kết quả học kỳ do Phòng Đào tạo gửi (tệp KQHT)
+    "termResults",  // kết quả học kỳ do Phòng Đào tạo gửi (tệp KQHT)
+    "registrations" // đăng ký học phần từng học kỳ (Thông báo 411/TB-ĐHXDMT)
   ];
 
   /* ---------- thiết lập mặc định ---------- */
@@ -87,6 +88,9 @@ CV.store = (function () {
           { max: 60, hours: 63 }
         ]
       },
+      // Đăng ký học phần. Số tín chỉ tối thiểu/tối đa mỗi học kỳ nằm trong Quy
+      // định Đào tạo trình độ đại học; chưa có văn bản nên để 0 = không kiểm tra.
+      registration: { minCredits: 0, maxCredits: 0 },
       studentLogin: "pin",   // "pin" = MSSV + mã PIN do CVHT cấp; "dob" = MSSV + ngày sinh
       theme: "auto",
       createdAt: new Date().toISOString()
@@ -150,6 +154,8 @@ CV.store = (function () {
     out.settings = Object.assign({}, fresh.settings, raw.settings || {});
     out.settings.warning = Object.assign({}, fresh.settings.warning, (raw.settings || {}).warning || {});
     out.settings.duty = Object.assign({}, fresh.settings.duty, (raw.settings || {}).duty || {});
+    out.settings.registration = Object.assign({}, fresh.settings.registration,
+      (raw.settings || {}).registration || {});
     if (!Array.isArray(out.settings.duty.hoursBySize) || !out.settings.duty.hoursBySize.length) {
       out.settings.duty.hoursBySize = fresh.settings.duty.hoursBySize;
     }

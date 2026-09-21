@@ -71,6 +71,8 @@ Muốn xem thử giao diện trước khi nhập dữ liệu thật: **Cài đ�
   tới đó, Enter nhảy xuống ô kế tiếp; nhập điểm hàng loạt từ CSV.
 - Kết quả học kỳ: nhận thẳng tệp **Kết quả học tập** `.xlsx` của Phòng Đào tạo, đối chiếu
   diện cảnh báo học vụ và **xuất ra bảng Cảnh cáo học vụ đúng mẫu 14 cột** của Trường.
+- Đăng ký học phần: theo dõi số tín chỉ từng em đã đăng ký, xác nhận từng em hoặc hàng loạt,
+  yêu cầu em điều chỉnh, đếm ngược tới hạn gửi Phòng Quản lý Đào tạo, in danh sách để nộp.
 - Lịch tư vấn: sinh viên gửi yêu cầu, cố vấn duyệt; số việc chờ hiện ngay trên menu.
 - Sổ họp lớp: ghi nhận từng buổi sinh hoạt kèm biên bản, đối chiếu với mức tối thiểu
   4 buổi mỗi học kỳ và tính sẵn điểm tiêu chí tương ứng.
@@ -178,6 +180,8 @@ Trường sửa quy định thì biết ngay phải sửa chỗ nào trong mã n
 | Giờ quy đổi theo sĩ số: dưới 10 SV 30 giờ; 10–40 SV 52,5 giờ; 41–50 SV 57,75 giờ; 51–60 SV 63 giờ | QĐ 758, Điều 18.3 |
 | Chức vụ ban cán sự chỉ gồm **Lớp trưởng, Lớp phó, Bí thư Chi đoàn**; mỗi lớp một người một chức | QĐ 724/QĐ-ĐHXDMT (28/11/2025), Điều 2.2 |
 | Đối chiếu tiêu chuẩn ban cán sự: điểm trung bình từ **5,5 (thang 10)** và rèn luyện **từ loại Khá** | QĐ 724, Điều 3.3 |
+| Cố vấn kiểm tra, xác nhận kết quả đăng ký học phần rồi gửi Phòng Quản lý Đào tạo trước hạn | Thông báo 411/TB-ĐHXDMT (30/7/2026), mục Lưu ý |
+| Mốc thời gian đăng ký khai theo từng học kỳ, không gắn cứng trong mã | Thông báo 411, mục 1 và 3 |
 | Xét cảnh báo theo **điểm trung bình chung học kỳ** dưới 1,0, hoặc học kỳ không có điểm | Suy ra từ bảng *Cảnh cáo học vụ* của bốn Khoa: mọi sinh viên ghi chú "Có HK dưới 1.0" đều có điểm học kỳ dưới 1,0 dù điểm tích luỹ vẫn trên 2,0 |
 | Ba mức `CBHV lần 1` / `CBHV lần 2` / `CBHV 2 lần liên tiếp` | Cột *CB - TT học vụ* trong bảng nói trên |
 | Cột và thứ tự cột khi xuất bảng cảnh cáo | Đúng mẫu 14 cột của bốn tệp *CẢNH CÁO HỌC VỤ* |
@@ -189,8 +193,11 @@ Bốn dòng giữa suy ra từ **chính các tệp mẫu Trường đang dùng**
 đại học của Trường (Quyết định 183/QĐ-ĐHXDMT ngày 12/4/2023) nói khác thì lấy văn bản làm
 chuẩn — mọi ngưỡng đều sửa được trong Cài đặt.
 
-Dòng cuối là chỗ **còn thiếu căn cứ**: thang điểm chữ nằm trong chính Quyết định 183 nói
-trên, chưa có trong tay.
+Dòng "Thang điểm chữ" là chỗ **còn thiếu căn cứ**: thang điểm nằm trong chính Quyết định 183
+nói trên, chưa có trong tay. Số tín chỉ tối thiểu và tối đa được đăng ký mỗi học kỳ cũng vậy —
+Thông báo 411 chỉ nói "không vượt quá số tín chỉ cho phép" mà không nêu con số, nên trong Cài
+đặt hai mức này để 0, nghĩa là **không kiểm tra**. Điền số vào là ứng dụng bắt đầu cảnh báo em
+nào đăng ký vượt hoặc thiếu.
 
 Những con số trên đều nằm trong `assets/js/academic.js` và mục Cài đặt, không rải rác
 trong giao diện.
@@ -248,7 +255,8 @@ là một tệp ZIP chứa XML, mà trình duyệt thì có sẵn bộ nén/gi�
 | Hướng | Tệp | Ghi chú |
 |---|---|---|
 | Nhập | *Kết quả học tập* (KQHT) | Tự tìm dòng tiêu đề, khớp sinh viên theo mã, hỏi trước khi tạo hồ sơ cho em chưa có |
-| Xuất | *Cảnh cáo học vụ* | Đúng 14 cột, đúng chữ trong cột Ghi chú, mở bằng Excel là dùng được ngay |
+| Nhập | Số tín chỉ đăng ký | Tệp nào có cột mã sinh viên và cột số tín chỉ đăng ký là đọc được |
+| Xuất | *Cảnh cáo học vụ* | Đúng 14 cột, đúng chữ trong cột Ghi chú, cột Số TC ĐK lấy từ màn hình Đăng ký học phần |
 
 Tệp `.xls` đời cũ (định dạng trước 2007) thì mở bằng Excel rồi lưu lại thành `.xlsx` hoặc CSV.
 Trình duyệt quá cũ không hỗ trợ thì ứng dụng tự chuyển sang xuất CSV và báo cho biết.
@@ -310,14 +318,14 @@ cvht-mtu/
 │   ├── icons/              5 tệp PNG sinh bằng scripts/make-icons.cjs
 │   └── js/
 │       ├── util.js         DOM, định dạng số và ngày kiểu Việt, SHA-256 viết thuần
-│       ├── store.js        14 bảng dữ liệu, phiên đăng nhập, sao lưu, đồng bộ giữa các tab
+│       ├── store.js        15 bảng dữ liệu, phiên đăng nhập, sao lưu, đồng bộ giữa các tab
 │       ├── academic.js     ★ Thang điểm, GPA, cảnh báo, quy định của Trường, kiểm tra dữ liệu
 │       ├── charts.js       Biểu đồ cột / thanh xếp chồng / đường, vẽ bằng SVG thuần
 │       ├── xlsx.js         Đọc và ghi tệp Excel .xlsx bằng tay, không thư viện ngoài
 │       ├── io.js           Đọc ghi CSV và .xlsx, sao lưu JSON, in báo cáo
 │       ├── ui.js           Thẻ 3D, hộp thoại, biểu mẫu, bảng, thông báo
 │       ├── view-auth.js    Cài đặt lần đầu, chọn vai trò, đăng nhập, chặn dò mật khẩu
-│       ├── view-advisor.js 11 màn hình của giảng viên cố vấn
+│       ├── view-advisor.js 12 màn hình của giảng viên cố vấn
 │       ├── view-student.js 4 màn hình của cổng sinh viên
 │       └── app.js          Định tuyến, khung điều hướng, khởi động, đăng ký service worker
 └── scripts/make-icons.cjs  Sinh lại bộ icon PNG
