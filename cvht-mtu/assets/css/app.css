@@ -123,7 +123,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 .sidenav-brand{display:flex;align-items:center;gap:.7rem;padding:1.1rem 1rem;
   border-bottom:1px solid var(--line)}
-.brand-logo{border-radius:11px;box-shadow:var(--sh-1)}
+.brand-logo{border-radius:3px;box-shadow:none;object-fit:contain}
 .brand-text{display:flex;flex-direction:column;line-height:1.2}
 .brand-text strong{color:var(--ink);font-size:1rem}
 .brand-text span{color:var(--muted);font-size:.75rem}
@@ -395,7 +395,7 @@ th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
     var(--page)}
 .gate-box{width:min(100%,940px)}
 .gate-head{text-align:center;margin-bottom:1.5rem}
-.gate-head img{margin:0 auto .75rem;border-radius:18px;box-shadow:var(--sh-2)}
+.gate-head img{margin:0 auto .75rem;border-radius:4px;box-shadow:none;object-fit:contain}
 .gate-head h1{font-size:clamp(1.35rem,3.6vw,1.9rem)}
 .gate-head p{color:var(--muted);margin:0}
 .role-deck{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}

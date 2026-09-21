@@ -1,110 +1,253 @@
 /* =====================================================================
-   make-icons.cjs — sinh bộ icon PNG cho PWA
+   make-icons.cjs — sinh bộ biểu tượng của ứng dụng từ logo Trường
    Chạy:  node scripts/make-icons.cjs
-   Không cần thư viện ngoài: tự vẽ pixel rồi tự đóng gói PNG bằng zlib có
-   sẵn trong Node. Nhờ vậy dựng lại icon ở máy nào cũng được.
 
-   LƯU Ý: hình ở đây là biểu tượng tạm, dựng theo mô-típ logo Trường.
-   Khi xin được tệp vector chính thức từ Phòng CNTT, hãy thay hình trong
-   hàm drawMark() rồi chạy lại tệp này.
+   Đầu vào : assets/icons/logo-source.png  (bản logo gốc, độ phân giải cao)
+   Đầu ra  : assets/icons/logo-mtu.png     (bản dùng hiển thị trong app)
+             assets/icons/favicon-32.png
+             assets/icons/apple-touch-icon.png
+             assets/icons/icon-192.png
+             assets/icons/icon-512.png
+             assets/icons/icon-maskable-512.png
+
+   Thay logo mới: chép tệp PNG mới đè lên logo-source.png rồi chạy lại lệnh
+   trên, sau đó tăng số VERSION trong sw.js để máy đã cài nhận bản mới.
+
+   Không cần cài thêm thư viện nào: tệp này tự đọc PNG, tự thu nhỏ, tự giảm
+   số màu và tự đóng gói PNG bằng zlib có sẵn trong Node.
    ===================================================================== */
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 
-const OUT = path.join(__dirname, "..", "assets", "icons");
+const DIR = path.join(__dirname, "..", "assets", "icons");
+const SOURCE = path.join(DIR, "logo-source.png");
 
-const NAVY = [18, 58, 107];
-const RED  = [200, 16, 46];
-const WHITE = [255, 255, 255];
+/* ------------------------------------------------------------------ */
+/* 1. Đọc tệp PNG                                                      */
+/* ------------------------------------------------------------------ */
+function readPng(file) {
+  const buf = fs.readFileSync(file);
+  if (buf.readUInt32BE(0) !== 0x89504e47) throw new Error(`${file} không phải tệp PNG.`);
 
-/* ---------- vẽ trên lưới pixel ---------- */
-function canvas(size, bg) {
-  const px = new Uint8Array(size * size * 4);
-  for (let i = 0; i < size * size; i++) {
-    px[i * 4] = bg[0]; px[i * 4 + 1] = bg[1]; px[i * 4 + 2] = bg[2]; px[i * 4 + 3] = 255;
+  let pos = 8, ihdr = null, palette = null, trns = null;
+  const idat = [];
+  while (pos < buf.length) {
+    const len = buf.readUInt32BE(pos);
+    const type = buf.toString("ascii", pos + 4, pos + 8);
+    const data = buf.subarray(pos + 8, pos + 8 + len);
+    if (type === "IHDR") {
+      ihdr = {
+        w: data.readUInt32BE(0), h: data.readUInt32BE(4),
+        depth: data[8], color: data[9], interlace: data[12]
+      };
+    } else if (type === "PLTE") palette = Buffer.from(data);
+    else if (type === "tRNS") trns = Buffer.from(data);
+    else if (type === "IDAT") idat.push(Buffer.from(data));
+    else if (type === "IEND") break;
+    pos += 12 + len;
   }
-  return { size, px };
+  if (!ihdr) throw new Error("Tệp PNG thiếu khối IHDR.");
+  if (ihdr.depth !== 8) throw new Error(`Chỉ đọc được PNG 8 bit mỗi kênh (tệp này ${ihdr.depth} bit).`);
+  if (ihdr.interlace) throw new Error("Chưa hỗ trợ PNG lưu kiểu interlace. Hãy lưu lại ở dạng thường.");
+
+  const CH = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[ihdr.color];
+  if (!CH) throw new Error(`Kiểu màu PNG ${ihdr.color} chưa hỗ trợ.`);
+
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = ihdr.w * CH;
+  const out = Buffer.alloc(ihdr.h * stride);
+
+  // Gỡ bộ lọc từng dòng quét theo đúng đặc tả PNG
+  for (let y = 0; y < ihdr.h; y++) {
+    const filter = raw[y * (stride + 1)];
+    const src = raw.subarray(y * (stride + 1) + 1, y * (stride + 1) + 1 + stride);
+    const cur = out.subarray(y * stride, (y + 1) * stride);
+    const prev = y ? out.subarray((y - 1) * stride, y * stride) : null;
+    for (let i = 0; i < stride; i++) {
+      const a = i >= CH ? cur[i - CH] : 0;
+      const b = prev ? prev[i] : 0;
+      const c = prev && i >= CH ? prev[i - CH] : 0;
+      let v = src[i];
+      if (filter === 1) v += a;
+      else if (filter === 2) v += b;
+      else if (filter === 3) v += (a + b) >> 1;
+      else if (filter === 4) {
+        const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      } else if (filter !== 0) throw new Error(`Bộ lọc dòng ${filter} không hợp lệ.`);
+      cur[i] = v & 255;
+    }
+  }
+
+  // Quy về RGBA để các bước sau xử lý cho gọn
+  const rgba = Buffer.alloc(ihdr.w * ihdr.h * 4, 255);
+  for (let i = 0, n = ihdr.w * ihdr.h; i < n; i++) {
+    let r, g, b, a = 255;
+    if (ihdr.color === 0) { r = g = b = out[i]; }
+    else if (ihdr.color === 4) { r = g = b = out[i * 2]; a = out[i * 2 + 1]; }
+    else if (ihdr.color === 2) { r = out[i * 3]; g = out[i * 3 + 1]; b = out[i * 3 + 2]; }
+    else if (ihdr.color === 6) { r = out[i * 4]; g = out[i * 4 + 1]; b = out[i * 4 + 2]; a = out[i * 4 + 3]; }
+    else { // bảng màu
+      const idx = out[i];
+      r = palette[idx * 3]; g = palette[idx * 3 + 1]; b = palette[idx * 3 + 2];
+      if (trns && idx < trns.length) a = trns[idx];
+    }
+    rgba[i * 4] = r; rgba[i * 4 + 1] = g; rgba[i * 4 + 2] = b; rgba[i * 4 + 3] = a;
+  }
+  return { w: ihdr.w, h: ihdr.h, rgba };
 }
 
-const setPx = (c, x, y, col) => {
-  if (x < 0 || y < 0 || x >= c.size || y >= c.size) return;
-  const i = (y * c.size + x) * 4;
-  c.px[i] = col[0]; c.px[i + 1] = col[1]; c.px[i + 2] = col[2]; c.px[i + 3] = 255;
-};
-
-/** Tô một đa giác bằng thuật toán quét dòng (even-odd). */
-function fillPoly(c, pts, col) {
-  const ys = pts.map((p) => p[1]);
-  const y0 = Math.max(0, Math.floor(Math.min(...ys)));
-  const y1 = Math.min(c.size - 1, Math.ceil(Math.max(...ys)));
-  for (let y = y0; y <= y1; y++) {
-    const cy = y + 0.5;
-    const xs = [];
-    for (let i = 0, n = pts.length; i < n; i++) {
-      const a = pts[i], b = pts[(i + 1) % n];
-      if ((a[1] <= cy && b[1] > cy) || (b[1] <= cy && a[1] > cy)) {
-        xs.push(a[0] + ((cy - a[1]) / (b[1] - a[1])) * (b[0] - a[0]));
-      }
-    }
-    xs.sort((m, n) => m - n);
-    for (let i = 0; i + 1 < xs.length; i += 2) {
-      for (let x = Math.ceil(xs[i] - 0.5); x <= Math.floor(xs[i + 1] - 0.5); x++) setPx(c, x, y, col);
-    }
-  }
-}
-
-const rect = (c, x, y, w, h, col) =>
-  fillPoly(c, [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], col);
-
-/** Hình chữ nhật bo góc, dùng cho nền icon. */
-function roundRect(c, x, y, w, h, r, col) {
-  const pts = [];
-  const arc = (cx, cy, from, to) => {
-    for (let i = 0; i <= 10; i++) {
-      const a = from + ((to - from) * i) / 10;
-      pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
-    }
+/* ------------------------------------------------------------------ */
+/* 2. Cắt bỏ lề trắng quanh logo                                       */
+/* ------------------------------------------------------------------ */
+function trim(img) {
+  const { w, h, rgba } = img;
+  const ink = (x, y) => {
+    const i = (y * w + x) * 4;
+    if (rgba[i + 3] < 24) return false;
+    return (255 - rgba[i]) + (255 - rgba[i + 1]) + (255 - rgba[i + 2]) > 60;
   };
-  arc(x + w - r, y + r, -Math.PI / 2, 0);
-  arc(x + w - r, y + h - r, 0, Math.PI / 2);
-  arc(x + r, y + h - r, Math.PI / 2, Math.PI);
-  arc(x + r, y + r, Math.PI, Math.PI * 1.5);
-  fillPoly(c, pts, col);
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!ink(x, y)) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return { x: 0, y: 0, w, h };
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
-/**
- * Vẽ biểu tượng trong hệ toạ độ 0–100 rồi nhân theo kích thước thật.
- * @param {"light"|"solid"} variant light = nền trắng viền xanh (favicon),
- *                                   solid = nền xanh đặc (icon maskable)
- */
-function drawMark(c, variant, inset) {
-  const S = c.size;
-  const u = (v) => (v / 100) * S * (1 - inset * 2) + inset * S;
-  const un = (v) => (v / 100) * S * (1 - inset * 2);
+/* ------------------------------------------------------------------ */
+/* 3. Thu nhỏ bằng cách lấy trung bình vùng — cạnh hình mịn            */
+/* ------------------------------------------------------------------ */
+function drawScaled(dst, dw, dh, src, crop, dx, dy, tw, th, bg) {
+  for (let y = 0; y < th; y++) {
+    const sy0 = crop.y + (y * crop.h) / th;
+    const sy1 = crop.y + ((y + 1) * crop.h) / th;
+    for (let x = 0; x < tw; x++) {
+      const sx0 = crop.x + (x * crop.w) / tw;
+      const sx1 = crop.x + ((x + 1) * crop.w) / tw;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let sy = Math.floor(sy0); sy < Math.max(Math.ceil(sy1), Math.floor(sy0) + 1); sy++) {
+        if (sy < 0 || sy >= src.h) continue;
+        for (let sx = Math.floor(sx0); sx < Math.max(Math.ceil(sx1), Math.floor(sx0) + 1); sx++) {
+          if (sx < 0 || sx >= src.w) continue;
+          const i = (sy * src.w + sx) * 4;
+          const a = src.rgba[i + 3] / 255;
+          // nền của logo là màu trắng: pha alpha lên nền cho khỏi viền xám
+          r += src.rgba[i] * a + bg[0] * (1 - a);
+          g += src.rgba[i + 1] * a + bg[1] * (1 - a);
+          b += src.rgba[i + 2] * a + bg[2] * (1 - a);
+          n++;
+        }
+      }
+      if (!n) continue;
+      const px = ((dy + y) * dw + (dx + x)) * 4;
+      if (dx + x < 0 || dx + x >= dw || dy + y < 0 || dy + y >= dh) continue;
+      dst[px] = Math.round(r / n);
+      dst[px + 1] = Math.round(g / n);
+      dst[px + 2] = Math.round(b / n);
+      dst[px + 3] = 255;
+    }
+  }
+}
 
-  if (variant === "light") {
-    roundRect(c, 0, 0, S, S, S * 0.18, WHITE);
-    // khung xanh
-    roundRect(c, u(6), u(6), un(88), un(88), un(8), NAVY);
-    roundRect(c, u(13), u(13), un(74), un(74), un(5), WHITE);
+/** Khung vuông nền trắng, logo đặt giữa, chừa lề theo tỉ lệ pad. */
+function square(src, crop, size, pad) {
+  const rgba = Buffer.alloc(size * size * 4, 255);
+  const inner = size * (1 - pad * 2);
+  const s = Math.min(inner / crop.w, inner / crop.h);
+  const tw = Math.max(1, Math.round(crop.w * s));
+  const th = Math.max(1, Math.round(crop.h * s));
+  drawScaled(rgba, size, size, src, crop, Math.round((size - tw) / 2), Math.round((size - th) / 2),
+    tw, th, [255, 255, 255]);
+  return { w: size, h: size, rgba };
+}
+
+/** Bản giữ nguyên tỉ lệ, dùng cho chỗ hiển thị logo trong giao diện. */
+function wide(src, crop, targetW) {
+  const tw = targetW;
+  const th = Math.max(1, Math.round((crop.h / crop.w) * targetW));
+  const rgba = Buffer.alloc(tw * th * 4, 255);
+  drawScaled(rgba, tw, th, src, crop, 0, 0, tw, th, [255, 255, 255]);
+  return { w: tw, h: th, rgba };
+}
+
+/* ------------------------------------------------------------------ */
+/* 4. Giảm số màu rồi đóng gói PNG bảng màu cho tệp thật nhẹ           */
+/* ------------------------------------------------------------------ */
+/** Cắt trung vị: chia dần không gian màu, mỗi ô lấy màu trung bình. */
+function quantize(img, maxColors) {
+  const counts = new Map();
+  for (let i = 0, n = img.w * img.h; i < n; i++) {
+    const k = (img.rgba[i * 4] << 16) | (img.rgba[i * 4 + 1] << 8) | img.rgba[i * 4 + 2];
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const colors = Array.from(counts, ([k, c]) => ({ r: (k >> 16) & 255, g: (k >> 8) & 255, b: k & 255, c }));
+  if (colors.length <= maxColors) {
+    return finish(colors.map((x) => [x.r, x.g, x.b]));
   }
 
-  const mCol = variant === "light" ? RED : WHITE;
-  const barCol = variant === "light" ? NAVY : WHITE;
+  let boxes = [colors];
+  while (boxes.length < maxColors) {
+    let bi = -1, best = -1;
+    boxes.forEach((box, i) => {
+      if (box.length < 2) return;
+      const span = spread(box);
+      if (span.range > best) { best = span.range; bi = i; }
+    });
+    if (bi < 0) break;
+    const box = boxes[bi];
+    const ch = spread(box).ch;
+    box.sort((a, b) => a[ch] - b[ch]);
+    const mid = box.length >> 1;
+    boxes.splice(bi, 1, box.slice(0, mid), box.slice(mid));
+  }
 
-  // chữ M cách điệu
-  fillPoly(c, [
-    [u(24), u(60)], [u(24), u(24)], [u(34), u(24)], [u(50), u(42)],
-    [u(66), u(24)], [u(76), u(24)], [u(76), u(60)], [u(67), u(60)],
-    [u(67), u(38)], [u(50), u(56)], [u(33), u(38)], [u(33), u(60)]
-  ], mCol);
+  const palette = boxes.map((box) => {
+    let r = 0, g = 0, b = 0, n = 0;
+    box.forEach((x) => { r += x.r * x.c; g += x.g * x.c; b += x.b * x.c; n += x.c; });
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  });
+  return finish(palette);
 
-  // ba vạch trang sách
-  [66, 72.5, 79].forEach((y) => rect(c, u(28), u(y), un(44), un(4), barCol));
+  function spread(box) {
+    let lo = [255, 255, 255], hi = [0, 0, 0];
+    box.forEach((x) => {
+      [x.r, x.g, x.b].forEach((v, i) => { if (v < lo[i]) lo[i] = v; if (v > hi[i]) hi[i] = v; });
+    });
+    const d = [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]];
+    const m = Math.max(d[0], d[1], d[2]);
+    return { range: m, ch: ["r", "g", "b"][d.indexOf(m)] };
+  }
+
+  function finish(palette) {
+    const cache = new Map();
+    const idx = Buffer.alloc(img.w * img.h);
+    for (let i = 0, n = img.w * img.h; i < n; i++) {
+      const r = img.rgba[i * 4], g = img.rgba[i * 4 + 1], b = img.rgba[i * 4 + 2];
+      const key = (r << 16) | (g << 8) | b;
+      let p = cache.get(key);
+      if (p === undefined) {
+        let bd = Infinity;
+        for (let k = 0; k < palette.length; k++) {
+          const dr = palette[k][0] - r, dg = palette[k][1] - g, db = palette[k][2] - b;
+          const d = dr * dr + dg * dg + db * db;
+          if (d < bd) { bd = d; p = k; }
+        }
+        cache.set(key, p);
+      }
+      idx[i] = p;
+    }
+    return { palette, idx };
+  }
 }
 
-/* ---------- đóng gói PNG ---------- */
 function crc32(buf) {
   let c, crc = 0xffffffff;
   for (let n = 0; n < buf.length; n++) {
@@ -114,71 +257,67 @@ function crc32(buf) {
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
-
 function chunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
   const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(body));
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body));
   return Buffer.concat([len, body, crc]);
 }
 
-function toPng(c) {
+function writePng(file, img, maxColors) {
+  const { palette, idx } = quantize(img, maxColors || 64);
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(c.size, 0);
-  ihdr.writeUInt32BE(c.size, 4);
-  ihdr[8] = 8;   // 8 bit mỗi kênh
-  ihdr[9] = 6;   // RGBA
-  const raw = Buffer.alloc(c.size * (c.size * 4 + 1));
-  for (let y = 0; y < c.size; y++) {
-    raw[y * (c.size * 4 + 1)] = 0; // không dùng bộ lọc
-    Buffer.from(c.px.buffer, y * c.size * 4, c.size * 4)
-      .copy(raw, y * (c.size * 4 + 1) + 1);
+  ihdr.writeUInt32BE(img.w, 0);
+  ihdr.writeUInt32BE(img.h, 4);
+  ihdr[8] = 8;  // 8 bit cho mỗi chỉ số màu
+  ihdr[9] = 3;  // ảnh dùng bảng màu
+  const plte = Buffer.alloc(palette.length * 3);
+  palette.forEach((c, i) => { plte[i * 3] = c[0]; plte[i * 3 + 1] = c[1]; plte[i * 3 + 2] = c[2]; });
+
+  const raw = Buffer.alloc(img.h * (img.w + 1));
+  for (let y = 0; y < img.h; y++) {
+    raw[y * (img.w + 1)] = 0;
+    idx.copy(raw, y * (img.w + 1) + 1, y * img.w, (y + 1) * img.w);
   }
-  return Buffer.concat([
+  const png = Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk("IHDR", ihdr),
+    chunk("PLTE", plte),
     chunk("IDAT", zlib.deflateSync(raw, { level: 9 })),
     chunk("IEND", Buffer.alloc(0))
   ]);
+  fs.writeFileSync(file, png);
+  return { bytes: png.length, colors: palette.length };
 }
 
-/** Vẽ ở độ phân giải gấp 4 rồi thu nhỏ để cạnh hình mịn. */
-function render(size, variant, inset) {
-  const SS = 4;
-  const big = canvas(size * SS, variant === "light" ? WHITE : NAVY);
-  drawMark(big, variant, inset);
-  const out = canvas(size, WHITE);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      let r = 0, g = 0, b = 0;
-      for (let dy = 0; dy < SS; dy++) {
-        for (let dx = 0; dx < SS; dx++) {
-          const i = ((y * SS + dy) * big.size + (x * SS + dx)) * 4;
-          r += big.px[i]; g += big.px[i + 1]; b += big.px[i + 2];
-        }
-      }
-      const n = SS * SS;
-      setPx(out, x, y, [Math.round(r / n), Math.round(g / n), Math.round(b / n)]);
-    }
-  }
-  return out;
+/* ------------------------------------------------------------------ */
+/* 5. Chạy                                                             */
+/* ------------------------------------------------------------------ */
+if (!fs.existsSync(SOURCE)) {
+  console.error(`Không tìm thấy ${SOURCE}.\nHãy đặt tệp logo PNG vào đó rồi chạy lại.`);
+  process.exit(1);
 }
+const src = readPng(SOURCE);
+const crop = trim(src);
+console.log(`Logo gốc : ${src.w}x${src.h}`);
+console.log(`Sau khi cắt lề trắng: ${crop.w}x${crop.h} (tại ${crop.x},${crop.y})`);
 
-const FILES = [
-  { name: "favicon-32.png", size: 32, variant: "light", inset: 0 },
-  { name: "apple-touch-icon.png", size: 180, variant: "light", inset: 0 },
-  { name: "icon-192.png", size: 192, variant: "light", inset: 0 },
-  { name: "icon-512.png", size: 512, variant: "light", inset: 0 },
-  // icon maskable bị hệ điều hành cắt tròn nên chừa lề an toàn 20%
-  { name: "icon-maskable-512.png", size: 512, variant: "solid", inset: 0.2 }
+const jobs = [
+  { name: "logo-mtu.png", img: () => wide(src, crop, 320), colors: 64 },
+  { name: "favicon-32.png", img: () => square(src, crop, 32, 0.03), colors: 64 },
+  { name: "apple-touch-icon.png", img: () => square(src, crop, 180, 0.07), colors: 64 },
+  { name: "icon-192.png", img: () => square(src, crop, 192, 0.06), colors: 64 },
+  { name: "icon-512.png", img: () => square(src, crop, 512, 0.06), colors: 96 },
+  // icon maskable bị hệ điều hành cắt tròn nên chừa lề an toàn rộng hơn
+  { name: "icon-maskable-512.png", img: () => square(src, crop, 512, 0.22), colors: 96 }
 ];
 
-fs.mkdirSync(OUT, { recursive: true });
-FILES.forEach((f) => {
-  const buf = toPng(render(f.size, f.variant, f.inset));
-  fs.writeFileSync(path.join(OUT, f.name), buf);
-  console.log(`${f.name.padEnd(26)} ${f.size}x${f.size}  ${(buf.length / 1024).toFixed(1)} KB`);
+let total = 0;
+jobs.forEach((j) => {
+  const img = j.img();
+  const r = writePng(path.join(DIR, j.name), img, j.colors);
+  total += r.bytes;
+  console.log(`${j.name.padEnd(24)} ${String(img.w + "x" + img.h).padEnd(9)} ${(r.bytes / 1024).toFixed(1).padStart(6)} KB  ${r.colors} màu`);
 });
-console.log("Xong. Icon nằm trong assets/icons/");
+console.log(`Tổng cộng: ${(total / 1024).toFixed(1)} KB`);
+console.log("Xong. Nhớ tăng số VERSION trong sw.js để máy đã cài nhận bộ icon mới.");

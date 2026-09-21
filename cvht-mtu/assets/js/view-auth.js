@@ -113,8 +113,15 @@ CV.viewAuth = (function () {
   "use strict";
   const U = CV.util, el = U.el, ui = CV.ui;
 
-  function logo(size) {
-    return el("img", { src: "assets/icons/icon-192.png", alt: "", width: size || 72, height: size || 72 });
+  // Tỉ lệ của tệp logo-mtu.png (320x269); giữ đúng tỉ lệ để logo không bị bóp méo.
+  const LOGO_RATIO = 320 / 269;
+  function logo(height) {
+    const h = height || 72;
+    return el("img", {
+      src: "assets/icons/logo-mtu.png",
+      alt: "Logo Trường Đại học Xây dựng Miền Tây",
+      width: Math.round(h * LOGO_RATIO), height: h
+    });
   }
 
   function gateShell(children) {
@@ -180,7 +187,7 @@ CV.viewAuth = (function () {
 
     gateShell([
       el("div", { class: "gate-head" }, [
-        logo(72),
+        logo(96),
         el("h1", { text: "Cài đặt lần đầu" }),
         el("p", { text: "Ứng dụng chưa có tài khoản nào. Hãy tạo tài khoản giảng viên cố vấn đầu tiên." })
       ]),
@@ -213,7 +220,7 @@ CV.viewAuth = (function () {
 
     gateShell([
       el("div", { class: "gate-head" }, [
-        logo(76),
+        logo(112),
         el("h1", { text: "Cố vấn học tập " + (s.schoolShort || "MTU") }),
         el("p", { text: s.schoolName + (s.facultyName ? " — " + s.facultyName : "") })
       ]),
@@ -247,7 +254,7 @@ CV.viewAuth = (function () {
     back.addEventListener("click", () => renderRoles(go));
 
     gateShell([
-      el("div", { class: "gate-head" }, [logo(64), el("h1", { text: "Giảng viên Cố vấn" })]),
+      el("div", { class: "gate-head" }, [logo(88), el("h1", { text: "Giảng viên Cố vấn" })]),
       el("div", { style: "max-width:430px;margin-inline:auto" },
         ui.card3d([el("div", { class: "lift-1" }, [f.node, btn, back])], { strength: 5 }))
     ]);
@@ -281,7 +288,7 @@ CV.viewAuth = (function () {
     back.addEventListener("click", () => renderRoles(go));
 
     gateShell([
-      el("div", { class: "gate-head" }, [logo(64), el("h1", { text: "Cổng Sinh viên" })]),
+      el("div", { class: "gate-head" }, [logo(88), el("h1", { text: "Cổng Sinh viên" })]),
       el("div", { style: "max-width:430px;margin-inline:auto" }, [
         ui.card3d([el("div", { class: "lift-1" }, [f.node, btn, back])], { strength: 5 }),
         ui.note("Mỗi sinh viên chỉ xem được hồ sơ của chính mình. Nếu chưa có mã PIN, hãy liên hệ giảng viên cố vấn của lớp.", "info")

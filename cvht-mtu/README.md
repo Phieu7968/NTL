@@ -238,12 +238,28 @@ cvht-mtu/
 
 ## 11. Biểu tượng ứng dụng
 
-Bộ icon hiện tại là **hình tạm**, dựng theo mô-típ logo Trường bằng mã lệnh. Khi xin được
-tệp vector chính thức từ Phòng CNTT:
+Mọi chỗ hiển thị logo trong app — thanh bên, màn hình đăng nhập, biểu tượng khi cài vào
+máy, biểu tượng trên thẻ trình duyệt — đều lấy từ **logo chính thức của Trường**.
 
-1. Sửa hàm `drawMark()` trong `scripts/make-icons.cjs` theo hình mới.
-2. Chạy `node scripts/make-icons.cjs` — không cần cài thêm gì, Node có sẵn là đủ.
-3. Tăng số `VERSION` trong `sw.js` để máy đã cài nhận bản mới.
+Tệp gốc là `assets/icons/logo-source.png`. Từ đó, `scripts/make-icons.cjs` sinh ra sáu tệp:
+
+| Tệp | Dùng ở đâu |
+|---|---|
+| `logo-mtu.png` (320x269) | Hiển thị trong giao diện, giữ nguyên tỉ lệ ngang |
+| `favicon-32.png` | Biểu tượng trên thẻ trình duyệt |
+| `apple-touch-icon.png` (180) | Màn hình chính của iPhone / iPad |
+| `icon-192.png`, `icon-512.png` | Biểu tượng ứng dụng đã cài |
+| `icon-maskable-512.png` | Bản chừa lề an toàn cho Android cắt tròn |
+
+Thay logo khác: chép tệp PNG mới đè lên `assets/icons/logo-source.png`, rồi
+
+```bash
+node scripts/make-icons.cjs   # không cần cài thêm gì, Node có sẵn là đủ
+```
+
+Script tự cắt lề trắng, thu nhỏ bằng cách lấy trung bình vùng cho cạnh hình mịn, giảm
+số màu rồi đóng gói PNG bảng màu — cả sáu tệp cộng lại chỉ khoảng 30 KB. Chạy xong nhớ
+tăng số `VERSION` trong `sw.js` để máy đã cài nhận bộ biểu tượng mới.
 
 ## 12. Vài điểm đáng lưu ý khi bảo trì
 
