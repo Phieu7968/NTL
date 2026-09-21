@@ -1,0 +1,323 @@
+/* =====================================================================
+   io.js — nhập và xuất dữ liệu
+   CSV xuất ra có thêm dấu BOM nên Excel mở lên là đúng tiếng Việt ngay,
+   không phải chọn lại bảng mã.
+   ===================================================================== */
+window.CV = window.CV || {};
+
+CV.io = (function () {
+  "use strict";
+  const U = CV.util;
+  const A = () => CV.academic;
+
+  /* ---------- CSV ---------- */
+  function csvCell(v) {
+    const s = v === null || v === undefined ? "" : String(v);
+    // Chặn công thức bị Excel tự chạy khi ô bắt đầu bằng = + - @
+    const safe = /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+    return /[",;\n\r]/.test(safe) ? '"' + safe.replace(/"/g, '""') + '"' : safe;
+  }
+
+  function toCsv(headers, rows, sep) {
+    const d = sep || ";"; // dấu chấm phẩy: hợp với Excel bản tiếng Việt
+    const lines = [headers.map(csvCell).join(d)];
+    rows.forEach((r) => lines.push(r.map(csvCell).join(d)));
+    return lines.join("\r\n");
+  }
+
+  /** Đọc CSV, tự đoán dấu phân cách giữa ; , và tab. */
+  function parseCsv(text) {
+    let src = String(text || "").replace(/^﻿/, "");
+    const firstLine = src.split(/\r?\n/)[0] || "";
+    const counts = { ";": 0, ",": 0, "\t": 0 };
+    let inQ = false;
+    for (const ch of firstLine) {
+      if (ch === '"') inQ = !inQ;
+      else if (!inQ && counts[ch] !== undefined) counts[ch]++;
+    }
+    const sep = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+
+    const rows = [];
+    let row = [], cell = "", q = false;
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (q) {
+        if (ch === '"') {
+          if (src[i + 1] === '"') { cell += '"'; i++; }
+          else q = false;
+        } else cell += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === sep) { row.push(cell); cell = ""; }
+      else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+      else if (ch !== "\r") cell += ch;
+    }
+    if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter((r) => r.some((c) => String(c).trim() !== ""));
+  }
+
+  /* ---------- tải tệp xuống ---------- */
+  function download(filename, content, mime) {
+    const type = mime || "text/plain;charset=utf-8";
+    const bom = type.indexOf("csv") >= 0 ? "﻿" : "";
+    const blob = new Blob([bom + content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = U.el("a", { href: url, download: filename });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 400);
+  }
+
+  function readFile(file) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ""));
+      fr.onerror = () => reject(new Error("Không đọc được tệp."));
+      fr.readAsText(file, "utf-8");
+    });
+  }
+
+  const stamp = () => new Date().toISOString().slice(0, 10);
+
+  /* ---------- ngày tháng linh hoạt ---------- */
+  function toIsoDate(v) {
+    const s = String(v || "").trim();
+    if (!s) return "";
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return `${m[1]}-${U.pad2(m[2])}-${U.pad2(m[3])}`;
+    m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+    if (m) return `${m[3]}-${U.pad2(m[2])}-${U.pad2(m[1])}`;
+    return "";
+  }
+
+  /* ---------- XUẤT ---------- */
+  const H_STUDENT = ["MSSV", "Họ và tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email",
+    "Lớp", "Chức vụ", "Trạng thái", "Ghi chú"];
+
+  function exportStudents(students) {
+    const rows = students.map((s) => {
+      const k = s.classId ? CV.store.get("classes", s.classId) : null;
+      return [s.mssv, s.name, s.gender || "", U.dmy(s.dob) === "—" ? "" : U.dmy(s.dob),
+        s.phone || "", s.email || "", k ? k.code : "", s.cadreRole || "",
+        s.status || "Đang học", s.note || ""];
+    });
+    download(`danh-sach-sinh-vien-${stamp()}.csv`, toCsv(H_STUDENT, rows), "text/csv;charset=utf-8");
+  }
+
+  /** Bảng tổng hợp kết quả học tập: mỗi sinh viên một dòng. */
+  function exportSummary(students) {
+    const head = ["MSSV", "Họ và tên", "Lớp", "Số học phần", "Tín chỉ tích luỹ", "Tín chỉ nợ",
+      "GPA hệ 4", "GPA hệ 10", "Xếp loại", "Điểm rèn luyện", "Mức cảnh báo", "Lý do"];
+    const rows = students.map((s) => {
+      const p = A().profileOf(s.id);
+      return [s.mssv, s.name, p.klass ? p.klass.code : "",
+        p.stats.subjects, p.stats.earnedCredits, p.stats.debtCredits,
+        p.stats.gpa4 === null ? "" : U.num(p.stats.gpa4),
+        p.stats.gpa10 === null ? "" : U.num(p.stats.gpa10),
+        p.learning.label,
+        p.stats.conductAvg === null ? "" : U.num(p.stats.conductAvg, 1),
+        p.warning.label, p.warning.reasons.join("; ")];
+    });
+    download(`ket-qua-hoc-tap-${stamp()}.csv`, toCsv(head, rows), "text/csv;charset=utf-8");
+  }
+
+  const H_SCORE = ["MSSV", "Mã học phần", "Tên học phần", "Số tín chỉ", "Điểm hệ 10", "Học kỳ"];
+
+  function exportScores(scores) {
+    const rows = scores.map((sc) => {
+      const st = CV.store.get("students", sc.studentId);
+      const sem = sc.semesterId ? CV.store.get("semesters", sc.semesterId) : null;
+      return [st ? st.mssv : "", sc.subjectCode || "", sc.subjectName || "",
+        sc.credits, U.num(sc.score10), sem ? sem.code : ""];
+    });
+    download(`bang-diem-${stamp()}.csv`, toCsv(H_SCORE, rows), "text/csv;charset=utf-8");
+  }
+
+  /** Tệp mẫu để người dùng điền rồi nhập ngược lại. */
+  function templateStudents() {
+    download("mau-nhap-sinh-vien.csv",
+      toCsv(H_STUDENT, [["26XD01001", "Nguyễn Văn An", "Nam", "15/03/2008", "0900000001",
+        "an.nv@example.edu.vn", "26XD01", "Lớp trưởng", "Đang học", ""]]),
+      "text/csv;charset=utf-8");
+  }
+  function templateScores() {
+    download("mau-nhap-diem.csv",
+      toCsv(H_SCORE, [["26XD01001", "MTU101", "Toán cao cấp 1", "3", "8,5", "2025-1"]]),
+      "text/csv;charset=utf-8");
+  }
+
+  function backup() {
+    download(`sao-luu-cvht-mtu-${stamp()}.json`, CV.store.exportJson(), "application/json;charset=utf-8");
+  }
+
+  /* ---------- NHẬP ---------- */
+  function headerIndex(headerRow) {
+    const idx = {};
+    headerRow.forEach((h, i) => { idx[U.fold(h)] = i; });
+    const pick = (...names) => {
+      for (const n of names) { const k = U.fold(n); if (idx[k] !== undefined) return idx[k]; }
+      return -1;
+    };
+    return pick;
+  }
+
+  /**
+   * Nhập sinh viên từ CSV.
+   * Đối chiếu theo MSSV: đã có thì cập nhật, chưa có thì thêm mới.
+   * Không ghi đè mã PIN đã cấp.
+   */
+  function importStudents(text, defaultClassId) {
+    const rows = parseCsv(text);
+    if (rows.length < 2) return { ok: false, error: "Tệp không có dòng dữ liệu nào." };
+    const pick = headerIndex(rows[0]);
+    const iM = pick("MSSV", "Ma so sinh vien", "Mã số sinh viên");
+    const iN = pick("Ho va ten", "Họ và tên", "Ho ten", "Tên");
+    if (iM < 0 || iN < 0) {
+      return { ok: false, error: "Thiếu cột bắt buộc: MSSV và Họ và tên." };
+    }
+    const iG = pick("Gioi tinh", "Giới tính");
+    const iD = pick("Ngay sinh", "Ngày sinh");
+    const iP = pick("Dien thoai", "Điện thoại", "SDT");
+    const iE = pick("Email");
+    const iC = pick("Lop", "Lớp");
+    const iR = pick("Chuc vu", "Chức vụ");
+    const iS = pick("Trang thai", "Trạng thái");
+    const iNo = pick("Ghi chu", "Ghi chú");
+
+    const classes = CV.store.all("classes");
+    const errors = [], seen = new Set();
+    let added = 0, updated = 0;
+
+    rows.slice(1).forEach((r, n) => {
+      const line = n + 2;
+      const mssv = String(r[iM] || "").trim().toUpperCase();
+      const name = String(r[iN] || "").trim();
+      const eM = A().validate.mssv(mssv), eN = A().validate.name(name);
+      if (eM) { errors.push(`Dòng ${line}: ${eM}`); return; }
+      if (eN) { errors.push(`Dòng ${line}: ${eN}`); return; }
+      if (seen.has(mssv)) { errors.push(`Dòng ${line}: MSSV ${mssv} lặp lại trong tệp.`); return; }
+      seen.add(mssv);
+
+      const phone = iP >= 0 ? String(r[iP] || "").trim() : "";
+      const email = iE >= 0 ? String(r[iE] || "").trim() : "";
+      const eP = A().validate.phone(phone), eE = A().validate.email(email);
+      if (eP) errors.push(`Dòng ${line} (${mssv}): ${eP} — đã bỏ trống ô này.`);
+      if (eE) errors.push(`Dòng ${line} (${mssv}): ${eE} — đã bỏ trống ô này.`);
+
+      let classId = defaultClassId || "";
+      if (iC >= 0 && String(r[iC] || "").trim()) {
+        const code = U.fold(r[iC]);
+        const k = classes.find((c) => U.fold(c.code) === code || U.fold(c.name) === code);
+        if (k) classId = k.id;
+        else errors.push(`Dòng ${line} (${mssv}): không tìm thấy lớp "${String(r[iC]).trim()}", đã xếp vào lớp đang chọn.`);
+      }
+
+      const dob = iD >= 0 ? toIsoDate(r[iD]) : "";
+      if (iD >= 0 && String(r[iD] || "").trim() && !dob) {
+        errors.push(`Dòng ${line} (${mssv}): ngày sinh "${String(r[iD]).trim()}" không đọc được (cần dd/mm/yyyy).`);
+      }
+
+      const existing = CV.store.first("students", (s) => String(s.mssv).toUpperCase() === mssv);
+      const payload = {
+        mssv, name, classId,
+        gender: iG >= 0 ? String(r[iG] || "").trim() : "",
+        dob,
+        phone: eP ? "" : phone,
+        email: eE ? "" : email,
+        cadreRole: iR >= 0 ? String(r[iR] || "").trim() : "",
+        status: (iS >= 0 && String(r[iS] || "").trim()) || "Đang học",
+        note: iNo >= 0 ? String(r[iNo] || "").trim() : ""
+      };
+      if (existing) { CV.store.put("students", Object.assign({ id: existing.id }, payload), { save: false }); updated++; }
+      else { CV.store.put("students", payload, { save: false }); added++; }
+    });
+
+    CV.store.save("import:students");
+    return { ok: true, added, updated, errors, total: rows.length - 1 };
+  }
+
+  /** Nhập điểm từ CSV. Trùng (MSSV + mã học phần + học kỳ) thì ghi đè điểm cũ. */
+  function importScores(text, defaultSemesterId) {
+    const rows = parseCsv(text);
+    if (rows.length < 2) return { ok: false, error: "Tệp không có dòng dữ liệu nào." };
+    const pick = headerIndex(rows[0]);
+    const iM = pick("MSSV", "Mã số sinh viên");
+    const iC = pick("Ma hoc phan", "Mã học phần", "Ma HP");
+    const iN = pick("Ten hoc phan", "Tên học phần");
+    const iCr = pick("So tin chi", "Số tín chỉ", "Tin chi");
+    const iS = pick("Diem he 10", "Điểm hệ 10", "Diem");
+    const iSem = pick("Hoc ky", "Học kỳ");
+    if (iM < 0 || iCr < 0 || iS < 0 || (iC < 0 && iN < 0)) {
+      return { ok: false, error: "Thiếu cột bắt buộc: MSSV, Mã (hoặc Tên) học phần, Số tín chỉ, Điểm hệ 10." };
+    }
+
+    const students = CV.store.all("students");
+    const semesters = CV.store.all("semesters");
+    const errors = [];
+    let added = 0, updated = 0;
+
+    rows.slice(1).forEach((r, n) => {
+      const line = n + 2;
+      const mssv = String(r[iM] || "").trim().toUpperCase();
+      const st = students.find((s) => String(s.mssv).toUpperCase() === mssv);
+      if (!st) { errors.push(`Dòng ${line}: không có sinh viên nào mang MSSV ${mssv || "(trống)"}.`); return; }
+
+      const code = iC >= 0 ? String(r[iC] || "").trim().toUpperCase() : "";
+      const sname = iN >= 0 ? String(r[iN] || "").trim() : "";
+      if (!code && !sname) { errors.push(`Dòng ${line} (${mssv}): thiếu mã và tên học phần.`); return; }
+
+      const eC = A().validate.credits(r[iCr]);
+      if (eC) { errors.push(`Dòng ${line} (${mssv}): ${eC}`); return; }
+      const eS = A().validate.score10(r[iS]);
+      if (eS) { errors.push(`Dòng ${line} (${mssv}): ${eS}`); return; }
+
+      let semesterId = defaultSemesterId || "";
+      if (iSem >= 0 && String(r[iSem] || "").trim()) {
+        const key = U.fold(r[iSem]);
+        const sem = semesters.find((s) => U.fold(s.code) === key || U.fold(s.name) === key);
+        if (sem) semesterId = sem.id;
+        else errors.push(`Dòng ${line} (${mssv}): không tìm thấy học kỳ "${String(r[iSem]).trim()}", đã xếp vào học kỳ đang chọn.`);
+      }
+
+      const key = code || sname.toUpperCase();
+      const existing = CV.store.first("scores", (sc) =>
+        sc.studentId === st.id && sc.semesterId === semesterId &&
+        String(sc.subjectCode || sc.subjectName || "").toUpperCase() === key);
+
+      const payload = {
+        studentId: st.id, semesterId,
+        subjectCode: code, subjectName: sname,
+        credits: U.parseNum(r[iCr]), score10: U.parseNum(r[iS]),
+        gradedAt: new Date().toISOString()
+      };
+      if (existing) { CV.store.put("scores", Object.assign({ id: existing.id }, payload), { save: false }); updated++; }
+      else { CV.store.put("scores", payload, { save: false }); added++; }
+    });
+
+    CV.store.save("import:scores");
+    return { ok: true, added, updated, errors, total: rows.length - 1 };
+  }
+
+  /* ---------- in báo cáo ---------- */
+  /** Dựng nội dung in vào #print-root rồi gọi hộp thoại in của trình duyệt. */
+  function print(titleText, nodes) {
+    const root = document.getElementById("print-root");
+    root.innerHTML = "";
+    const s = CV.store.settings();
+    root.appendChild(U.el("div", { class: "print-head" }, [
+      U.el("h1", { text: titleText }),
+      U.el("p", { text: `${s.schoolName}${s.facultyName ? " — " + s.facultyName : ""}` }),
+      U.el("p", { text: `Lập ngày ${U.dmy(U.todayISO())}` })
+    ]));
+    (Array.isArray(nodes) ? nodes : [nodes]).forEach((n) => root.appendChild(n));
+    const after = () => { root.innerHTML = ""; window.removeEventListener("afterprint", after); };
+    window.addEventListener("afterprint", after);
+    window.print();
+  }
+
+  return {
+    toCsv, parseCsv, download, readFile, toIsoDate,
+    exportStudents, exportSummary, exportScores,
+    templateStudents, templateScores, backup,
+    importStudents, importScores, print
+  };
+})();
