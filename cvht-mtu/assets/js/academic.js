@@ -140,8 +140,27 @@ CV.academic = (function () {
       .filter((v) => !isNaN(v));
     const conductAvg = conductRows.length ? U.sum(conductRows) / conductRows.length : null;
 
+    const terms = termResultsOf(studentId);
+    const last = terms.length ? terms[terms.length - 1] : null;
+
+    // Chưa nhập điểm từng học phần nhưng đã có kết quả học kỳ chính thức thì
+    // lấy luôn số của Phòng Đào tạo, để bàn làm việc và báo cáo không trống.
+    if (total.gpa4 === null && last) {
+      if (last.cumGpa4 !== null && last.cumGpa4 !== undefined) total.gpa4 = last.cumGpa4;
+      if (last.credits !== null && last.credits !== undefined) {
+        total.earnedCredits = last.credits;
+        total.credits = last.credits;
+      }
+      if (last.debtCredits !== null && last.debtCredits !== undefined) {
+        total.debtCredits = last.debtCredits;
+      }
+      total.fromTerm = true;
+    }
+
     return {
       ...total,
+      terms,
+      official: terms.length ? terms[terms.length - 1] : null,
       subjects: counted.length,
       attempts: graded.length,
       retakes: graded.length - counted.length,
@@ -170,6 +189,88 @@ CV.academic = (function () {
     return { label: row ? row.label : "Kém", key: "ok", score: v };
   }
 
+  /* =====================================================================
+     3b. Kết quả học kỳ chính thức
+     Phòng Đào tạo gửi bảng "Kết quả học tập" theo từng học kỳ, gồm điểm
+     trung bình chung học kỳ (hệ 10 và hệ 4), điểm trung bình tích luỹ,
+     số tín chỉ tích luỹ và xếp loại. Đây là số liệu gốc để xét cảnh báo
+     học vụ, chính xác hơn số do ứng dụng tự tính từ điểm từng học phần.
+     ===================================================================== */
+
+  /** Kết quả các học kỳ của một sinh viên, sắp theo mã học kỳ tăng dần. */
+  function termResultsOf(studentId) {
+    return CV.store.find("termResults", (t) => t.studentId === studentId)
+      .map((t) => ({ ...t, semester: CV.store.get("semesters", t.semesterId) }))
+      .sort((a, b) => String((a.semester || {}).code || "").localeCompare(
+        String((b.semester || {}).code || ""), "vi"));
+  }
+
+  /**
+   * Một học kỳ có bị tính là cảnh báo hay không.
+   * Hai trường hợp, đúng như hai dòng ghi chú trong bảng của Trường:
+   *   - "Có HK dưới 1.0": điểm trung bình chung học kỳ thấp hơn ngưỡng.
+   *   - "Không có điểm TB để xét": học kỳ không có điểm nào để tính.
+   */
+  function termFlagged(term, isFirstTerm) {
+    const w = S().warning || {};
+    // Ngưỡng 0,8 chỉ dùng cho học kỳ được đánh dấu là học kỳ đầu khoá trong
+    // mục Học kỳ. Không suy đoán từ thứ tự dữ liệu đã nhập: cố vấn thường chỉ
+    // nhập một vài học kỳ gần đây, học kỳ sớm nhất trong máy không đồng nghĩa
+    // là học kỳ đầu tiên của khoá.
+    const sem = term.semester || CV.store.get("semesters", term.semesterId) || {};
+    const first = isFirstTerm === undefined ? !!sem.firstOfCourse : isFirstTerm;
+    const gpa = U.parseNum(term.gpa4);
+    const credits = U.parseNum(term.credits);
+    const noScore = (isNaN(gpa) || gpa === 0) && (isNaN(credits) || credits === 0);
+    if (noScore) {
+      return w.countNoScoreTerm === false
+        ? null
+        : { reason: "Không có điểm TB để xét", short: "Không có điểm TB để xét" };
+    }
+    if (isNaN(gpa)) return null;
+    const limit = first ? w.termGpaFirstBelow : w.termGpaBelow;
+    if (gpa < limit) {
+      return {
+        reason: `Điểm trung bình học kỳ ${U.num(gpa)} dưới ${U.num(limit)}`,
+        // Chữ ngắn đúng như Trường ghi trong cột Ghi chú của bảng cảnh cáo
+        // Trường ghi số ở đây bằng dấu chấm, ví dụ "Có HK dưới 1.0"
+        short: `Có HK dưới ${Number(limit).toFixed(1)}`
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Xét cảnh báo học vụ theo đúng cách Trường ghi trong bảng CẢNH CÁO HỌC VỤ:
+   * đếm số học kỳ bị cảnh báo và kiểm tra hai học kỳ liền nhau.
+   * Trả về cả chuỗi chữ giống hệt cột "CB - TT học vụ" để xuất báo cáo.
+   */
+  function termWarning(terms) {
+    const flags = terms.map((t) => ({ term: t, flag: termFlagged(t) }));
+    const hit = flags.filter((x) => x.flag);
+    if (!hit.length) return { times: 0, consecutive: false, status: "", reasons: [] };
+
+    let consecutive = false;
+    for (let i = 1; i < flags.length; i++) {
+      if (flags[i].flag && flags[i - 1].flag) consecutive = true;
+    }
+    const times = hit.length;
+    const status = consecutive ? "CBHV 2 lần liên tiếp" : `CBHV lần ${Math.min(times, 2)}`;
+    const last = hit[hit.length - 1];
+    const lastIsCurrent = flags.length > 0 && flags[flags.length - 1].flag !== null;
+
+    return {
+      times, consecutive, status,
+      lastIsCurrent,
+      lastReason: last.flag.reason,
+      lastShort: last.flag.short || last.flag.reason,
+      reasons: hit.map((x) => {
+        const code = (x.term.semester || {}).code || "học kỳ không rõ";
+        return `${code}: ${x.flag.reason}`;
+      })
+    };
+  }
+
   /* ---------- 4. Cảnh báo học vụ ---------- */
   /* Mỗi mức đều kèm lý do bằng chữ, nêu rõ con số và ngưỡng đã dùng,
      để số liệu trên báo cáo luôn truy ngược được.                      */
@@ -188,8 +289,29 @@ CV.academic = (function () {
     let level = "ok";
     const bump = (lv) => { if (LEVELS[lv].rank > LEVELS[level].rank) level = lv; };
 
+    // Có kết quả học kỳ chính thức thì xét theo quy tắc của Trường.
+    if (stats.terms && stats.terms.length) {
+      const tw = termWarning(stats.terms);
+      const debt = stats.debtCredits;
+      if (tw.times) {
+        if (tw.consecutive) bump("critical");
+        else if (tw.lastIsCurrent) bump("warn");
+        else bump("watch");
+        reasons.push(...tw.reasons);
+      }
+      if (debt > w.debtCritical) { bump("critical"); reasons.push(`Nợ ${debt} tín chỉ, quá ${w.debtCritical}`); }
+      else if (debt > w.debtWarn) { bump("warn"); reasons.push(`Nợ ${debt} tín chỉ, quá ${w.debtWarn}`); }
+      else if (debt >= w.debtWatch && w.debtWatch > 0) { bump("watch"); reasons.push(`Đang nợ ${debt} tín chỉ`); }
+
+      if (!reasons.length) {
+        const last = stats.terms[stats.terms.length - 1];
+        reasons.push(`Điểm trung bình học kỳ gần nhất ${U.num(last.gpa4)}, không thuộc diện cảnh báo`);
+      }
+      return { level, ...LEVELS[level], reasons, source: "term", termWarning: tw };
+    }
+
     if (stats.gpa4 === null) {
-      return { level: "none", ...LEVELS.none, reasons: ["Chưa nhập điểm học phần nào."] };
+      return { level: "none", ...LEVELS.none, reasons: ["Chưa nhập điểm học phần nào."], source: "none" };
     }
     const gpa = stats.gpa4, debt = stats.debtCredits;
 
@@ -202,13 +324,17 @@ CV.academic = (function () {
     else if (debt >= w.debtWatch && w.debtWatch > 0) { bump("watch"); reasons.push(`Đang nợ ${debt} tín chỉ`); }
 
     if (!reasons.length) reasons.push(`GPA ${U.num(gpa)}, không nợ tín chỉ`);
-    return { level, ...LEVELS[level], reasons };
+    return { level, ...LEVELS[level], reasons, source: "scores" };
   }
 
   /** Diễn giải quy tắc cảnh báo thành câu chữ, in kèm báo cáo. */
   function warningRuleText() {
     const w = S().warning || {};
     return [
+      `Khi đã nhập Kết quả học tập theo học kỳ: cảnh báo nếu điểm trung bình chung học kỳ ` +
+      `dưới ${U.num(w.termGpaBelow)} (học kỳ đầu khoá: dưới ${U.num(w.termGpaFirstBelow)}), ` +
+      `hoặc học kỳ đó không có điểm để xét. Bị hai học kỳ liền nhau là "CBHV 2 lần liên tiếp".`,
+      `Khi chưa có kết quả học kỳ, ứng dụng tạm xét theo điểm tích luỹ:`,
       `Cần theo dõi: GPA tích luỹ < ${U.num(w.gpaWatch)} hoặc nợ từ ${w.debtWatch} tín chỉ.`,
       `Cảnh báo: GPA tích luỹ < ${U.num(w.gpaWarn)} hoặc nợ quá ${w.debtWarn} tín chỉ.`,
       `Nguy cơ buộc thôi học: GPA tích luỹ < ${U.num(w.gpaCritical)} hoặc nợ quá ${w.debtCritical} tín chỉ.`
@@ -425,6 +551,7 @@ CV.academic = (function () {
     bestAttempts, gpaOf, statsOf, profileOf, summarize,
     classifyLearning, classifyConduct,
     warningOf, warningRuleText, LEVELS,
+    termResultsOf, termFlagged, termWarning,
     CADRE_ROLES, cadreStandard, cadreConflicts,
     EVAL_CRITERIA, EVAL_TOTAL, evalLevel, advisorHours, meetingStatus,
     validate: V

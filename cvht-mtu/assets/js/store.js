@@ -28,7 +28,8 @@ CV.store = (function () {
     "handbook",     // cẩm nang học vụ
     "templates",    // mẫu thông báo
     "meetings",     // sổ họp lớp (QĐ 758, Điều 9)
-    "evaluations"   // phiếu tự đánh giá công tác (QĐ 758, Điều 13)
+    "evaluations",  // phiếu tự đánh giá công tác (QĐ 758, Điều 13)
+    "termResults"   // kết quả học kỳ do Phòng Đào tạo gửi (tệp KQHT)
   ];
 
   /* ---------- thiết lập mặc định ---------- */
@@ -51,6 +52,13 @@ CV.store = (function () {
       ],
       // Ngưỡng cảnh báo học vụ. Sửa được để khớp quy chế của Trường.
       warning: {
+        // Ngưỡng theo điểm trung bình chung HỌC KỲ (hệ 4) — đây là căn cứ
+        // Trường dùng để xét cảnh báo học vụ, thấy rõ trong bảng CẢNH CÁO
+        // HỌC VỤ: sinh viên có ghi chú "Có HK dưới 1.0" đều có điểm TBC
+        // học kỳ nhỏ hơn 1,0 dù điểm tích luỹ vẫn trên 2,0.
+        termGpaBelow: 1.0,       // các học kỳ thường
+        termGpaFirstBelow: 0.8,  // học kỳ đầu khoá
+        countNoScoreTerm: true,  // học kỳ không có điểm để xét cũng tính là bị cảnh báo
         gpaWatch: 2.0,      // GPA tích luỹ dưới mức này: cần theo dõi
         gpaWarn: 1.5,       // dưới mức này: cảnh báo
         gpaCritical: 1.0,   // dưới mức này: nguy cơ buộc thôi học
@@ -170,6 +178,10 @@ CV.store = (function () {
   const settings = () => data().settings;
 
   /* ---------- CRUD chung ---------- */
+  /**
+   * Trả về CHÍNH mảng đang lưu, không phải bản sao — sửa phần tử trong đó là
+   * sửa luôn dữ liệu. Gọi put() để thêm bản ghi mới, đừng tự push vào mảng này.
+   */
   function all(col) {
     const rows = data()[col];
     return Array.isArray(rows) ? rows : [];
@@ -185,7 +197,7 @@ CV.store = (function () {
       obj.id = U.uid(col.slice(0, 3));
       obj.createdAt = now;
       obj.updatedAt = now;
-      rows.push(obj);
+      if (rows.indexOf(obj) === -1) rows.push(obj);
     } else {
       const i = rows.findIndex((r) => r.id === obj.id);
       obj.updatedAt = now;

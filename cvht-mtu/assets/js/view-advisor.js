@@ -514,6 +514,8 @@ CV.viewAdvisor = (function () {
       })), { ariaLabel: "GPA qua các học kỳ" });
     }
 
+    // kết quả học kỳ chính thức
+    if (p.stats.terms.length) host.appendChild(termCard(p));
     // bảng điểm
     host.appendChild(scoreCard(st));
     // điểm rèn luyện
@@ -522,6 +524,30 @@ CV.viewAdvisor = (function () {
     host.appendChild(noteCard(st));
     // lịch hẹn
     host.appendChild(apptCard(st));
+  }
+
+  /** Kết quả học kỳ do Phòng Đào tạo gửi — số liệu gốc, không do app tính. */
+  function termCard(p) {
+    const terms = p.stats.terms;
+    return ui.card("Kết quả học kỳ (số liệu của Phòng Đào tạo)", [
+      ui.table([
+        { key: "sem", label: "Học kỳ", render: (r) => (r.semester || {}).name || (r.semester || {}).code || "—" },
+        { key: "g10", label: "TBC hệ 10", num: true, render: (r) => U.num(r.gpa10) },
+        { key: "g4", label: "TBC hệ 4", num: true, render: (r) => U.num(r.gpa4) },
+        { key: "cum", label: "TBC tích luỹ", num: true, render: (r) => U.num(r.cumGpa4) },
+        { key: "cr", label: "TC tích luỹ", num: true, render: (r) => r.credits === null ? "—" : String(r.credits) },
+        { key: "rank", label: "Xếp loại", render: (r) => r.rank || "—" },
+        { key: "flag", label: "Xét học vụ", render: (r) => {
+            const f = A.termFlagged(r);
+            return f ? el("span", { class: "badge badge-warn", text: f.reason })
+                     : el("span", { class: "badge badge-ok", text: "Đạt" });
+          } }
+      ], terms, { emptyTitle: "—", emptyText: "" }),
+      p.warning.termWarning && p.warning.termWarning.times
+        ? ui.note(`Tình trạng học vụ: <strong>${U.esc(p.warning.termWarning.status)}</strong>`,
+            p.warning.termWarning.consecutive ? "danger" : "warn")
+        : null
+    ].filter(Boolean), { sub: "Đây là căn cứ xét cảnh báo học vụ, ưu tiên hơn số ứng dụng tự tính." });
   }
 
   function scoreCard(st) {
@@ -721,7 +747,12 @@ CV.viewAdvisor = (function () {
           hint: "Dùng để sắp thứ tự, nên đặt dạng nămhọc-kỳ." },
         { name: "name", label: "Tên hiển thị", required: true, placeholder: "Học kỳ 1 năm học 2025-2026" },
         { name: "startDate", label: "Bắt đầu", type: "date" },
-        { name: "endDate", label: "Kết thúc", type: "date" }
+        { name: "endDate", label: "Kết thúc", type: "date" },
+        { name: "firstOfCourse", label: "Là học kỳ đầu khoá?", type: "select", full: true,
+          value: sem && sem.firstOfCourse ? "1" : "",
+          hint: "Học kỳ đầu khoá xét cảnh báo ở ngưỡng 0,8; các học kỳ sau là 1,0.",
+          options: [{ value: "", label: "Không — học kỳ thường (ngưỡng 1,0)" },
+                    { value: "1", label: "Có — học kỳ đầu khoá (ngưỡng 0,8)" }] }
       ],
       check: (d) => {
         const dup = S.all("semesters").find((x) => U.fold(x.code) === U.fold(d.code) && (!sem || x.id !== sem.id));
@@ -730,6 +761,7 @@ CV.viewAdvisor = (function () {
     }).then((d) => {
       if (!d) return;
       if (sem) d.id = sem.id;
+      d.firstOfCourse = d.firstOfCourse === "1";
       S.put("semesters", d);
       ui.toast("Đã lưu học kỳ.", "ok");
       done && done();
@@ -764,6 +796,8 @@ CV.viewAdvisor = (function () {
         { key: "code", label: "Mã", render: (r) => r.code },
         { key: "name", label: "Tên", render: (r) => r.name },
         { key: "t", label: "Thời gian", render: (r) => `${U.dmy(r.startDate)} – ${U.dmy(r.endDate)}` },
+        { key: "first", label: "Đầu khoá", render: (r) => r.firstOfCourse
+            ? el("span", { class: "badge badge-info", text: "Có" }) : "—" },
         { key: "n", label: "Số điểm đã nhập", num: true,
           render: (r) => String(S.find("scores", (x) => x.semesterId === r.id).length) },
         { key: "act", label: "", render: (r) => el("div", { class: "row" }, [
@@ -1062,6 +1096,8 @@ CV.viewAdvisor = (function () {
         actions: [
           el("button", { class: "btn btn-ghost btn-sm", text: "Xuất CSV",
             onclick: () => CV.io.exportSummary(list) }),
+          el("button", { class: "btn btn-ghost btn-sm", text: "Xuất bảng Cảnh cáo học vụ",
+            onclick: () => exportWarning(list) }),
           el("button", { class: "btn btn-primary btn-sm", text: "In / lưu PDF", onclick: () => {
             const doc = el("div");
             doc.appendChild(el("h2", { text: `Báo cáo công tác cố vấn học tập — ${scope}` }));
@@ -1689,6 +1725,153 @@ CV.viewAdvisor = (function () {
   }
 
   /* =====================================================================
+     11. KẾT QUẢ HỌC KỲ — nhận tệp KQHT của Phòng Đào tạo,
+         xuất bảng Cảnh cáo học vụ đúng mẫu
+     ===================================================================== */
+  const termState = { semesterId: "" };
+
+  function termResults(host) {
+    const ks = myClasses();
+    const sems = semesters();
+    if (!ks.length) { host.appendChild(ui.card(null, needClass())); return; }
+    if (!sems.length) {
+      host.appendChild(ui.card("Chưa có học kỳ", [
+        ui.empty("Cần tạo học kỳ trước", "Bảng Kết quả học tập luôn gắn với một học kỳ cụ thể.",
+          el("button", { class: "btn btn-primary", text: "Tạo học kỳ",
+            onclick: () => editSemester(null, () => CV.app.render()) }))
+      ]));
+      return;
+    }
+    if (!termState.semesterId || !sems.some((x) => x.id === termState.semesterId)) {
+      termState.semesterId = sems[sems.length - 1].id;
+    }
+
+    const bar = el("div", { class: "row", style: "margin-bottom:1rem" });
+    const semSel = el("select", { style: "max-width:280px" },
+      sems.map((x) => el("option", { value: x.id, text: x.name || x.code, selected: x.id === termState.semesterId })));
+    semSel.addEventListener("change", () => { termState.semesterId = semSel.value; draw(); });
+    bar.appendChild(el("label", { text: "Học kỳ", style: "font-size:.85rem;font-weight:650" }));
+    bar.appendChild(semSel);
+    bar.appendChild(el("div", { class: "row row-end" }, [
+      el("button", { class: "btn btn-ghost btn-sm", text: "Tải tệp mẫu",
+        onclick: () => CV.io.templateTermResults() }),
+      el("button", { class: "btn btn-primary btn-sm", text: "Nhập Kết quả học tập", onclick: doImport })
+    ]));
+    host.appendChild(bar);
+
+    const body = el("div");
+    host.appendChild(body);
+
+    async function doImport() {
+      const f = await ui.pickSheet();
+      if (!f) return;
+      const createIn = await ui.confirm({
+        title: "Sinh viên chưa có trong danh sách",
+        message: `Tệp ${f.name}${f.sheet ? ` (bảng "${f.sheet}")` : ""} có thể chứa sinh viên chưa có trong lớp bạn phụ trách.`,
+        detail: "Chọn “Thêm vào lớp” để tự tạo hồ sơ cho các em đó, hoặc “Chỉ cập nhật” để bỏ qua.",
+        okText: "Thêm vào lớp", cancelText: "Chỉ cập nhật"
+      });
+      const res = CV.io.importTermResults(f.rows, {
+        semesterId: termState.semesterId,
+        createIn: createIn ? ks[0].id : null
+      });
+      if (!res.ok) { ui.toast(res.error, "err", 7000); return; }
+      ui.importReport("Kết quả nhập bảng Kết quả học tập", res);
+      draw();
+    }
+
+    function draw() {
+      body.innerHTML = "";
+      const mine = myStudents();
+      const byId = new Map(mine.map((s) => [s.id, s]));
+      const rows = S.find("termResults", (t) => t.semesterId === termState.semesterId && byId.has(t.studentId))
+        .map((t) => {
+          const st = byId.get(t.studentId);
+          const stats = A.statsOf(st.id);
+          return { t, st, warn: A.warningOf(stats) };
+        });
+      const flagged = rows.filter((r) => !!A.termFlagged(r.t));
+      const ranks = U.groupBy(rows.filter((r) => r.t.rank), (r) => r.t.rank);
+
+      body.appendChild(el("div", { class: "deck" }, [
+        ui.stat({ label: "Có kết quả học kỳ", value: `${rows.length}/${mine.length}`, icon: "score",
+          note: "sinh viên trong các lớp bạn phụ trách" }),
+        ui.stat({ label: "Thuộc diện cảnh báo", value: String(flagged.length), icon: "report",
+          tone: flagged.length ? "warn" : "ok", note: "xét theo học kỳ đang chọn" }),
+        ui.stat({ label: "Điểm TB học kỳ", icon: "users",
+          value: rows.length
+            ? U.num(U.sum(rows.filter((r) => r.t.gpa4 !== null), (r) => r.t.gpa4) /
+                Math.max(1, rows.filter((r) => r.t.gpa4 !== null).length))
+            : "—",
+          note: "trung bình hệ 4 của cả nhóm" })
+      ]));
+
+      if (ranks.size) {
+        const chartHost = el("div");
+        body.appendChild(ui.card("Xếp loại học kỳ", [chartHost],
+          { sub: "Lấy nguyên cột Xếp loại trong tệp của Phòng Đào tạo" }));
+        const order = ["Xuất sắc", "Giỏi", "Khá", "Trung bình", "Yếu", "Kém"];
+        const labels = Array.from(ranks.keys())
+          .sort((a, b) => order.indexOf(a.trim()) - order.indexOf(b.trim()));
+        CV.charts.bars(chartHost, {
+          labels: labels.map((x) => x.trim()),
+          values: labels.map((x) => ranks.get(x).length),
+          ariaLabel: "Phân bố xếp loại học kỳ"
+        });
+      }
+
+      body.appendChild(ui.card(`Kết quả học kỳ (${rows.length} sinh viên)`, [
+        ui.note("Số liệu ở đây lấy nguyên từ bảng của Phòng Đào tạo. Khi đã có bảng này, " +
+          "ứng dụng xét cảnh báo học vụ theo <strong>điểm trung bình chung học kỳ</strong> " +
+          "đúng như cách Trường làm, thay vì tự tính từ điểm từng học phần.", "info"),
+        ui.table([
+          { key: "mssv", label: "Sinh viên", render: (r) => el("div", { class: "t-name" }, [
+              el("strong", { text: r.st.name }), el("small", { text: r.st.mssv })]) },
+          { key: "lop", label: "Lớp", render: (r) => (classOf(r.st.classId) || {}).code || "—" },
+          { key: "g10", label: "TBC hệ 10", num: true, render: (r) => U.num(r.t.gpa10) },
+          { key: "g4", label: "TBC hệ 4", num: true, render: (r) => U.num(r.t.gpa4) },
+          { key: "cum", label: "TBC tích luỹ", num: true, render: (r) => U.num(r.t.cumGpa4) },
+          { key: "cr", label: "TC tích luỹ", num: true, render: (r) => r.t.credits === null ? "—" : String(r.t.credits) },
+          { key: "rank", label: "Xếp loại", render: (r) => r.t.rank || "—" },
+          { key: "w", label: "Học vụ", render: (r) => r.warn.termWarning && r.warn.termWarning.times
+              ? ui.badge(r.warn.level, r.warn.termWarning.status)
+              : el("span", { class: "badge badge-ok", text: "Bình thường" }) },
+          { key: "act", label: "", render: (r) => el("button", { class: "btn btn-ghost btn-sm", text: "Xoá",
+              onclick: async () => {
+                if (!(await ui.confirm({ title: "Xoá kết quả học kỳ", danger: true,
+                  message: `Xoá kết quả học kỳ này của ${r.st.name}?` }))) return;
+                S.remove("termResults", r.t.id); draw();
+              } }) }
+        ], U.sortBy(rows, (r) => r.st.mssv), {
+          onRow: (r) => CV.app.go("advisor/student?id=" + r.st.id),
+          emptyTitle: "Chưa có kết quả học kỳ nào",
+          emptyText: "Bấm “Nhập Kết quả học tập” rồi chọn tệp .xlsx Phòng Đào tạo gửi."
+        })
+      ], { actions: [
+        el("button", { class: "btn btn-primary btn-sm", text: "Xuất bảng Cảnh cáo học vụ",
+          onclick: () => exportWarning(myStudents()) })
+      ] }));
+    }
+    draw();
+  }
+
+  /** Xuất bảng cảnh cáo học vụ đúng 14 cột theo mẫu của Trường. */
+  async function exportWarning(list) {
+    try {
+      const m = me();
+      const sheet = myClasses().length === 1 ? myClasses()[0].code : "CANH CAO HOC VU";
+      const res = await CV.io.exportWarning(list, sheet);
+      if (!res.count) {
+        ui.toast("Không có sinh viên nào thuộc diện cảnh báo học vụ.", "warn");
+        return;
+      }
+      ui.toast(`Đã xuất ${res.count} sinh viên ra tệp ${res.format === "xlsx" ? "Excel" : "CSV"}.`, "ok");
+    } catch (e) {
+      ui.toast("Không xuất được tệp: " + e.message, "err", 7000);
+    }
+  }
+
+  /* =====================================================================
      Khai báo các màn hình cho bộ định tuyến
      ===================================================================== */
   const routes = {
@@ -1697,6 +1880,7 @@ CV.viewAdvisor = (function () {
     "advisor/student":      { title: "Hồ sơ sinh viên", icon: "user", render: studentDetail },
     "advisor/classes":      { title: "Lớp cố vấn", icon: "class", nav: "Lớp cố vấn", render: classes },
     "advisor/scores":       { title: "Nhập điểm", icon: "score", nav: "Nhập điểm", render: scoreEntry },
+    "advisor/terms":        { title: "Kết quả học kỳ", icon: "report", nav: "Kết quả học kỳ", render: termResults },
     "advisor/appointments": { title: "Lịch tư vấn", icon: "cal", nav: "Lịch tư vấn", render: appointments },
     "advisor/meetings":     { title: "Sổ họp lớp", icon: "note", nav: "Sổ họp lớp", render: meetings },
     "advisor/evaluation":   { title: "Đánh giá công tác", icon: "user", nav: "Đánh giá công tác", render: evaluation },

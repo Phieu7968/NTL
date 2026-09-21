@@ -67,6 +67,16 @@ CV.io = (function () {
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 400);
   }
 
+  /** Đọc tệp dạng nhị phân, dùng cho .xlsx. */
+  function readBuffer(file) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(new Error("Không đọc được tệp."));
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
   function readFile(file) {
     return new Promise((resolve, reject) => {
       const fr = new FileReader();
@@ -313,6 +323,205 @@ CV.io = (function () {
     return { ok: true, added, updated, errors, total: rows.length - 1 };
   }
 
+  /* =====================================================================
+     KẾT QUẢ HỌC TẬP THEO HỌC KỲ (tệp KQHT của Phòng Đào tạo)
+     ===================================================================== */
+
+  /** Tìm dòng tiêu đề trong bảng: dòng đầu tiên có ô chứa "Mã SV" hoặc "MSSV". */
+  function findHeaderRow(rows) {
+    for (let i = 0; i < Math.min(rows.length, 40); i++) {
+      const folded = (rows[i] || []).map((c) => U.fold(c));
+      if (folded.some((c) => c === "ma sv" || c === "mssv" || c === "ma so sinh vien")) return i;
+    }
+    return -1;
+  }
+
+  /**
+   * Nhập bảng Kết quả học tập của một học kỳ.
+   * @param {string[][]} rows các hàng đọc từ .xlsx hoặc CSV
+   * @param {{semesterId:string, createIn?:string}} opt
+   */
+  function importTermResults(rows, opt) {
+    const hi = findHeaderRow(rows);
+    if (hi < 0) {
+      return { ok: false, error: 'Không tìm thấy dòng tiêu đề có cột "Mã SV". ' +
+        "Hãy kiểm tra lại tệp Kết quả học tập." };
+    }
+    const pick = headerIndex(rows[hi]);
+    const iM = pick("Ma SV", "MSSV", "Mã số sinh viên");
+    const iName = pick("Ho va ten", "Họ và tên");
+    const iDob = pick("Ngay sinh", "Ngày sinh");
+    const i10 = pick("Diem TBC hoc ky (he 10)", "Điểm TBC học kỳ (hệ 10)", "Diem TBC he 10", "TBC he 10");
+    const i4 = pick("Diem TBC hoc ky (he 4)", "Điểm TBC học kỳ (hệ 4)", "Diem TBC he 4", "TBC he 4", "Diem TBC");
+    const iCum = pick("Diem TBC tich luy toan khoa", "Điểm TBC tích lũy toàn khóa", "Diem TBCTL", "TBCTL");
+    const iCr = pick("So tin chi tich luy", "Số tín chỉ tích lũy", "So TCTL");
+    const iRank = pick("Xep loai hoc ky", "Xếp loại học kỳ", "Xep loai");
+    const iClass = pick("Lop", "Lớp", "Ma Lop SV");
+    const iNote = pick("Ghi chu", "Ghi chú");
+    const iDebt = pick("So TC con no", "Số TC còn nợ");
+
+    if (iM < 0 || i4 < 0) {
+      return { ok: false, error: 'Tệp thiếu cột bắt buộc: "Mã SV" và "Điểm TBC học kỳ (hệ 4)".' };
+    }
+
+    const students = CV.store.all("students");
+    const classes = CV.store.all("classes");
+    const errors = [], notes = [], unknown = [];
+    let added = 0, updated = 0, created = 0;
+
+    rows.slice(hi + 1).forEach((r, n) => {
+      const line = hi + n + 2;
+      const mssv = String(r[iM] || "").trim().toUpperCase();
+      if (!mssv) return;
+      if (A().validate.mssv(mssv)) { errors.push(`Dòng ${line}: mã sinh viên "${mssv}" không hợp lệ.`); return; }
+
+      let st = students.find((x) => String(x.mssv).toUpperCase() === mssv);
+      if (!st) {
+        if (!opt || !opt.createIn) { unknown.push(mssv); return; }
+        let classId = opt.createIn;
+        if (iClass >= 0 && String(r[iClass] || "").trim()) {
+          const key = U.fold(r[iClass]);
+          const k = classes.find((c) => U.fold(c.code) === key || U.fold(c.name) === key);
+          if (k) classId = k.id;
+        }
+        st = CV.store.put("students", {
+          mssv, classId,
+          name: iName >= 0 ? String(r[iName] || "").trim() : mssv,
+          dob: iDob >= 0 ? toIsoDate(r[iDob]) : "",
+          status: "Đang học"
+        }, { save: false });
+        // put() đã thêm vào mảng students rồi, không push lại
+        created++;
+      }
+
+      const payload = {
+        studentId: st.id, semesterId: opt.semesterId,
+        gpa10: i10 >= 0 ? U.parseNum(r[i10]) : NaN,
+        gpa4: U.parseNum(r[i4]),
+        cumGpa4: iCum >= 0 ? U.parseNum(r[iCum]) : NaN,
+        credits: iCr >= 0 ? U.parseNum(r[iCr]) : NaN,
+        debtCredits: iDebt >= 0 ? U.parseNum(r[iDebt]) : NaN,
+        rank: iRank >= 0 ? String(r[iRank] || "").trim() : "",
+        note: iNote >= 0 ? String(r[iNote] || "").trim() : ""
+      };
+      ["gpa10", "gpa4", "cumGpa4", "credits", "debtCredits"].forEach((k) => {
+        if (isNaN(payload[k])) payload[k] = null;
+      });
+      if (payload.gpa4 !== null && (payload.gpa4 < 0 || payload.gpa4 > 4)) {
+        errors.push(`Dòng ${line} (${mssv}): điểm hệ 4 là ${r[i4]}, nằm ngoài khoảng 0–4.`);
+        return;
+      }
+
+      const existing = CV.store.first("termResults",
+        (t) => t.studentId === st.id && t.semesterId === opt.semesterId);
+      if (existing) { payload.id = existing.id; updated++; } else { added++; }
+      CV.store.put("termResults", payload, { save: false });
+    });
+
+    if (created) notes.push(`Đã tạo mới ${created} sinh viên chưa có trong danh sách.`);
+    if (unknown.length) {
+      notes.push(`Bỏ qua ${unknown.length} dòng có mã sinh viên không nằm trong lớp bạn phụ trách` +
+        (unknown.length <= 6 ? ` (${unknown.join(", ")})` : "") + ".");
+    }
+    CV.store.save("import:termResults");
+    return { ok: true, added, updated, created, errors, notes, total: rows.length - hi - 1 };
+  }
+
+  /* =====================================================================
+     XUẤT BẢNG CẢNH CÁO HỌC VỤ — đúng 14 cột theo mẫu của Trường
+     ===================================================================== */
+  const H_WARNING = ["STT", "MSSV", "Họ", "Tên", "Ngày sinh", "Mã Lớp SV", "Điểm TBC",
+    "Điểm TBCTL", "Số TCTL", "Số TC còn nợ", "CB - TT học vụ", "Số TC ĐK", "Ghi chú", "NGHỈ"];
+
+  /** Tiêu đề cột đăng ký tín chỉ, gắn mã học kỳ kế tiếp cho giống bản của Trường. */
+  function warningHeader() {
+    const head = H_WARNING.slice();
+    const sems = U.sortBy(CV.store.all("semesters"), (x) => x.code);
+    if (sems.length) head[11] = `Số TC ĐK ${sems[sems.length - 1].code}`;
+    return head;
+  }
+  const W_WARNING = [6, 18, 16, 10, 12, 12, 9, 10, 9, 12, 22, 10, 30, 8];
+
+  /** Tách "Nguyễn Hoàng Huy" thành họ "Nguyễn Hoàng" và tên "Huy". */
+  function splitName(full) {
+    const parts = String(full || "").trim().split(/\s+/);
+    if (parts.length < 2) return { ho: "", ten: parts[0] || "" };
+    return { ho: parts.slice(0, -1).join(" "), ten: parts[parts.length - 1] };
+  }
+
+  /** Dựng các hàng của bảng cảnh cáo học vụ từ danh sách sinh viên. */
+  function warningRows(students) {
+    const rows = [];
+    let stt = 0;
+    U.sortBy(students, (s) => {
+      const k = CV.store.get("classes", s.classId);
+      return (k ? k.code : "") + "|" + s.mssv;
+    }).forEach((s) => {
+      const p = A().profileOf(s.id);
+      const w = p.warning;
+      if (!w.termWarning || !w.termWarning.times) return; // chỉ xuất sinh viên thuộc diện
+      const last = p.stats.terms[p.stats.terms.length - 1] || {};
+      const name = splitName(s.name);
+      const k = p.klass;
+      stt++;
+      rows.push([
+        stt, s.mssv, name.ho, name.ten,
+        U.dmy(s.dob) === "—" ? "" : U.dmy(s.dob),
+        k ? k.code : "",
+        last.gpa4 === null || last.gpa4 === undefined ? 0 : Number(last.gpa4),
+        last.cumGpa4 === null || last.cumGpa4 === undefined ? 0 : Number(last.cumGpa4),
+        last.credits === null || last.credits === undefined ? 0 : Number(last.credits),
+        Number(p.stats.debtCredits || (last.debtCredits || 0)),
+        w.termWarning.status,
+        "",
+        w.termWarning.lastShort || w.termWarning.lastReason || "",
+        /Thôi học|Bảo lưu|Đình chỉ/.test(s.status || "") ? "Nghỉ" : ""
+      ]);
+    });
+    return rows;
+  }
+
+  /** Xuất tệp .xlsx đúng mẫu. Trình duyệt cũ không hỗ trợ thì rơi về CSV. */
+  async function exportWarning(students, sheetName) {
+    const rows = warningRows(students);
+    const head = warningHeader();
+    const all = [head].concat(rows);
+    if (!CV.xlsx.supported()) {
+      download(`canh-cao-hoc-vu-${stamp()}.csv`, toCsv(head, rows), "text/csv;charset=utf-8");
+      return { ok: true, count: rows.length, format: "csv" };
+    }
+    const blob = await CV.xlsx.write([{
+      name: (sheetName || "CANH CAO HOC VU").slice(0, 31),
+      headerRows: 1, widths: W_WARNING, rows: all
+    }]);
+    const url = URL.createObjectURL(blob);
+    const a = U.el("a", { href: url, download: `canh-cao-hoc-vu-${stamp()}.xlsx` });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 400);
+    return { ok: true, count: rows.length, format: "xlsx" };
+  }
+
+  /** Tệp mẫu Kết quả học tập, đúng thứ tự cột của Phòng Đào tạo. */
+  async function templateTermResults() {
+    const head = ["STT", "Mã SV", "Họ và tên", "Ngày sinh", "Điểm TBC học kỳ (hệ 10)",
+      "Điểm TBC học kỳ (hệ 4)", "Điểm TBC tích lũy toàn khóa", "Số tín chỉ tích lũy",
+      "Xếp loại học kỳ", "Lớp", "Ghi chú"];
+    const rows = [[1, "26D15802010320", "NGUYỄN VĂN MẪU", "03/06/2008", 6.44, 2.29, 2.66, 17,
+      "Trung bình", "XD26CT01", ""]];
+    if (!CV.xlsx.supported()) {
+      download("mau-ket-qua-hoc-tap.csv", toCsv(head, rows), "text/csv;charset=utf-8");
+      return;
+    }
+    const blob = await CV.xlsx.write([{ name: "KQHT", headerRows: 1,
+      widths: [6, 18, 26, 12, 14, 14, 16, 12, 14, 12, 20], rows: [head].concat(rows) }]);
+    const url = URL.createObjectURL(blob);
+    const a = U.el("a", { href: url, download: "mau-ket-qua-hoc-tap.xlsx" });
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 400);
+  }
+
   /* ---------- in báo cáo ---------- */
   /** Dựng nội dung in vào #print-root rồi gọi hộp thoại in của trình duyệt. */
   function print(titleText, nodes) {
@@ -331,7 +540,8 @@ CV.io = (function () {
   }
 
   return {
-    toCsv, parseCsv, download, readFile, toIsoDate,
+    toCsv, parseCsv, download, readFile, readBuffer, toIsoDate, findHeaderRow, splitName,
+    importTermResults, exportWarning, warningRows, templateTermResults, H_WARNING, warningHeader,
     exportStudents, exportSummary, exportScores,
     templateStudents, templateScores, backup,
     importStudents, importScores, print

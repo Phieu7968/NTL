@@ -402,7 +402,7 @@ CV.ui = (function () {
   }
 
   /** Chọn tệp từ máy, trả về nội dung dạng chữ. */
-  function pickFile(accept) {
+  function pickFile(accept, mode) {
     return new Promise((resolve) => {
       const input = el("input", { type: "file", accept: accept || ".csv,.txt", style: "display:none" });
       document.body.appendChild(input);
@@ -410,11 +410,38 @@ CV.ui = (function () {
         const file = input.files && input.files[0];
         input.remove();
         if (!file) { resolve(null); return; }
-        try { resolve({ name: file.name, text: await CV.io.readFile(file) }); }
-        catch (e) { toast(e.message, "err"); resolve(null); }
+        try {
+          if (mode === "binary") resolve({ name: file.name, buffer: await CV.io.readBuffer(file) });
+          else resolve({ name: file.name, text: await CV.io.readFile(file) });
+        } catch (e) { toast(e.message, "err"); resolve(null); }
       });
       input.click();
     });
+  }
+
+  /**
+   * Chọn tệp bảng tính rồi trả về các hàng đã đọc.
+   * Nhận .xlsx đọc thẳng, hoặc .csv khi người dùng đã lưu lại dạng đó.
+   */
+  async function pickSheet() {
+    const f = await pickFile(".xlsx,.csv,.txt", "binary");
+    if (!f) return null;
+    const lower = f.name.toLowerCase();
+    try {
+      if (lower.endsWith(".xlsx")) {
+        const sheets = await CV.xlsx.read(f.buffer);
+        if (!sheets.length) throw new Error("Tệp không có bảng nào.");
+        return { name: f.name, rows: sheets[0].rows, sheet: sheets[0].name };
+      }
+      if (lower.endsWith(".xls")) {
+        throw new Error("Tệp .xls đời cũ chưa đọc được. Mở bằng Excel rồi chọn Lưu thành .xlsx hoặc CSV.");
+      }
+      const text = new TextDecoder("utf-8").decode(new Uint8Array(f.buffer));
+      return { name: f.name, rows: CV.io.parseCsv(text), sheet: "" };
+    } catch (e) {
+      toast(e.message, "err", 7000);
+      return null;
+    }
   }
 
   /** Báo cáo kết quả nhập tệp: số dòng thêm/cập nhật và danh sách lỗi. */
@@ -436,6 +463,6 @@ CV.ui = (function () {
 
   return {
     toast, modal, confirm, tilt, card3d, stat, card, empty, note, table, badge,
-    form, formModal, segmented, applyTheme, cycleTheme, pickFile, importReport
+    form, formModal, segmented, applyTheme, cycleTheme, pickFile, pickSheet, importReport
   };
 })();

@@ -117,6 +117,19 @@ CV.viewStudent = (function () {
         : null
     ]));
 
+    if (p.stats.terms.length) {
+      host.appendChild(ui.card("Kết quả học kỳ chính thức", [
+        ui.table([
+          { key: "sem", label: "Học kỳ", render: (r) => (r.semester || {}).name || (r.semester || {}).code || "—" },
+          { key: "g10", label: "TBC hệ 10", num: true, render: (r) => U.num(r.gpa10) },
+          { key: "g4", label: "TBC hệ 4", num: true, render: (r) => U.num(r.gpa4) },
+          { key: "cum", label: "TBC tích luỹ", num: true, render: (r) => U.num(r.cumGpa4) },
+          { key: "cr", label: "TC tích luỹ", num: true, render: (r) => r.credits === null ? "—" : String(r.credits) },
+          { key: "rank", label: "Xếp loại", render: (r) => r.rank || "—" }
+        ], p.stats.terms, {})
+      ], { sub: "Số liệu do Phòng Đào tạo gửi về, cập nhật sau mỗi học kỳ." }));
+    }
+
     if (p.stats.bySemester.length) {
       const ch = el("div");
       host.appendChild(ui.card("GPA của em qua các học kỳ", [ch]));
