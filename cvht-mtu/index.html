@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cố vấn học tập MTU</title>
+<meta name="description" content="Nền tảng công tác Cố vấn học tập sinh viên — Trường Đại học Xây dựng Miền Tây. Quản lý lớp, điểm, GPA, cảnh báo học vụ và lịch tư vấn 1-1.">
+<meta name="theme-color" content="#123a6b">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CVHT MTU">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="assets/icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<!-- ============ MÀN HÌNH KHỞI ĐỘNG ============ -->
+<div id="splash" class="splash">
+  <div class="splash-mark" aria-hidden="true"></div>
+  <p class="splash-text">Đang khởi động…</p>
+  <noscript><p class="splash-text">Ứng dụng cần bật JavaScript để chạy.</p></noscript>
+</div>
+
+<!-- ============ KHUNG ỨNG DỤNG ============ -->
+<div id="shell" class="shell" hidden>
+
+  <aside class="sidenav" id="sidenav">
+    <div class="sidenav-brand">
+      <img src="assets/icons/logo-mtu.png" alt="Logo Trường Đại học Xây dựng Miền Tây" width="46" height="39" class="brand-logo">
+      <div class="brand-text">
+        <strong>CVHT MTU</strong>
+        <span>Cố vấn học tập</span>
+      </div>
+    </div>
+    <nav class="nav" id="nav-desktop" aria-label="Điều hướng chính"></nav>
+    <div class="sidenav-foot">
+      <button class="nav-link" id="btn-theme" type="button">
+        <span class="nav-ico" data-ico="theme"></span><span>Giao diện</span>
+      </button>
+      <button class="nav-link" id="btn-logout" type="button">
+        <span class="nav-ico" data-ico="out"></span><span>Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="btn-menu" type="button" aria-label="Mở menu">
+        <span class="nav-ico" data-ico="menu"></span>
+      </button>
+      <div class="topbar-title">
+        <h1 id="page-title">Bàn làm việc</h1>
+        <p id="page-sub" class="topbar-sub"></p>
+      </div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+      <button class="who" id="btn-who" type="button">
+        <span class="avatar" id="who-avatar">?</span>
+        <span class="who-text">
+          <strong id="who-name">—</strong>
+          <small id="who-role">—</small>
+        </span>
+      </button>
+    </header>
+
+    <main class="view" id="view" tabindex="-1"></main>
+  </div>
+
+  <nav class="tabbar" id="nav-mobile" aria-label="Điều hướng nhanh"></nav>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div id="modal-root"></div>
+<div id="toast-root" class="toasts" role="status" aria-live="polite"></div>
+<div id="print-root" class="print-root"></div>
+
+<script src="assets/js/util.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/academic.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/xlsx.js"></script>
+<script src="assets/js/io.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/pack.js"></script>
+<script src="assets/js/sync.js"></script>
+<script src="assets/js/view-auth.js"></script>
+<script src="assets/js/view-advisor.js"></script>
+<script src="assets/js/view-student.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
