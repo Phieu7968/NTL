@@ -218,6 +218,26 @@ CV.viewAuth = (function () {
       return btn;
     };
 
+    // Máy đã nạp gói dữ liệu của một sinh viên thì chỉ còn đúng một lối vào.
+    if (CV.pack.isStudentDevice()) {
+      gateShell([
+        el("div", { class: "gate-head" }, [
+          logo(112),
+          el("h1", { text: "Cổng Sinh viên " + (s.schoolShort || "MTU") }),
+          el("p", { text: s.schoolName + (s.facultyName ? " — " + s.facultyName : "") })
+        ]),
+        el("div", { style: "max-width:430px;margin-inline:auto" }, [
+          ui.card3d([el("div", { class: "lift-1" }, [
+            el("p", { text: `Máy này đang giữ hồ sơ của mã số sinh viên ${s.packageOf || ""}.` }),
+            el("button", { class: "btn btn-primary btn-block", type: "button",
+              text: "Đăng nhập", onclick: () => renderStudentLogin(go) })
+          ])], { strength: 5 }),
+          ui.note("Trên máy này chỉ có dữ liệu của riêng em, không có hồ sơ của bạn nào khác.", "info")
+        ])
+      ]);
+      return;
+    }
+
     gateShell([
       el("div", { class: "gate-head" }, [
         logo(112),
@@ -228,6 +248,9 @@ CV.viewAuth = (function () {
         mk("user", "Cổng Sinh viên", "Xem kết quả học tập, tín chỉ nợ và đặt lịch gặp cố vấn.", () => renderStudentLogin(go)),
         mk("users", "Giảng viên Cố vấn", "Quản lý lớp, nhập điểm, theo dõi cảnh báo học vụ và lập báo cáo.", () => renderAdvisorLogin(go))
       ]),
+      el("div", { style: "text-align:center;margin-top:1.25rem" },
+        el("button", { class: "btn btn-ghost btn-sm", type: "button",
+          text: "Tôi có tệp dữ liệu do cố vấn gửi", onclick: () => renderInstallPackage(go) })),
       el("p", { class: "gate-note", text: "Dữ liệu được lưu ngay trên thiết bị này. Xem mục Cài đặt để sao lưu." })
     ]);
   }
@@ -296,5 +319,73 @@ CV.viewAuth = (function () {
     ]);
   }
 
-  return { renderSetup, renderRoles, renderAdvisorLogin, renderStudentLogin, hideGate, gateShell };
+  /* ---------- 5. Nạp gói dữ liệu do cố vấn gửi ---------- */
+  function renderInstallPackage(go) {
+    const info = el("div");
+    const fileBtn = el("button", { class: "btn btn-primary btn-block", type: "button",
+      text: "Chọn tệp dữ liệu (.json)" });
+    const back = el("button", { class: "btn btn-ghost btn-block", type: "button",
+      text: "← Quay lại", style: "margin-top:.6rem" });
+    back.addEventListener("click", () => renderRoles(go));
+
+    fileBtn.addEventListener("click", async () => {
+      const f = await ui.pickFile(".json,.txt");
+      if (!f) return;
+      let raw;
+      try { raw = JSON.parse(f.text); }
+      catch (e) { ui.toast("Tệp không đọc được. Hãy kiểm tra lại tệp cố vấn gửi.", "err"); return; }
+
+      if (raw._type === CV.pack.TYPE_PLAIN) {
+        confirmInstall(raw);
+        return;
+      }
+      if (raw._type !== CV.pack.TYPE_ENC) {
+        ui.toast("Tệp này không phải gói dữ liệu sinh viên.", "err");
+        return;
+      }
+      const d = await ui.formModal({
+        title: "Mở gói dữ liệu",
+        intro: `Gói dành cho mã số sinh viên <strong>${U.esc(raw.mssv || "")}</strong>. ` +
+          "Nhập mã PIN cố vấn đã cấp để mở.",
+        fields: [{ name: "pin", label: "Mã PIN", type: "password", required: true, full: true,
+          inputmode: "numeric" }],
+        okText: "Mở gói"
+      });
+      if (!d) return;
+      try {
+        const pkg = await CV.pack.decrypt(raw, d.pin);
+        confirmInstall(pkg);
+      } catch (e) {
+        ui.toast(e.message, "err", 6000);
+      }
+    });
+
+    async function confirmInstall(pkg) {
+      const list = CV.pack.summarize(pkg);
+      const okd = await ui.confirm({
+        title: "Nạp dữ liệu vào máy này?",
+        message: `Gói của ${pkg.student.name} (${pkg.student.mssv}) gồm: ${list.join("; ")}.`,
+        detail: "Mọi dữ liệu đang có trên máy này sẽ bị thay thế. Chỉ làm trên máy riêng của em.",
+        okText: "Nạp dữ liệu"
+      });
+      if (!okd) return;
+      const res = CV.pack.install(pkg);
+      if (!res.ok) { ui.toast(res.error, "err"); return; }
+      ui.toast("Đã nạp xong. Mời em đăng nhập bằng mã số sinh viên và mã PIN.", "ok", 6000);
+      renderRoles(go);
+    }
+
+    info.appendChild(ui.note(
+      "Cố vấn học tập gửi cho em một tệp chứa <strong>riêng hồ sơ của em</strong>. " +
+      "Nạp tệp đó vào đây là dùng được ngay cả khi không có mạng.", "info"));
+
+    gateShell([
+      el("div", { class: "gate-head" }, [logo(88), el("h1", { text: "Nạp dữ liệu từ cố vấn" })]),
+      el("div", { style: "max-width:460px;margin-inline:auto" },
+        ui.card3d([el("div", { class: "lift-1" }, [info, fileBtn, back])], { strength: 5 }))
+    ]);
+  }
+
+  return { renderSetup, renderRoles, renderAdvisorLogin, renderStudentLogin,
+    renderInstallPackage, hideGate, gateShell };
 })();

@@ -331,26 +331,67 @@ CV.viewStudent = (function () {
         el("dt", { text: "Ngày sinh" }), el("dd", { text: U.dmy(st.dob) }),
         el("dt", { text: "Giới tính" }), el("dd", { text: st.gender || "—" }),
         el("dt", { text: "Điện thoại" }), el("dd", { text: st.phone || "—" }),
+        el("dt", { text: "Zalo" }), el("dd", { text: st.zalo || "—" }),
         el("dt", { text: "Email" }), el("dd", { text: st.email || "—" }),
+        el("dt", { text: "Địa chỉ" }), el("dd", { text: st.address || "—" }),
         el("dt", { text: "Trạng thái" }), el("dd", { text: st.status || "Đang học" })
       ]),
-      ui.note("Muốn sửa họ tên, ngày sinh hay lớp thì báo giảng viên cố vấn. Em tự sửa được số điện thoại và email.", "info")
+      ui.note("Muốn sửa họ tên, ngày sinh hay lớp thì báo giảng viên cố vấn. " +
+        "Em tự sửa được điện thoại, Zalo, email và địa chỉ.", "info")
     ], { actions: [el("button", { class: "btn btn-ghost btn-sm", text: "Sửa liên hệ", onclick: () => {
       ui.formModal({
         title: "Cập nhật thông tin liên hệ",
         values: st,
         fields: [
-          { name: "phone", label: "Điện thoại", type: "tel", validate: (v) => A.validate.phone(v), full: true },
+          { name: "phone", label: "Điện thoại", type: "tel", validate: (v) => A.validate.phone(v) },
+          { name: "zalo", label: "Số Zalo", type: "tel", validate: (v) => A.validate.phone(v),
+            hint: "Để trống nếu dùng chung số điện thoại ở trên." },
           { name: "email", label: "Email", type: "email", validate: (v) => A.validate.email(v), full: true },
-          { name: "address", label: "Địa chỉ", full: true }
+          { name: "address", label: "Địa chỉ", full: true },
+          { name: "contactNote", label: "Ghi chú liên hệ", type: "textarea", full: true, rows: 2,
+            placeholder: "Ví dụ: chỉ gọi được buổi tối, hoặc nhắn Zalo tiện hơn." }
         ]
       }).then((d) => {
         if (!d) return;
-        S.put("students", { id: st.id, phone: d.phone, email: d.email, address: d.address });
-        ui.toast("Đã cập nhật.", "ok");
+        S.put("students", Object.assign({ id: st.id }, d, { contactChangedAt: new Date().toISOString() }));
+        ui.toast("Đã cập nhật. Nhớ gửi phiếu cập nhật cho cố vấn.", "ok", 5000);
         CV.app.render();
       });
     } })] }));
+
+    /* Chiều ngược: gửi những gì em vừa sửa về cho cố vấn */
+    if (st.linkToken) {
+      const daNhan = st.contactChangedAt && (!st.updateSentAt || st.updateSentAt < st.contactChangedAt);
+      host.appendChild(ui.card("Gửi cập nhật cho cố vấn", [
+        ui.note(daNhan
+          ? "Em vừa sửa thông tin liên hệ. Hãy gửi phiếu cập nhật để cố vấn có số mới."
+          : "Sửa xong thông tin liên hệ hoặc đặt lịch gặp thì gửi phiếu này cho cố vấn.",
+          daNhan ? "warn" : "info"),
+        el("p", { class: "card-sub", text: st.updateSentAt
+          ? "Lần gửi gần nhất: " + U.dmyhm(st.updateSentAt) : "Chưa gửi lần nào." }),
+        el("button", { class: "btn btn-primary btn-sm", text: "Tạo phiếu cập nhật", onclick: sendUpdate })
+      ]));
+    }
+
+    if (CV.pack.isStudentDevice()) {
+      host.appendChild(ui.card("Dữ liệu trên máy này", [
+        ui.note("Máy này chỉ giữ hồ sơ của riêng em, do cố vấn gửi trong một tệp dữ liệu. " +
+          "Không có hồ sơ của bạn nào khác.", "info"),
+        el("p", { class: "card-sub", text: "Nạp lúc " + U.dmyhm(S.settings().installedAt) }),
+        el("button", { class: "btn btn-danger btn-sm", text: "Xoá dữ liệu khỏi máy này",
+          onclick: async () => {
+            if (!(await ui.confirm({ title: "Xoá dữ liệu", danger: true,
+              message: "Xoá toàn bộ hồ sơ của em khỏi máy này?",
+              detail: "Dùng khi em mượn máy người khác. Muốn xem lại thì nạp lại tệp cố vấn đã gửi.",
+              okText: "Xoá" }))) return;
+            S.reset();
+            CV.auth.logout();
+            ui.toast("Đã xoá dữ liệu khỏi máy này.", "ok");
+            location.hash = "";
+            CV.app.render();
+          } })
+      ]));
+    }
 
     if (S.settings().studentLogin !== "dob") {
       host.appendChild(ui.card("Bảo mật", [
@@ -376,6 +417,32 @@ CV.viewStudent = (function () {
         } })
       ]));
     }
+  }
+
+  /** Tạo tệp cập nhật gửi ngược cho cố vấn. */
+  async function sendUpdate() {
+    const m = me();
+    if (!m) return;
+    const built = CV.pack.buildUpdate(m.id);
+    if (!built.ok) { ui.toast(built.error, "err", 6000); return; }
+    let file;
+    try { file = await CV.pack.encryptUpdate(built.data); }
+    catch (e) { file = built.data; }
+    CV.io.download(`cap-nhat-${m.mssv}.json`, JSON.stringify(file), "application/json;charset=utf-8");
+    S.put("students", { id: m.id, updateSentAt: new Date().toISOString() });
+    ui.modal({
+      title: "Đã tạo phiếu cập nhật",
+      body: [
+        ui.note("Gửi tệp vừa tải về cho giảng viên cố vấn qua Zalo hoặc email. " +
+          "Cố vấn mở tệp là thông tin của em được cập nhật bên máy thầy cô.", "info"),
+        el("h3", { text: "Trong phiếu có gì", style: "margin-top:.8rem" }),
+        el("ul", { style: "margin:0;padding-left:1.1rem;font-size:.88rem" },
+          CV.pack.STUDENT_FIELDS.map((f) => el("li", { text: `${f.label}: ${built.data.fields[f.key] || "(trống)"}` }))
+            .concat(built.data.appointments.length
+              ? [el("li", { text: `${built.data.appointments.length} lịch hẹn em đã đặt` })] : []))
+      ],
+      actions: [{ label: "Xong", class: "btn-primary", onClick: (c) => { c(); CV.app.render(); } }]
+    });
   }
 
   const routes = {

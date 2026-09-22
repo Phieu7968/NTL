@@ -217,9 +217,52 @@ Dữ liệu lưu trong `localStorage` của trình duyệt, **trên chính thi�
 - Sức chứa thường khoảng 5 MB, đủ cho vài nghìn sinh viên kèm điểm. Màn hình Cài đặt hiện
   dung lượng đang dùng và cảnh báo khi gần đầy.
 
-Cần dùng chung thật sự giữa nhiều máy thì phải có cơ sở dữ liệu trên máy chủ — xem mục 10.
+Cần dùng chung thật sự giữa nhiều máy thì phải có cơ sở dữ liệu trên máy chủ — xem mục 11.
 
-## 8. Bảo mật — làm được gì và chưa làm được gì
+## 8. Hai chiều dữ liệu giữa máy giảng viên và máy sinh viên
+
+Máy giảng viên giữ toàn bộ. Máy sinh viên chỉ giữ **hồ sơ của đúng một em**.
+Đây là tách bằng dữ liệu, không phải chỉ ẩn trên giao diện.
+
+### Chiều đi — cố vấn gửi hồ sơ cho sinh viên
+
+Hồ sơ sinh viên → **Gửi dữ liệu cho em này**. Ứng dụng cấp mã PIN mới, dựng một tệp chỉ
+chứa dữ liệu của em đó, mã hoá tệp bằng chính mã PIN ấy (AES-GCM, khoá dẫn xuất PBKDF2-SHA256
+200.000 vòng), rồi tải về. Cố vấn gửi tệp qua Zalo hoặc email và báo riêng mã PIN.
+
+| Trong gói có | Cố ý không đưa vào gói |
+|---|---|
+| Hồ sơ cá nhân của em | Hồ sơ, điểm, rèn luyện của mọi sinh viên khác |
+| Điểm học phần, kết quả học kỳ, điểm rèn luyện | Mật khẩu giảng viên (chỉ lấy tên, email, điện thoại) |
+| Đăng ký học phần, lịch tư vấn của em | Nhật ký cố vấn đánh dấu chỉ giảng viên xem |
+| Lời nhắn loại sinh viên xem được | Sổ họp lớp, phiếu tự đánh giá công tác |
+| Liên hệ của CVHT và GVCN | Danh sách lớp, sĩ số, thống kê toàn lớp |
+
+Trước khi xuất, ứng dụng **tự soi lại gói**: mọi bản ghi phải thuộc đúng em đó, không có
+ghi chú riêng, không có dấu vết mật khẩu. Sai một điểm là chặn, không cho gửi.
+
+Sinh viên mở ứng dụng → *Tôi có tệp dữ liệu do cố vấn gửi* → chọn tệp → nhập mã PIN. Sau
+bước đó máy của em khoá vào **chế độ sinh viên**: lối vào dành cho giảng viên biến mất, và
+trình cài đặt lần đầu không chạy nữa (nếu không, em có thể tự tạo tài khoản giảng viên).
+
+### Chiều về — sinh viên gửi cập nhật cho cố vấn
+
+Sinh viên tự sửa được **điện thoại, Zalo, email, địa chỉ, ghi chú liên hệ**, và tự đặt lịch
+gặp. Xong thì bấm **Tạo phiếu cập nhật**: ứng dụng dựng một tệp nhỏ chỉ gồm mấy trường đó
+cộng lịch hẹn em vừa đặt, mã hoá bằng *mã liên kết* mà gói ban đầu đã mang theo, rồi tải về
+để em gửi lại cho thầy cô.
+
+Cố vấn vào Sinh viên → **Nhận cập nhật từ SV** → chọn tệp. Ứng dụng mở tệp bằng mã liên kết
+đang lưu trong hồ sơ — nên tệp của em nào chỉ mở được bằng hồ sơ em ấy — rồi hiện **bảng đối
+chiếu từng mục: đang lưu gì, sinh viên gửi gì**. Cố vấn xem rồi mới bấm ghi. Nhận lại lần hai
+cùng một tệp thì báo "không có gì mới".
+
+### Chưa làm được: đồng bộ tự động
+
+Hai chiều ở trên là **thủ công**: phải gửi tệp qua lại. Muốn sinh viên sửa số điện thoại là
+máy thầy cô thấy ngay, bắt buộc phải có **một nơi lưu chung trên máy chủ** — xem mục 11.
+
+## 9. Bảo mật — làm được gì và chưa làm được gì
 
 **Đã làm:**
 
@@ -243,9 +286,9 @@ Cần dùng chung thật sự giữa nhiều máy thì phải có cơ sở dữ 
   đọc lỏm mật khẩu, **không** biến thiết bị dùng chung thành nơi an toàn.
 - Vì vậy: đừng dùng máy tính công cộng, nên đặt mật khẩu/mã PIN màn hình cho máy, và nhớ
   đăng xuất.
-- Muốn bảo vệ đúng nghĩa thì phải kiểm tra quyền ở phía máy chủ — xem mục 10.
+- Muốn bảo vệ đúng nghĩa thì phải kiểm tra quyền ở phía máy chủ — xem mục 11.
 
-## 9. Nhập và xuất dữ liệu
+## 10. Nhập và xuất dữ liệu
 
 ### Tệp Excel của Trường
 
@@ -291,7 +334,7 @@ thập phân, và tự nhận dấu phân cách `;` `,` hay tab. Dòng nào sai 
 rõ sai ở dòng nào, sai cái gì**; những dòng còn lại vẫn nhập bình thường. Trùng MSSV thì
 cập nhật chứ không tạo bản ghi trùng.
 
-## 10. Muốn dùng chung giữa nhiều thiết bị
+## 11. Muốn dùng chung giữa nhiều thiết bị
 
 Tầng dữ liệu đã được gom sẵn để đổi chỗ lưu mà không phải viết lại giao diện:
 
@@ -306,7 +349,7 @@ Lưu ý pháp lý: đưa họ tên, MSSV, điểm và số điện thoại sinh 
 đặt ở nước ngoài là chuyển dữ liệu cá nhân ra nước ngoài theo Nghị định 13/2023/NĐ-CP. Nếu
 Trường có máy chủ nội bộ thì đặt cơ sở dữ liệu ở đó là sạch nhất.
 
-## 11. Cấu trúc mã nguồn
+## 12. Cấu trúc mã nguồn
 
 ```
 cvht-mtu/
@@ -324,14 +367,15 @@ cvht-mtu/
 │       ├── xlsx.js         Đọc và ghi tệp Excel .xlsx bằng tay, không thư viện ngoài
 │       ├── io.js           Đọc ghi CSV và .xlsx, sao lưu JSON, in báo cáo
 │       ├── ui.js           Thẻ 3D, hộp thoại, biểu mẫu, bảng, thông báo
-│       ├── view-auth.js    Cài đặt lần đầu, chọn vai trò, đăng nhập, chặn dò mật khẩu
+│       ├── pack.js         Gói dữ liệu riêng từng sinh viên, mã hoá, phiếu cập nhật chiều về
+│       ├── view-auth.js    Cài đặt lần đầu, chọn vai trò, đăng nhập, nạp gói dữ liệu
 │       ├── view-advisor.js 12 màn hình của giảng viên cố vấn
 │       ├── view-student.js 4 màn hình của cổng sinh viên
 │       └── app.js          Định tuyến, khung điều hướng, khởi động, đăng ký service worker
 └── scripts/make-icons.cjs  Sinh lại bộ icon PNG
 ```
 
-## 12. Biểu tượng ứng dụng
+## 13. Biểu tượng ứng dụng
 
 Mọi chỗ hiển thị logo trong app — thanh bên, màn hình đăng nhập, biểu tượng khi cài vào
 máy, biểu tượng trên thẻ trình duyệt — đều lấy từ **logo chính thức của Trường**.
@@ -356,7 +400,7 @@ Script tự cắt lề trắng, thu nhỏ bằng cách lấy trung bình vùng c
 số màu rồi đóng gói PNG bảng màu — cả sáu tệp cộng lại chỉ khoảng 30 KB. Chạy xong nhớ
 tăng số `VERSION` trong `sw.js` để máy đã cài nhận bộ biểu tượng mới.
 
-## 13. Vài điểm đáng lưu ý khi bảo trì
+## 14. Vài điểm đáng lưu ý khi bảo trì
 
 - **Sửa mã nguồn xong nhớ tăng `VERSION` trong `sw.js`.** Không tăng thì máy đã cài app vẫn
   chạy bản cũ đã lưu đệm.

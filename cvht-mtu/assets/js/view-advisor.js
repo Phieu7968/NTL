@@ -265,6 +265,7 @@ CV.viewAdvisor = (function () {
           options: [{ value: "", label: "—" }, { value: "Nam", label: "Nam" }, { value: "Nữ", label: "Nữ" }] },
         { name: "dob", label: "Ngày sinh", type: "date", validate: (v) => A.validate.dob(v) },
         { name: "phone", label: "Điện thoại", type: "tel", validate: (v) => A.validate.phone(v) },
+        { name: "zalo", label: "Zalo", type: "tel", validate: (v) => A.validate.phone(v) },
         { name: "email", label: "Email", type: "email", validate: (v) => A.validate.email(v) },
         { name: "cadreRole", label: "Chức vụ trong lớp", type: "select",
           value: (student && student.cadreRole) || "",
@@ -330,6 +331,152 @@ CV.viewAdvisor = (function () {
     });
   }
 
+  /**
+   * Nhận phiếu cập nhật do sinh viên gửi về. Cho xem rõ cái gì đổi từ đâu
+   * sang đâu rồi mới ghi, vì đây là dữ liệu từ ngoài đưa vào.
+   */
+  async function receiveUpdate() {
+    const f = await ui.pickFile(".json,.txt");
+    if (!f) return;
+    let raw;
+    try { raw = JSON.parse(f.text); }
+    catch (e) { ui.toast("Tệp không đọc được.", "err"); return; }
+
+    let upd;
+    try { upd = await CV.pack.openUpdate(raw); }
+    catch (e) { ui.toast(e.message, "err", 7000); return; }
+
+    const d = CV.pack.diffUpdate(upd);
+    if (!d.ok) { ui.toast(d.error, "err", 7000); return; }
+
+    if (!d.changes.length && !d.newAppointments.length) {
+      ui.modal({
+        title: "Không có gì mới",
+        body: [ui.note(`Phiếu của ${U.esc(d.student.name)} trùng khớp với hồ sơ đang lưu.`, "info")],
+        actions: [{ label: "Đóng", class: "btn-primary", onClick: (c) => c() }]
+      });
+      return;
+    }
+
+    const body = [
+      ui.note(`Phiếu do <strong>${U.esc(d.student.name)} (${U.esc(d.student.mssv)})</strong> gửi lúc ` +
+        `${U.dmyhm(upd.sentAt)}.`, "info")
+    ];
+    if (d.changes.length) {
+      body.push(el("h3", { text: "Thông tin liên hệ thay đổi", style: "margin-top:.8rem" }));
+      body.push(ui.table([
+        { key: "label", label: "Mục" },
+        { key: "from", label: "Đang lưu", render: (r) => r.from || "(trống)" },
+        { key: "to", label: "Sinh viên gửi", render: (r) => r.to || "(trống)" }
+      ], d.changes, {}));
+    }
+    if (d.newAppointments.length) {
+      body.push(el("h3", { text: "Lịch hẹn em đặt", style: "margin-top:.8rem" }));
+      body.push(el("ul", { style: "margin:0;padding-left:1.1rem;font-size:.88rem" },
+        d.newAppointments.map((a) => el("li", { text: `${U.dmy(a.date)} ${a.time || ""} — ${a.topic || "(chưa ghi nội dung)"}` }))));
+    }
+
+    ui.modal({
+      title: "Cập nhật từ sinh viên",
+      size: "lg",
+      body,
+      actions: [
+        { label: "Bỏ qua", class: "btn-ghost", onClick: (c) => c() },
+        { label: "Ghi vào hồ sơ", class: "btn-primary", onClick: (close) => {
+            const res = CV.pack.applyUpdate(upd);
+            close();
+            if (!res.ok) { ui.toast(res.error, "err"); return; }
+            ui.toast(`Đã cập nhật hồ sơ của ${res.student.name}.`, "ok");
+            CV.app.render();
+          } }
+      ]
+    });
+  }
+
+  /**
+   * Xuất gói dữ liệu riêng của một sinh viên để gửi cho em ấy.
+   * Gói được mã hoá bằng mã PIN mới cấp, nên cố vấn chỉ phải đưa cho em một
+   * thứ duy nhất: mã PIN đó dùng cả để mở gói lẫn để đăng nhập.
+   */
+  async function sendPackage(st) {
+    const okd = await ui.confirm({
+      title: "Gửi dữ liệu cho sinh viên",
+      message: `Tạo gói dữ liệu riêng của ${st.name} để gửi cho em ấy?`,
+      detail: "Ứng dụng sẽ cấp mã PIN mới, dùng mã đó khoá gói. Mã PIN cũ (nếu có) sẽ hết hiệu lực.",
+      okText: "Tạo gói"
+    });
+    if (!okd) return;
+
+    const pin = U.randomPin();
+    S.put("students", { id: st.id, secret: U.makeSecret(pin), mustChangeSecret: true });
+
+    const built = CV.pack.build(st.id);
+    if (!built.ok) { ui.toast(built.error, "err", 6000); return; }
+
+    // Soi lại gói trước khi gửi: không được lọt dữ liệu của ai khác
+    const check = CV.pack.audit(built.data);
+    if (!check.ok) {
+      ui.modal({
+        title: "Không gửi được gói này",
+        body: [ui.note("Gói có dấu hiệu chứa dữ liệu không thuộc về sinh viên này nên đã bị chặn lại.", "danger"),
+          el("ul", {}, check.problems.map((x) => el("li", { text: x })))],
+        actions: [{ label: "Đóng", class: "btn-primary", onClick: (c) => c() }]
+      });
+      return;
+    }
+
+    let file, encrypted = true;
+    try {
+      file = await CV.pack.encrypt(built.data, pin);
+    } catch (e) {
+      const plain = await ui.confirm({
+        title: "Không mã hoá được",
+        danger: true,
+        message: e.message,
+        detail: "Gửi gói chưa mã hoá thì ai lấy được tệp cũng đọc được điểm và số điện thoại của em. " +
+          "Chỉ nên làm khi đưa tệp trực tiếp, không qua mạng.",
+        okText: "Vẫn gửi bản chưa mã hoá"
+      });
+      if (!plain) return;
+      file = built.data;
+      encrypted = false;
+    }
+
+    const safeName = U.fold(st.name).replace(/\s+/g, "-");
+    CV.io.download(`du-lieu-${st.mssv}-${safeName}.json`,
+      JSON.stringify(file, null, encrypted ? 0 : 2), "application/json;charset=utf-8");
+
+    ui.modal({
+      title: "Đã tạo gói cho " + st.name,
+      size: "lg",
+      body: [
+        ui.note(encrypted
+          ? "Tệp đã <strong>mã hoá bằng mã PIN dưới đây</strong>. Gửi tệp cho em, rồi báo riêng mã PIN."
+          : "<strong>Tệp CHƯA mã hoá.</strong> Chỉ đưa trực tiếp, đừng gửi qua mạng.",
+          encrypted ? "info" : "danger"),
+        el("div", { style: "font-size:2.4rem;font-weight:800;letter-spacing:.5rem;text-align:center;" +
+          "background:var(--card-2);border:1px dashed var(--line-2);border-radius:14px;padding:1rem;margin:.5rem 0;" +
+          "font-variant-numeric:tabular-nums", text: pin }),
+        el("h3", { text: "Trong gói có gì", style: "margin-top:1rem" }),
+        el("ul", { style: "margin:0;padding-left:1.1rem;font-size:.88rem" },
+          CV.pack.summarize(built.data).map((x) => el("li", { text: x }))),
+        el("h3", { text: "Cố ý không đưa vào gói", style: "margin-top:1rem" }),
+        el("ul", { style: "margin:0;padding-left:1.1rem;font-size:.88rem;color:var(--muted)" },
+          CV.pack.EXCLUDED.map((x) => el("li", { text: x }))),
+        ui.note("Hướng dẫn em: mở ứng dụng → <em>Tôi có tệp dữ liệu do cố vấn gửi</em> → chọn tệp → " +
+          "nhập mã PIN. Sau đó máy của em chỉ còn hồ sơ của riêng em.", "info")
+      ],
+      actions: [
+        { label: "Sao chép mã PIN", class: "btn-ghost", onClick: () => {
+            if (navigator.clipboard) navigator.clipboard.writeText(pin)
+              .then(() => ui.toast("Đã sao chép mã PIN.", "ok"))
+              .catch(() => ui.toast("Trình duyệt không cho sao chép tự động.", "err"));
+          } },
+        { label: "Xong", class: "btn-primary", onClick: (c) => { c(); CV.app.render(); } }
+      ]
+    });
+  }
+
   function students(host, params) {
     if (params.class) filterState.classId = params.class;
     if (params.loc) filterState.loc = params.loc;
@@ -354,6 +501,7 @@ CV.viewAdvisor = (function () {
     ], filterState.loc, (v) => { filterState.loc = v; draw(); }));
 
     const actions = el("div", { class: "row row-end" }, [
+      el("button", { class: "btn btn-ghost btn-sm", text: "Nhận cập nhật từ SV", onclick: receiveUpdate }),
       el("button", { class: "btn btn-ghost btn-sm", text: "Nhập CSV", onclick: doImport }),
       el("button", { class: "btn btn-ghost btn-sm", text: "Xuất CSV",
         onclick: () => CV.io.exportSummary(visible()) }),
@@ -437,6 +585,8 @@ CV.viewAdvisor = (function () {
       el("button", { class: "btn btn-ghost btn-sm", text: "← Danh sách",
         onclick: () => CV.app.go("advisor/students") }),
       el("div", { class: "row row-end" }, [
+        el("button", { class: "btn btn-primary btn-sm", text: "Gửi dữ liệu cho em này",
+          onclick: () => sendPackage(st) }),
         el("button", { class: "btn btn-ghost btn-sm", text: st.secret ? "Cấp lại PIN" : "Cấp PIN",
           onclick: () => issuePin(st) }),
         el("button", { class: "btn btn-ghost btn-sm", text: "Sửa hồ sơ",
@@ -473,7 +623,10 @@ CV.viewAdvisor = (function () {
      ["Ngày sinh", U.dmy(st.dob)],
      ["Giới tính", st.gender || "—"],
      ["Điện thoại", st.phone || "—"],
+     ["Zalo", st.zalo || "—"],
      ["Email", st.email || "—"],
+     ["Ghi chú liên hệ", st.contactNote || "—"],
+     ["Sinh viên cập nhật lúc", U.dmyhm(st.updateReceivedAt)],
      ["Chức vụ", st.cadreRole || "—"],
      ["Trạng thái", st.status || "Đang học"],
      ["Địa chỉ", st.address || "—"],
@@ -1330,6 +1483,7 @@ CV.viewAdvisor = (function () {
               validate: (v) => A.validate.email(v) },
             { name: "code", label: "Mã cán bộ" },
             { name: "phone", label: "Điện thoại", type: "tel", validate: (v) => A.validate.phone(v) },
+        { name: "zalo", label: "Zalo", type: "tel", validate: (v) => A.validate.phone(v) },
             { name: "pw", label: "Mật khẩu ban đầu", type: "password", required: true,
               validate: (v) => A.validate.password(v), full: true }
           ],

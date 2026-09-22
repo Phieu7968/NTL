@@ -91,7 +91,12 @@ CV.app = (function () {
   function render() {
     const who = CV.auth.current();
 
-    if (!S.all("advisors").length) { CV.viewAuth.renderSetup(() => render()); return; }
+    // Máy đã nạp gói dữ liệu sinh viên thì tuyệt đối không mở trình cài đặt
+    // lần đầu — nếu không, sinh viên sẽ tự tạo được tài khoản giảng viên.
+    if (!S.all("advisors").length && !CV.pack.isStudentDevice()) {
+      CV.viewAuth.renderSetup(() => render());
+      return;
+    }
     if (!who) { CV.viewAuth.renderRoles(() => render()); return; }
 
     CV.viewAuth.hideGate();
