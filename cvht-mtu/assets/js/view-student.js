@@ -359,8 +359,25 @@ CV.viewStudent = (function () {
       });
     } })] }));
 
-    /* Chiều ngược: gửi những gì em vừa sửa về cho cố vấn */
-    if (st.linkToken) {
+    /* Đồng bộ tự động nếu cố vấn đã bật */
+    if (CV.sync.isOn()) {
+      host.appendChild(ui.card("Đồng bộ với cố vấn", [
+        ui.note("Máy này nối thẳng với máy của giảng viên cố vấn. Em sửa số điện thoại, Zalo " +
+          "hay đặt lịch gặp là thầy cô nhận được, không phải gửi tệp.", "info"),
+        el("p", { class: "card-sub", text: CV.sync.status().text }),
+        el("button", { class: "btn btn-primary btn-sm", text: "Đồng bộ ngay", onclick: async (ev) => {
+          ev.target.disabled = true;
+          const r = await CV.sync.run();
+          ev.target.disabled = false;
+          if (!r.ok) { ui.toast("Chưa đồng bộ được: " + r.error, "err", 8000); return; }
+          ui.toast("Đã đồng bộ xong.", "ok");
+          CV.app.render();
+        } })
+      ]));
+    }
+
+    /* Chiều ngược khi không có máy chủ: gửi tệp cập nhật */
+    if (st.linkToken && !CV.sync.isOn()) {
       const daNhan = st.contactChangedAt && (!st.updateSentAt || st.updateSentAt < st.contactChangedAt);
       host.appendChild(ui.card("Gửi cập nhật cho cố vấn", [
         ui.note(daNhan

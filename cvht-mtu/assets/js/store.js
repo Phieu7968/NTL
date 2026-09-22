@@ -91,6 +91,8 @@ CV.store = (function () {
       // Đăng ký học phần. Số tín chỉ tối thiểu/tối đa mỗi học kỳ nằm trong Quy
       // định Đào tạo trình độ đại học; chưa có văn bản nên để 0 = không kiểm tra.
       registration: { minCredits: 0, maxCredits: 0 },
+      // Đồng bộ qua máy chủ. Để trống là chạy hoàn toàn trên máy này.
+      sync: { url: "", key: "", enabled: false, auto: true, lastAt: "", lastError: "" },
       studentLogin: "pin",   // "pin" = MSSV + mã PIN do CVHT cấp; "dob" = MSSV + ngày sinh
       theme: "auto",
       createdAt: new Date().toISOString()
@@ -156,6 +158,7 @@ CV.store = (function () {
     out.settings.duty = Object.assign({}, fresh.settings.duty, (raw.settings || {}).duty || {});
     out.settings.registration = Object.assign({}, fresh.settings.registration,
       (raw.settings || {}).registration || {});
+    out.settings.sync = Object.assign({}, fresh.settings.sync, (raw.settings || {}).sync || {});
     if (!Array.isArray(out.settings.duty.hoursBySize) || !out.settings.duty.hoursBySize.length) {
       out.settings.duty.hoursBySize = fresh.settings.duty.hoursBySize;
     }

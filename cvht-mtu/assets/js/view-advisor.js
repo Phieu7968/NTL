@@ -1499,6 +1499,71 @@ CV.viewAdvisor = (function () {
       } })] }));
     }
 
+    /* --- đồng bộ qua máy chủ --- */
+    const syncCfg = CV.sync.cfg();
+    const sf = ui.form([
+      { name: "url", label: "Địa chỉ máy chủ đồng bộ", value: syncCfg.url, full: true,
+        placeholder: "https://script.google.com/macros/s/..../exec",
+        hint: "Đường dẫn triển khai của Apps Script. Xem server/HUONG-DAN.md." },
+      { name: "key", label: "Khoá giảng viên", type: "password", value: syncCfg.key, full: true,
+        hint: "Khoá do hàm datKhoaGiangVien() trong Apps Script sinh ra." },
+      { name: "enabled", label: "Bật đồng bộ", type: "select", value: syncCfg.enabled ? "1" : "",
+        options: [{ value: "", label: "Tắt — chỉ chạy trên máy này" },
+                  { value: "1", label: "Bật — dùng chung với máy sinh viên" }] },
+      { name: "auto", label: "Tự đồng bộ nền", type: "select", value: syncCfg.auto ? "1" : "",
+        options: [{ value: "1", label: "Có — cứ 2 phút một lần" },
+                  { value: "", label: "Không — chỉ khi bấm nút" }] }
+    ]);
+    const syncStatus = el("p", { class: "card-sub", text: CV.sync.status().text });
+
+    host.appendChild(ui.card("Đồng bộ với máy sinh viên", [
+      ui.note("Chưa bật thì ứng dụng chạy hoàn toàn trên máy này, và trao đổi với sinh viên " +
+        "bằng cách gửi tệp. Bật lên thì sinh viên sửa số điện thoại hay đặt lịch là máy này " +
+        "nhận được, không phải gửi tệp qua lại nữa.", "info"),
+      sf.node,
+      syncStatus,
+      el("div", { class: "row" }, [
+        el("button", { class: "btn btn-ghost btn-sm", text: "Lưu thiết lập", onclick: () => {
+          const d = sf.validate(); if (!d) return;
+          const c = CV.sync.cfg();
+          c.url = String(d.url || "").trim();
+          c.key = String(d.key || "").trim();
+          c.enabled = d.enabled === "1";
+          c.auto = d.auto === "1";
+          c.lastError = "";
+          S.save("sync:config");
+          CV.sync.start();
+          ui.toast("Đã lưu thiết lập đồng bộ.", "ok");
+          CV.app.render();
+        } }),
+        el("button", { class: "btn btn-ghost btn-sm", text: "Kiểm tra kết nối", onclick: async (ev) => {
+          const d = sf.validate(); if (!d) return;
+          const c = CV.sync.cfg();
+          c.url = String(d.url || "").trim();
+          c.key = String(d.key || "").trim();
+          S.save("sync:config");
+          ev.target.disabled = true;
+          try {
+            const r = await CV.sync.ping();
+            ui.toast(`Kết nối tốt. Máy chủ đang giữ ${r.count} bản ghi.`, "ok", 5000);
+          } catch (e) {
+            ui.toast("Không kết nối được: " + e.message, "err", 8000);
+          }
+          ev.target.disabled = false;
+        } }),
+        el("button", { class: "btn btn-primary btn-sm", text: "Đồng bộ ngay", onclick: async (ev) => {
+          ev.target.disabled = true;
+          const r = await CV.sync.run({ full: true });
+          ev.target.disabled = false;
+          if (!r.ok) { ui.toast("Đồng bộ không xong: " + r.error, "err", 8000); return; }
+          ui.toast(`Đã gửi lên ${r.pushed || 0} bản ghi, nhận về ${r.applied || 0} thay đổi.`, "ok", 6000);
+          CV.app.render();
+        } })
+      ]),
+      ui.note("Dữ liệu nằm trong Google Sheet của chính thầy cô, không qua dịch vụ nào khác. " +
+        "Mã PIN của sinh viên <strong>không</strong> được gửi lên máy chủ.", "info")
+    ], { sub: "Google Apps Script — xem server/HUONG-DAN.md" }));
+
     /* --- dữ liệu --- */
     const use = S.usage();
     host.appendChild(ui.card("Dữ liệu và sao lưu", [

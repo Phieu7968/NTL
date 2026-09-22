@@ -217,7 +217,7 @@ Dữ liệu lưu trong `localStorage` của trình duyệt, **trên chính thi�
 - Sức chứa thường khoảng 5 MB, đủ cho vài nghìn sinh viên kèm điểm. Màn hình Cài đặt hiện
   dung lượng đang dùng và cảnh báo khi gần đầy.
 
-Cần dùng chung thật sự giữa nhiều máy thì phải có cơ sở dữ liệu trên máy chủ — xem mục 11.
+Cần dùng chung giữa nhiều máy thì bật đồng bộ — xem mục 8.
 
 ## 8. Hai chiều dữ liệu giữa máy giảng viên và máy sinh viên
 
@@ -257,10 +257,32 @@ Cố vấn vào Sinh viên → **Nhận cập nhật từ SV** → chọn tệp.
 chiếu từng mục: đang lưu gì, sinh viên gửi gì**. Cố vấn xem rồi mới bấm ghi. Nhận lại lần hai
 cùng một tệp thì báo "không có gì mới".
 
-### Chưa làm được: đồng bộ tự động
+### Tự động: đồng bộ qua máy chủ
 
-Hai chiều ở trên là **thủ công**: phải gửi tệp qua lại. Muốn sinh viên sửa số điện thoại là
-máy thầy cô thấy ngay, bắt buộc phải có **một nơi lưu chung trên máy chủ** — xem mục 11.
+Hai cách trên là **thủ công**, dùng được ngay và không cần gì thêm. Muốn sinh viên sửa số
+điện thoại là máy thầy cô thấy ngay thì bật đồng bộ: **Cài đặt → Đồng bộ với máy sinh viên**.
+
+Máy chủ là một đoạn Google Apps Script chạy trên Google Sheet của chính thầy cô — không
+tốn tiền, không qua dịch vụ nào khác. Cách dựng xem `server/HUONG-DAN.md`, mất chừng 10 phút.
+
+Bật xong thì gói dữ liệu gửi cho sinh viên **tự mang theo địa chỉ máy chủ**, các em không
+phải gõ gì. Gói không bao giờ chứa khoá giảng viên.
+
+Phân quyền do **máy chủ** kiểm, không dựa vào giao diện:
+
+| | Đọc được | Ghi được |
+|---|---|---|
+| Máy giảng viên (có khoá) | Toàn bộ | Toàn bộ |
+| Máy sinh viên (mã số + mã liên kết) | Chỉ dữ liệu của chính em ấy, cộng danh sách lớp và học kỳ | Chỉ điện thoại, Zalo, email, địa chỉ, ghi chú liên hệ của chính em ấy và lịch hẹn do em ấy đặt |
+
+Đã thử bằng phép thử tự động: sinh viên dùng mã liên kết của mình để đòi đọc hồ sơ bạn khác
+thì bị từ chối; đoán khoá giảng viên thì bị từ chối; gửi kèm yêu cầu tự sửa họ tên hay điểm
+của chính mình thì máy chủ chỉ ghi mấy trường liên hệ, phần còn lại bỏ qua.
+
+**Mã PIN của sinh viên không bao giờ được gửi lên máy chủ.** Nó chỉ nằm trên máy đã nhận gói.
+
+Khi trùng nhau, bản ghi nào sửa sau thì thắng. Máy nào đang có bản mới hơn thì giữ nguyên,
+không để máy chủ ghi đè mất việc vừa làm.
 
 ## 9. Bảo mật — làm được gì và chưa làm được gì
 
@@ -368,10 +390,15 @@ cvht-mtu/
 │       ├── io.js           Đọc ghi CSV và .xlsx, sao lưu JSON, in báo cáo
 │       ├── ui.js           Thẻ 3D, hộp thoại, biểu mẫu, bảng, thông báo
 │       ├── pack.js         Gói dữ liệu riêng từng sinh viên, mã hoá, phiếu cập nhật chiều về
+│       ├── sync.js         Đồng bộ hai chiều qua máy chủ, hợp nhất theo thời điểm sửa
 │       ├── view-auth.js    Cài đặt lần đầu, chọn vai trò, đăng nhập, nạp gói dữ liệu
 │       ├── view-advisor.js 12 màn hình của giảng viên cố vấn
 │       ├── view-student.js 4 màn hình của cổng sinh viên
 │       └── app.js          Định tuyến, khung điều hướng, khởi động, đăng ký service worker
+├── server/
+│   ├── cvht-sync.gs        Máy chủ đồng bộ chạy bằng Google Apps Script
+│   ├── mock-sync.js        Bản chạy thử trên máy mình, cùng giao thức
+│   └── HUONG-DAN.md        Các bước dựng máy chủ
 └── scripts/make-icons.cjs  Sinh lại bộ icon PNG
 ```
 

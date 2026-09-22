@@ -124,9 +124,15 @@ CV.pack = (function () {
         _version: 1,
         issuedAt: new Date().toISOString(),
         linkToken: token,
+        // Địa chỉ máy chủ đồng bộ, để máy sinh viên khỏi phải gõ tay.
+        // Không kèm khoá giảng viên: máy sinh viên xác thực bằng mã liên kết.
+        sync: settings.sync && settings.sync.url
+          ? { url: settings.sync.url, enabled: !!settings.sync.enabled } : null,
         student: Object.assign({}, st, { linkToken: token }),
         klass: klass ? pickFields(klass, ["id", "code", "name", "course", "major", "advisorId", "gvcnId"]) : null,
         advisors, semesters, scores, conduct, termResults, registrations, appointments, notes,
+        // Chỉ những thiết lập cần cho việc hiển thị. Cố ý không có nhánh
+        // sync (chứa khoá giảng viên) và không có duty/registration.
         settings: pickFields(settings, ["schoolName", "schoolShort", "facultyName",
           "gradeScale", "conductScale", "warning", "studentLogin", "retakeRule", "theme"])
       }
@@ -321,6 +327,10 @@ CV.pack = (function () {
 
     Object.assign(db.settings, pkg.settings || {});
     db.settings.deviceMode = "student";
+    if (pkg.sync && pkg.sync.url) {
+      db.settings.sync = { url: pkg.sync.url, key: "", enabled: !!pkg.sync.enabled,
+        auto: true, lastAt: "", lastError: "" };
+    }
     db.settings.packageOf = pkg.student.mssv;
     db.settings.installedAt = new Date().toISOString();
 
@@ -365,6 +375,8 @@ CV.pack = (function () {
     (pkg.advisors || []).forEach((a) => {
       if (a.secret) problems.push(`Gói chứa mật khẩu của ${a.name}.`);
     });
+    if (pkg.settings && pkg.settings.sync) problems.push("Gói chứa khoá máy chủ của giảng viên.");
+    if (pkg.sync && pkg.sync.key) problems.push("Gói chứa khoá máy chủ của giảng viên.");
     if (Array.isArray(pkg.students) || pkg.classes) {
       problems.push("Gói chứa danh sách lớp hoặc danh sách sinh viên.");
     }

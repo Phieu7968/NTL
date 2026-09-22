@@ -156,6 +156,23 @@ CV.app = (function () {
           buildTopActions(who);
         } }));
     }
+    if (CV.sync.isOn()) {
+      const st = CV.sync.status();
+      const btn = el("button", {
+        class: `btn btn-sm ${st.key === "err" ? "btn-danger" : "btn-ghost"}`,
+        title: st.text, text: st.key === "err" ? "Đồng bộ lỗi" : "Đồng bộ"
+      });
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Đang đồng bộ…";
+        const r = await CV.sync.run();
+        btn.disabled = false;
+        if (!r.ok) ui.toast("Đồng bộ không xong: " + r.error, "err", 7000);
+        else ui.toast(`Đã đồng bộ. Nhận về ${r.applied || 0} thay đổi.`, "ok");
+        render();
+      });
+      host.appendChild(btn);
+    }
     if (who.kind === "advisor") {
       host.appendChild(el("button", { class: "btn btn-primary btn-sm only-desktop", text: "+ Sinh viên",
         onclick: () => go("advisor/students") }));
@@ -213,6 +230,9 @@ CV.app = (function () {
 
     document.getElementById("splash").remove();
     render();
+
+    // Đồng bộ ngầm nếu đã bật
+    try { CV.sync.start(); } catch (e) { console.warn("Không khởi động được đồng bộ:", e); }
 
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => {
