@@ -1,0 +1,283 @@
+rules_version = '2';
+
+/* =====================================================================
+   QUY TẮC BẢO MẬT FIRESTORE — HỆ THỐNG CỐ VẤN HỌC TẬP MTU
+   ---------------------------------------------------------------------
+   Nguyên tắc: không tin máy khách. Mọi quyền đều xét ở đây, trên máy chủ.
+   Giao diện có ẩn nút hay không là chuyện riêng của giao diện.
+
+   Danh tính: đăng nhập bằng tài khoản thư điện tử của Trường.
+
+   Sinh viên được nhận ra bằng cách đối chiếu địa chỉ thư đang đăng nhập
+   với trường authEmail trên hồ sơ — cố vấn đã nhập sẵn khi tải danh sách
+   lớp lên. Không cần phát mã liên kết: chính dòng danh sách lớp là bằng
+   chứng. Không phụ thuộc vào việc Trường đặt địa chỉ thư theo kiểu nào.
+
+   Bốn vai trò, theo tài liệu phân quyền:
+     owner      — tác giả sáng lập, toàn quyền
+     khoaAdmin  — quản trị cấp Khoa, chỉ trong Khoa mình
+     advisor    — cố vấn học tập / giáo viên chủ nhiệm, chỉ lớp mình phụ trách
+     pending    — vừa đăng ký, chưa được duyệt, chưa có quyền gì
+   Sinh viên không có tài liệu trong /advisors.
+   ===================================================================== */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ================= nền ================= */
+
+    function signedIn() { return request.auth != null; }
+    function email()    { return request.auth.token.email; }
+
+    // Chỉ chấp nhận thư điện tử của Trường, và phải đã xác thực.
+    // Đổi tên miền thì sửa đúng một chỗ này.
+    function schoolEmail() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && email().matches('^[^@]+@([a-z0-9-]+[.])*mtu[.]edu[.]vn$');
+    }
+
+    /* ---- phía giảng viên ---- */
+
+    function advisorPath() {
+      return /databases/$(database)/documents/advisors/$(request.auth.uid);
+    }
+    function isAdvisor() { return signedIn() && exists(advisorPath()); }
+    function me()        { return get(advisorPath()).data; }
+
+    function isOwner() { return isAdvisor() && me().role == 'owner'; }
+
+    function isKhoaAdmin(khoaId) {
+      return isAdvisor() && me().role == 'khoaAdmin' && me().khoaId == khoaId;
+    }
+
+    // Phụ trách lớp: cố vấn học tập hoặc giáo viên chủ nhiệm.
+    // Quyết định 758 Điều 2.3: một người có thể làm CVHT lớp này, GVCN lớp kia.
+    function teaches(classId) {
+      return isAdvisor()
+        && me().role in ['advisor', 'khoaAdmin', 'owner']
+        && classId in me().classIds;
+    }
+
+    function classPath(classId) {
+      return /databases/$(database)/documents/classes/$(classId);
+    }
+    function khoaOfClass(classId) {
+      return exists(classPath(classId)) ? get(classPath(classId)).data.khoaId : '';
+    }
+
+    // Xem được lớp: người phụ trách, quản trị Khoa chứa lớp, hoặc owner.
+    function canSeeClass(classId) {
+      return teaches(classId) || isOwner() || isKhoaAdmin(khoaOfClass(classId));
+    }
+
+    // Sửa được dữ liệu học vụ của lớp: chỉ người trực tiếp phụ trách, và owner.
+    // Quản trị Khoa xem được nhưng không nhập điểm thay cố vấn.
+    function canEditClass(classId) {
+      return teaches(classId) || isOwner();
+    }
+
+    /* ---- phía sinh viên ---- */
+
+    // Bảng nối tài khoản ↔ mã số sinh viên. Giữ sẵn classId để chỉ tốn một
+    // lượt đọc khi cần biết sinh viên này thuộc lớp nào.
+    function linkPath() {
+      return /databases/$(database)/documents/links/$(request.auth.uid);
+    }
+    function isStudent() { return signedIn() && exists(linkPath()); }
+    function myLink()    { return get(linkPath()).data; }
+    function isStudentOfClass(classId) {
+      return isStudent() && myLink().classId == classId;
+    }
+
+    // Hồ sơ đang xét có phải của chính người đang đăng nhập không.
+    // Không tốn lượt đọc nào: quy tắc đọc thẳng tài liệu nó đang xét.
+    function isSelf(doc) {
+      return signedIn() && doc.authEmail == email();
+    }
+
+    /* ---- chặn căn cước công dân ---- */
+    // Phần nhập Excel đã cố tình bỏ qua cột này. Đây là lớp chặn thứ hai,
+    // để một lỗi lập trình về sau cũng không đưa được nó vào.
+    function noNationalId() {
+      return !request.resource.data.keys().hasAny(['cccd', 'soCccd', 'cmnd', 'canCuoc']);
+    }
+
+    /* ================= hồ sơ giảng viên ================= */
+
+    match /advisors/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdvisor());
+
+      // Tự đăng ký được, nhưng chỉ vào trạng thái chờ duyệt, không kèm quyền nào.
+      allow create: if request.auth.uid == uid
+        && schoolEmail()
+        && request.resource.data.role == 'pending'
+        && request.resource.data.classIds.size() == 0
+        && request.resource.data.email == email();
+
+      allow update: if (
+          // Tự sửa thông tin liên hệ — không tự nâng quyền, không tự nhận lớp.
+          request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'title', 'phone', 'office', 'updatedAt'])
+        ) || isOwner() || (
+          // Quản trị Khoa duyệt và phân lớp trong Khoa mình, nhưng không
+          // tạo ra owner và không chuyển người sang Khoa khác.
+          isKhoaAdmin(resource.data.khoaId)
+          && request.resource.data.role != 'owner'
+          && request.resource.data.khoaId == resource.data.khoaId
+        );
+
+      allow delete: if isOwner();
+    }
+
+    /* ================= nối tài khoản sinh viên ================= */
+
+    match /links/{uid} {
+      allow read: if request.auth.uid == uid || isAdvisor();
+
+      // Chỉ nối được với dòng danh sách lớp mang đúng địa chỉ thư của mình.
+      // Quy tắc đọc được hồ sơ sinh viên dù người gọi chưa có quyền đọc nó —
+      // quy tắc chạy trên máy chủ, không bị chặn bởi quyền đọc.
+      allow create: if request.auth.uid == uid
+        && schoolEmail()
+        && exists(/databases/$(database)/documents/students/$(request.resource.data.mssv))
+        && get(/databases/$(database)/documents/students/$(request.resource.data.mssv)).data.authEmail == email()
+        && get(/databases/$(database)/documents/students/$(request.resource.data.mssv)).data.classId == request.resource.data.classId;
+
+      // Đã nối với mã số nào thì vĩnh viễn thế. Cố vấn xoá được khi cần nối lại.
+      allow update: if false;
+      allow delete: if isAdvisor();
+    }
+
+    /* ================= khoa và lớp ================= */
+
+    match /khoa/{khoaId} {
+      allow read:  if isAdvisor() || isStudent();
+      allow write: if isOwner();
+    }
+
+    match /classes/{classId} {
+      allow read: if canSeeClass(classId) || isStudentOfClass(classId);
+
+      allow create: if isOwner() || isKhoaAdmin(request.resource.data.khoaId);
+      allow update: if canEditClass(classId) || isKhoaAdmin(resource.data.khoaId);
+      allow delete: if isOwner() || isKhoaAdmin(resource.data.khoaId);
+
+      /* sổ họp lớp — sinh viên trong lớp xem được, không sửa được */
+      match /meetings/{meetingId} {
+        allow read:  if canSeeClass(classId) || isStudentOfClass(classId);
+        allow write: if canEditClass(classId);
+      }
+
+      /* điểm danh */
+      match /attendance/{sessionId} {
+        allow read: if canSeeClass(classId) || isStudentOfClass(classId);
+        allow create, delete: if canEditClass(classId);
+        allow update: if canEditClass(classId) || (
+          // Sinh viên tự điểm danh: chỉ chạm vào danh sách có mặt,
+          // không đụng tới ngày giờ, nội dung hay trạng thái buổi họp.
+          isStudentOfClass(classId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['present', 'updatedAt'])
+        );
+      }
+    }
+
+    /* ================= hồ sơ sinh viên ================= */
+
+    match /students/{mssv} {
+
+      allow read: if canSeeClass(resource.data.classId) || isSelf(resource.data);
+
+      allow create: if canEditClass(request.resource.data.classId)
+        && noNationalId()
+        && request.resource.data.mssv == mssv;
+
+      allow update: if (
+          canEditClass(resource.data.classId)
+          && noNationalId()
+          // Không đổi mã số sinh viên — đó là khoá của tài liệu.
+          && request.resource.data.mssv == resource.data.mssv
+        ) || (
+          // Sinh viên sửa được đúng thông tin liên hệ của mình, không gì khác.
+          // Đây là điều bản Apps Script đang làm bằng mã; nay cơ sở dữ liệu ép.
+          isSelf(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['phone', 'zalo', 'email', 'address', 'contactNote', 'updatedAt'])
+        );
+
+      allow delete: if canEditClass(resource.data.classId);
+
+      /* điểm từng học kỳ — sinh viên xem được điểm mình, không sửa */
+      match /terms/{termId} {
+        function stu() {
+          return get(/databases/$(database)/documents/students/$(mssv)).data;
+        }
+        allow read:  if canSeeClass(stu().classId) || isSelf(stu());
+        allow write: if canEditClass(stu().classId);
+      }
+
+      /* ghi chú riêng của cố vấn — sinh viên KHÔNG đọc được.
+         Quy tắc của bộ sưu tập con độc lập với tài liệu cha, nên dù sinh viên
+         đọc được hồ sơ của mình, phần này vẫn kín với em ấy. */
+      match /private/{docId} {
+        allow read, write: if canEditClass(
+          get(/databases/$(database)/documents/students/$(mssv)).data.classId
+        );
+      }
+    }
+
+    /* ================= hộp thư tư vấn hai chiều ================= */
+
+    match /consultations/{id} {
+      allow read: if canSeeClass(resource.data.classId)
+        || (signedIn() && resource.data.studentEmail == email());
+
+      allow create: if (
+          // Sinh viên gửi câu hỏi, chỉ được đứng tên chính mình.
+          isStudent()
+          && request.resource.data.studentEmail == email()
+          && request.resource.data.classId == myLink().classId
+        ) || canEditClass(request.resource.data.classId);
+
+      // Cố vấn trả lời và đóng. Lời đã gửi thì không sửa lại được.
+      allow update: if canEditClass(resource.data.classId);
+      allow delete: if isOwner();
+    }
+
+    /* ================= nhật ký hoạt động ================= */
+
+    match /audit/{id} {
+      // Chỉ ghi thêm. Không ai sửa, không ai xoá — kể cả người viết, kể cả owner.
+      // Dấu thời gian phải là giờ máy chủ, máy khách không khai man được.
+      allow create: if signedIn()
+        && request.resource.data.email == email()
+        && request.resource.data.at == request.time;
+      allow read: if isOwner() || isKhoaAdmin(resource.data.khoaId);
+      allow update, delete: if false;
+    }
+
+    /* ================= số liệu tổng hợp ================= */
+    /* Thống kê cấp Khoa và toàn trường đọc từ đây, thay vì quét qua hàng
+       nghìn hồ sơ sinh viên. Mỗi lớp một tài liệu, mỗi Khoa một tài liệu. */
+
+    match /class_stats/{classId} {
+      allow read:  if canSeeClass(classId);
+      allow write: if canEditClass(classId);
+    }
+    match /khoa_stats/{khoaId} {
+      allow read:  if isAdvisor();
+      allow write: if isOwner() || isKhoaAdmin(khoaId);
+    }
+
+    /* ================= mặc định ================= */
+    /* Lưu ý: khối này KHÔNG thu hẹp những gì các khối trên đã mở.
+       Firestore cộng dồn quyền chứ không đè lên nhau — chỉ cần một quy tắc
+       cho phép là cho phép. Khối này chỉ đóng những đường chưa ai nhắc tới. */
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

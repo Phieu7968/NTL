@@ -2,6 +2,11 @@
 
 > Lập ngày 04/10/2026. Trả lời yêu cầu: một cố vấn cài trên cả điện thoại lẫn máy tính,
 > hai máy luôn khớp nhau; phía sinh viên cũng cập nhật nhanh.
+>
+> **Sửa lần 1 — 04/10/2026**, sau khi Thầy trả lời ba câu hỏi: Trường có cấp thư điện tử
+> cho sinh viên; dùng lại dự án `cvht-mtu`; phạm vi là **nhiều cố vấn, nhiều Khoa, toàn
+> trường**. Mục 3, 5, 7 và 9 đã viết lại theo đó. Quy tắc bảo mật đầy đủ nay nằm ở
+> `server/firestore.rules`.
 
 ---
 
@@ -76,15 +81,23 @@ hiệu từ BroadcastChannel sang `onSnapshot` của Firestore.
 
 ## 3. Mô hình dữ liệu
 
+Phạm vi toàn trường nên phải có cấp Khoa, và phải có số liệu tổng hợp sẵn.
+
 ```
-/advisors/{uid}
-    name, title, email, role: "owner" | "advisor", classIds: [...], active
+/khoa/{khoaId}
+    code, name, dean, active
+
+/advisors/{uid}                         ◄── khoá là uid của tài khoản đăng nhập
+    name, title, email, khoaId,
+    role: "owner" | "khoaAdmin" | "advisor" | "pending",
+    classIds: [...], active
 
 /classes/{classId}
-    code, name, majorId, advisorUid, gvcnUid, cohort, active
+    code, name, khoaId, majorId, advisorUid, gvcnUid, cohort, active
 
-/students/{mssv}                        ◄── khoá là MSSV, không phải id nội bộ
-    mssv, fullName, dob, gender, classId, authUid,
+/students/{mssv}                        ◄── khoá là MSSV
+    mssv, fullName, dob, gender, classId,
+    authEmail,                          ◄── thư điện tử Trường cấp; đây là thứ nhận ra em ấy
     phone, zalo, email, address, contactNote
     (KHÔNG có CCCD — xem mục 4.3)
 
@@ -94,109 +107,161 @@ hiệu từ BroadcastChannel sang `onSnapshot` của Firestore.
 /classes/{classId}/meetings/{id}        sổ họp lớp
 /classes/{classId}/attendance/{id}      điểm danh
 /consultations/{id}                     hộp thư tư vấn hai chiều
-/links/{uid}                            nối tài khoản ↔ MSSV
+/links/{uid}                            nối tài khoản ↔ MSSV (xem mục 5)
 /audit/{id}                             nhật ký, chỉ ghi thêm, không sửa không xoá
+
+/class_stats/{classId}                  ◄── số liệu tổng hợp đã tính sẵn
+/khoa_stats/{khoaId}
 ```
 
 Ghi chú riêng của cố vấn nằm ở **bộ sưu tập con** `private/`. Trong Firestore, quy tắc của
 bộ sưu tập con độc lập với tài liệu cha — sinh viên đọc được hồ sơ của mình nhưng vẫn không
 chạm tới `private/`. Đúng yêu cầu trong tài liệu phân quyền.
 
----
+### 3.1. Bốn vai trò
+
+| Vai trò | Thấy gì | Sửa được gì |
+|---|---|---|
+| `owner` | Toàn trường | Mọi thứ, kể cả phân quyền |
+| `khoaAdmin` | Toàn bộ Khoa mình | Duyệt và phân lớp cho cố vấn trong Khoa. **Không** nhập điểm thay cố vấn, **không** tạo ra owner, **không** chuyển người sang Khoa khác |
+| `advisor` | Lớp mình phụ trách | Dữ liệu học vụ của lớp mình |
+| `pending` | Không gì cả | Không gì cả — vừa đăng ký, đang chờ duyệt |
+
+Vai trò `khoaAdmin` là thứ mới, phát sinh từ câu trả lời thứ 3. Với trăm cố vấn thì một
+mình Thầy không thể ngồi phân lớp cho từng người; phải uỷ quyền xuống Khoa. Nếu Thầy không
+muốn có vai trò này thì nói, tôi bỏ đi — nhưng lúc đó mọi việc phân quyền đổ hết về Thầy.
+
+### 3.2. Vì sao phải có số liệu tổng hợp
+
+Thống kê toàn trường mà quét qua hàng nghìn hồ sơ sinh viên thì vừa chậm vừa tốn. Nên mỗi
+lớp giữ sẵn một tài liệu `class_stats` (sĩ số, phổ điểm, số em cảnh báo), cập nhật ngay lúc
+nhập điểm. Thống kê Khoa cộng từ vài chục tài liệu đó, thống kê trường cộng từ vài chục
+tài liệu Khoa. Đọc chục tài liệu thay vì mấy nghìn.
 
 ## 4. Quy tắc bảo mật
 
-Đây là phần thay thế toàn bộ `allow read: if true`.
+**Bộ quy tắc đầy đủ đã viết xong: `server/firestore.rules` (283 dòng).** Dưới đây là những
+chỗ đáng chú ý nhất; phần còn lại xem thẳng trong tệp.
 
-### 4.1. Hàm nền
-
-```
-function signedIn()      { return request.auth != null; }
-function myMssv()        { return get(/databases/$(database)/documents/links/$(request.auth.uid)).data.mssv; }
-function isAdvisor()     { return exists(/databases/$(database)/documents/advisors/$(request.auth.uid)); }
-function advisorDoc()    { return get(/databases/$(database)/documents/advisors/$(request.auth.uid)).data; }
-function isOwner()       { return isAdvisor() && advisorDoc().role == 'owner'; }
-function teaches(classId){ return isAdvisor() && (isOwner() || classId in advisorDoc().classIds); }
-```
-
-### 4.2. Hồ sơ sinh viên
+### 4.1. Sinh viên chỉ sửa được thông tin liên hệ
 
 ```
-match /students/{mssv} {
-  allow read:   if isOwner()
-                || teaches(resource.data.classId)
-                || (signedIn() && myMssv() == mssv);
-
-  allow create, delete: if teaches(request.resource.data.classId);
-
-  allow update: if teaches(resource.data.classId)
-                || (signedIn() && myMssv() == mssv
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['phone','zalo','email','address','contactNote','updatedAt']));
-
-  match /private/{doc} {
-    allow read, write: if teaches(get(/databases/$(database)/documents/students/$(mssv)).data.classId);
-  }
-}
+allow update: if ( canEditClass(resource.data.classId) && noNationalId()
+                   && request.resource.data.mssv == resource.data.mssv )
+           || ( isSelf(resource.data)
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['phone','zalo','email','address','contactNote','updatedAt']) );
 ```
 
 Dòng `hasOnly([...])` là điều bản Apps Script đang làm bằng mã, nay **chính cơ sở dữ liệu
-ép buộc**. Sinh viên sửa được đúng 5 trường liên hệ; đụng vào GPA hay lớp là Firestore từ chối,
-không cần ứng dụng kiểm.
+ép buộc**. Sinh viên đụng vào GPA hay lớp là Firestore từ chối, không cần ứng dụng kiểm.
 
-### 4.3. Chặn CCCD ngay ở tầng cơ sở dữ liệu
-
-```
-allow create, update: if !request.resource.data.keys().hasAny(['cccd','soCccd','cmnd']);
-```
-
-Hiện nay phần nhập Excel nhận ra cột CCCD rồi cố tình bỏ qua. Thêm dòng này thì dù có lỗi
-lập trình nào về sau, CCCD cũng không vào được cơ sở dữ liệu.
-
-### 4.4. Nhật ký không sửa được
+### 4.2. Ghi chú riêng của cố vấn
 
 ```
-match /audit/{id} {
-  allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
-  allow read:   if isOwner();
-  allow update, delete: if false;
+match /private/{docId} {
+  allow read, write: if canEditClass(
+    get(/databases/$(database)/documents/students/$(mssv)).data.classId
+  );
 }
 ```
 
-Chỉ ghi thêm, không ai sửa, không ai xoá — kể cả người viết. Mạnh hơn hẳn cách băm chuỗi
-phía máy khách mà tài liệu phân quyền đang đề xuất, vì nó do máy chủ ép.
+Quy tắc bộ sưu tập con độc lập với tài liệu cha. Sinh viên đọc được hồ sơ của mình mà vẫn
+không chạm tới phần này.
 
----
-
-## 5. Tài khoản sinh viên
-
-Chỗ vướng thật sự: 42 sinh viên một lớp thì mở tài khoản kiểu gì.
-
-**Cách chọn: sinh viên tự mở, bằng mã liên kết cố vấn phát.** Tận dụng luôn `linkToken` đã
-có sẵn trong bản hiện tại.
-
-1. Cố vấn đồng bộ lớp lên → mỗi sinh viên có một `linkToken` riêng.
-2. Cố vấn phát mã cho từng em (in kèm danh sách, hoặc gửi Zalo riêng).
-3. Sinh viên mở ứng dụng, nhập **MSSV + mã liên kết**, tự đặt mật khẩu.
-4. Ứng dụng tạo tài khoản rồi ghi `/links/{uid} = { mssv }`. Quy tắc kiểm:
+### 4.3. Chặn căn cước công dân ngay ở tầng cơ sở dữ liệu
 
 ```
-match /links/{uid} {
-  allow create: if request.auth.uid == uid
-    && get(/databases/$(database)/documents/students/$(request.resource.data.mssv)).data.linkToken
-       == request.resource.data.token;
-  allow read:   if request.auth.uid == uid;
-  allow update, delete: if false;
+function noNationalId() {
+  return !request.resource.data.keys().hasAny(['cccd','soCccd','cmnd','canCuoc']);
 }
 ```
 
-Quy tắc đọc được `linkToken` dù sinh viên không đọc được trường đó — quy tắc chạy trên máy
-chủ, không bị giới hạn bởi quyền đọc. Mã vẫn kín. `allow update: if false` nghĩa là một tài
-khoản đã nối với MSSV nào thì vĩnh viễn thế, không đổi sang em khác được.
+Phần nhập Excel đã cố tình bỏ qua cột CCCD. Đây là lớp chặn thứ hai: dù về sau có lỗi lập
+trình nào, nó cũng không vào được.
 
-Thầy không phải giữ mật khẩu của ai. Em nào quên thì Thầy phát lại mã liên kết mới.
+### 4.4. Nhật ký không ai sửa được
 
----
+```
+allow create: if signedIn()
+  && request.resource.data.email == email()
+  && request.resource.data.at == request.time;
+allow update, delete: if false;
+```
+
+Chỉ ghi thêm. Không ai sửa, không ai xoá — kể cả người viết, kể cả `owner`. Dấu thời gian
+bắt buộc là giờ máy chủ nên máy khách không khai man được. Mạnh hơn hẳn cách băm chuỗi phía
+máy khách mà tài liệu phân quyền đang đề xuất, vì nó do máy chủ ép.
+
+### 4.5. Không tự nâng quyền cho mình
+
+```
+allow update: if ( request.auth.uid == uid
+                   && ...affectedKeys().hasOnly(['name','title','phone','office','updatedAt']) )
+           || isOwner()
+           || ( isKhoaAdmin(resource.data.khoaId)
+                && request.resource.data.role != 'owner'
+                && request.resource.data.khoaId == resource.data.khoaId );
+```
+
+Người dùng tự sửa được tên và số điện thoại của mình, nhưng `role` và `classIds` thì không.
+Quản trị Khoa duyệt được người trong Khoa mình, nhưng không phong ai làm `owner` và không
+kéo người từ Khoa khác sang.
+
+### 4.6. Một hiểu nhầm cần tránh
+
+Khối cuối tệp:
+
+```
+match /{document=**} {
+  allow read, write: if false;
+}
+```
+
+Khối này **không** thu hẹp những gì các khối trên đã mở. Firestore cộng dồn quyền chứ không
+đè lên nhau — chỉ cần một quy tắc cho phép là cho phép. Nó chỉ đóng những đường chưa khối
+nào nhắc tới. Bộ quy tắc hiện trên Firebase Console của Thầy có đúng hiểu nhầm này: khối
+cuối ghi "Khóa toàn bộ các collection nhạy cảm còn lại" nhưng thực tế không khoá được gì
+mà các khối trên đã mở.
+
+## 5. Tài khoản sinh viên — đơn giản hẳn
+
+Trường có cấp thư điện tử cho sinh viên, nên **toàn bộ phần phát mã liên kết trong bản
+thiết kế đầu bỏ đi được.** Không phải phát mã, không phải giữ mật khẩu hộ ai, không phải
+lo em nào quên.
+
+**Đăng nhập bằng tài khoản thư điện tử của Trường.** Cả cố vấn lẫn sinh viên.
+
+Cách nhận ra sinh viên:
+
+1. Cố vấn tải danh sách lớp lên, trong đó **có cột thư điện tử của Trường cấp** cho từng em.
+   Địa chỉ đó lưu vào trường `authEmail` trên hồ sơ.
+2. Sinh viên mở ứng dụng, bấm đăng nhập bằng tài khoản Trường. Không đặt mật khẩu mới,
+   không nhập mã gì.
+3. Quy tắc đối chiếu địa chỉ đang đăng nhập với `authEmail` trên hồ sơ. Khớp thì em ấy
+   thấy hồ sơ của mình, không khớp thì không thấy gì.
+
+Chính dòng danh sách lớp là bằng chứng. Cố vấn đã xác nhận "em này tên này, thư này, lớp
+này" khi tải lên rồi.
+
+Cách này **không phụ thuộc Trường đặt địa chỉ thư theo kiểu nào** — dù là `2250001@mtu.edu.vn`
+hay `nguyenvana.xd26@mtu.edu.vn` đều chạy. Quy tắc so sánh nguyên chuỗi chứ không cố đoán
+MSSV từ địa chỉ.
+
+Bảng `/links/{uid}` vẫn giữ, nhưng chỉ làm một việc: ghi nhớ "tài khoản này ứng với MSSV nào,
+lớp nào", để lúc cần biết sinh viên thuộc lớp nào thì đọc một lượt thay vì hai. Tạo ra nó
+cũng phải qua kiểm tra `authEmail`, và `allow update: if false` nên đã nối rồi thì không
+chuyển sang em khác được.
+
+Phía giảng viên, cố vấn tự đăng ký rồi vào trạng thái `pending`; `khoaAdmin` của Khoa hoặc
+`owner` duyệt và gán lớp. Quy tắc chặn việc tự nâng quyền cho mình:
+
+```
+allow create: if request.auth.uid == uid
+  && schoolEmail()
+  && request.resource.data.role == 'pending'
+  && request.resource.data.classIds.size() == 0;
+```
 
 ## 6. Chạy khi không có mạng
 
@@ -220,17 +285,48 @@ không ra được gstatic; ước chừng 500 KB, sẽ đo chính xác khi làm
 
 ---
 
-## 7. Chi phí
+## 7. Chi phí — chỗ này đổi nhiều nhất
+
+Bản thiết kế đầu tính cho một cố vấn và kết luận gói Spark miễn phí dư sức. **Toàn trường
+thì không còn đúng nữa.**
 
 Gói Spark miễn phí: 50.000 lượt đọc/ngày, 20.000 lượt ghi/ngày, 1 GiB lưu trữ.
 
-Một cố vấn với 200 sinh viên: mở ứng dụng 10 lần/ngày ≈ 2.000 lượt đọc, mà còn thấp hơn nữa
-vì bộ nhớ đệm chỉ lấy phần thay đổi. Nhập điểm cả lớp một học kỳ ≈ 42 lượt ghi.
+| Quy mô | Ước tính lượt đọc/ngày | Gói |
+|---|---|---|
+| Một mình Thầy, ~200 sinh viên | 2.000–5.000 | Spark, thoải mái |
+| Khoa Xây dựng, ~8 cố vấn, ~800 sinh viên | 10.000–20.000 | Spark, vẫn trong ngưỡng |
+| Toàn trường, ~100 cố vấn, vài nghìn sinh viên | 50.000–150.000 | **Phải lên Blaze** |
 
-**Dư sức trong gói miễn phí.** Nếu sau này mở ra toàn trường 28 ngành thì phải lên gói Blaze
-trả theo dùng — tôi nói trước để Thầy khỏi bất ngờ.
+Đây là ước tính, chưa đo thật — sẽ biết chính xác sau khi chạy thử một Khoa. Nhưng hướng
+thì rõ: **đến quy mô toàn trường là phải lên gói Blaze trả theo mức dùng.**
 
----
+Hai điều Thầy cần biết trước:
+
+1. **Blaze vẫn giữ nguyên hạn mức miễn phí hằng ngày**, chỉ tính tiền phần vượt, với đơn
+   giá tính trên mỗi trăm nghìn lượt. Ở quy mô này nhiều khả năng chỉ vài đô la một tháng.
+   Tôi **không nêu con số cụ thể vì chưa tra lại bảng giá hiện hành** — sẽ tra và báo Thầy
+   trước khi cần quyết.
+2. **Blaze bắt buộc gắn thẻ thanh toán.** Đây là việc của Trường chứ không phải việc kỹ
+   thuật: ai đứng tên, ai trả, duyệt thế nào. Nên biết sớm để xin chủ trương.
+
+Vì vậy tôi đề nghị **triển khai theo bậc**: làm xong, chạy thử trong Khoa Xây dựng trên gói
+Spark miễn phí. Có số liệu dùng thật rồi mới trình Trường xin mở rộng — lúc đó có con số
+cụ thể để thuyết minh, thay vì xin trước mà chưa chứng minh được gì.
+
+### 7.1. Dùng lại dự án `cvht-mtu` — hai việc phải làm trước
+
+Thầy chọn dùng lại dự án cũ. Được, nhưng dự án đó đã từng mở cho cả Internet, nên trước khi
+đưa dữ liệu thật vào:
+
+1. **Dán bộ quy tắc mới và Publish.** Tệp `server/firestore.rules` đã viết xong.
+2. **Dọn sạch dữ liệu cũ.** Những gì đang nằm trong `students`, `consultations`,
+   `attendances` của bản AI Studio là dữ liệu đã từng ai cũng đọc được, lại không có
+   `authEmail` hay `khoaId` nên không khớp mô hình mới. Xuất ra giữ làm bản lưu, rồi xoá
+   khỏi Firestore và nạp lại từ đầu theo mô hình mới.
+
+Nếu Thầy muốn chắc chắn hơn nữa thì vẫn nên mở dự án mới — nhưng dùng lại mà dọn sạch thì
+cũng chấp nhận được.
 
 ## 8. Cái mất
 
@@ -250,23 +346,31 @@ biết dữ liệu từ đâu tới.
 
 ## 9. Khối lượng
 
+Phạm vi toàn trường làm tăng thêm ba phần: cấp Khoa và vai trò `khoaAdmin`, số liệu tổng
+hợp, và màn hình duyệt cố vấn.
+
 | Phần | Giờ |
 |---|---|
-| Mô hình dữ liệu + quy tắc + thử bằng Rules Playground | 6–8 |
+| Mô hình dữ liệu + quy tắc + thử vượt quyền bằng Rules Playground | 8–10 |
 | `store.js` — bản sao trong RAM trên nền Firestore, giữ nguyên bộ hàm | 10–12 |
-| `view-auth.js` — đăng nhập cố vấn, luồng nối tài khoản sinh viên | 8–10 |
-| Màn hình cố vấn phát mã liên kết, quản lý tài khoản lớp | 5–6 |
+| `view-auth.js` — đăng nhập bằng tài khoản Trường, hai phía | 6–8 |
+| Màn hình quản trị: duyệt cố vấn, phân lớp, phân Khoa | 6–8 |
+| Số liệu tổng hợp cấp lớp và cấp Khoa | 5–6 |
 | Nhật ký hoạt động | 3–4 |
 | Tự chứa thư viện Firebase + nạp trước trong `sw.js` | 3–4 |
 | Công cụ chuyển dữ liệu đang có dưới máy lên Firestore | 3–4 |
-| Kiểm thử: hai máy, mất mạng, thử vượt quyền | 6–8 |
-| **Cộng** | **44–56** |
+| Kiểm thử: hai máy, mất mạng, thử vượt quyền giữa các Khoa | 8–10 |
+| **Cộng** | **52–66** |
+
+So với bản thiết kế đầu (44–56 giờ) thì tăng khoảng 8–10 giờ. Phần tăng nằm ở quản trị
+nhiều người và cách ly giữa các Khoa, không phải ở phần đồng bộ.
+
+Đăng nhập bằng tài khoản Trường **giảm được** 2–3 giờ so với bản đầu, vì bỏ hẳn phần phát
+mã liên kết và quản lý mật khẩu.
 
 Phần chép từ bản AI Studio (in A4, xuất Word, ba mẫu phiếu — 9–12 giờ) **độc lập hoàn toàn**
 với việc này, vì chúng đọc qua `CV.store` mà bộ hàm đó không đổi. Làm trước hay sau đều được,
 không phải làm lại.
-
----
 
 ## 10. Thứ tự đề nghị
 
@@ -286,13 +390,33 @@ Xong **bước 3** là trả lời được đúng câu Thầy hỏi: một cố
 
 ---
 
-## 11. Cần Thầy cho biết
+## 11. Cần Thầy cho biết — vòng hai
 
-1. **Trường có cấp email cho sinh viên không?** Có thì dùng email thật, quên mật khẩu tự lấy
-   lại được. Không thì tôi dùng `<MSSV>@sv.cvht-mtu.vn` làm tên đăng nhập — vẫn chạy, nhưng
-   quên mật khẩu phải nhờ Thầy phát mã mới.
-2. **Dùng lại dự án `cvht-mtu` hay mở dự án Firebase mới?** Tôi nghiêng về **mở mới**: dự án
-   cũ đã từng mở cho cả Internet, mở mới thì sạch sẽ và không phải phân vân dữ liệu nào đã
-   bị ai đọc. Dữ liệu trong dự án cũ xuất ra rồi nạp sang được.
-3. **Phạm vi:** chỉ mình Thầy, hay còn cố vấn khác trong Khoa cùng dùng? Ảnh hưởng tới bước 1
-   và tới việc có cần gói Blaze không.
+Ba câu trước đã trả lời xong. Phát sinh thêm bốn câu từ phạm vi toàn trường:
+
+1. **Thư điện tử của Trường chạy trên nền nào — Google Workspace hay Microsoft 365?**
+   Firebase hỗ trợ cả hai, nhưng màn hình đăng nhập viết khác nhau. Đây là thứ duy nhất
+   đang chặn bước 3; các bước khác không phụ thuộc. Thầy xem trong hộp thư: đăng nhập ở
+   `accounts.google.com` thì là Google, ở `login.microsoftonline.com` thì là Microsoft.
+
+2. **Có chấp nhận vai trò `khoaAdmin` không?** Với trăm cố vấn thì một mình Thầy không ngồi
+   phân lớp cho từng người được. Không muốn uỷ quyền thì bỏ, nhưng lúc đó mọi việc phân
+   quyền đổ hết về Thầy.
+
+3. **Danh sách lớp Trường xuất ra có cột thư điện tử sinh viên không?** Có thì nhập một lần
+   là xong. Không thì phải ghép từ nguồn khác, và tôi cần xem thử một tệp mẫu.
+
+4. **Triển khai theo bậc có được không?** Tôi đề nghị: làm xong → chạy thử Khoa Xây dựng
+   trên gói Spark miễn phí → có số liệu dùng thật → trình Trường xin mở rộng và xin gắn
+   thanh toán Blaze. Xin trước mà chưa chứng minh được gì thì khó thuyết phục hơn.
+
+## 12. Nghĩa vụ về dữ liệu cá nhân ở quy mô trường
+
+Khi còn là công cụ riêng của một cố vấn thì đây là chuyện nội bộ. Mở ra toàn trường, giữ
+hồ sơ vài nghìn sinh viên, thì **Trường trở thành bên kiểm soát dữ liệu cá nhân** theo Nghị
+định 13/2023/NĐ-CP, kèm theo một số nghĩa vụ: có thông báo xử lý dữ liệu, có căn cứ pháp lý,
+có thời hạn lưu trữ, có người chịu trách nhiệm, và có quy trình khi xảy ra sự cố.
+
+Đây là việc của Trường chứ không phải việc lập trình, nên tôi chỉ nêu ra để Thầy đưa vào tờ
+trình ngay từ đầu — xin chủ trương một lần gọn hơn là làm xong rồi mới phát hiện thiếu.
+Phần kỹ thuật thì bộ quy tắc và nhật ký hoạt động đã đáp ứng sẵn những gì thuộc về kỹ thuật.
