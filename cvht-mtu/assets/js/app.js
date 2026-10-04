@@ -89,6 +89,10 @@ CV.app = (function () {
 
   /* ---------- vẽ màn hình ---------- */
   function render() {
+    // Bật đồng bộ nhiều thiết bị thì cổng đăng nhập bằng tài khoản Trường đi
+    // trước. Tắt thì hàm này trả về false và mọi thứ chạy như cũ.
+    if (CV.viewCloud && CV.viewCloud.gate(render)) return;
+
     const who = CV.auth.current();
 
     // Máy đã nạp gói dữ liệu sinh viên thì tuyệt đối không mở trình cài đặt
@@ -192,6 +196,8 @@ CV.app = (function () {
       CV.auth.logout();
       closeMenu();
       location.hash = "";
+      // Đang dùng tài khoản của Trường thì thoát hẳn, không chỉ xoá phiên dưới máy.
+      if (CV.viewCloud && CV.viewCloud.active()) { await CV.viewCloud.signOut(); return; }
       render();
     });
     document.getElementById("btn-menu").addEventListener("click", () => {

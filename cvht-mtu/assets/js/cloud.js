@@ -34,6 +34,13 @@ CV.cloud = (function () {
   let scope = null;          // { kind, uid, email, classIds, studentId, khoaId }
   let authCbs = new Set();
 
+  // Firebase phát trạng thái đăng nhập ngay khi khởi động, có thể TRƯỚC lúc màn
+  // hình kịp đăng ký nghe — nhất là khi khôi phục phiên từ bộ nhớ đệm. Giữ lại
+  // trạng thái cuối để phát lại cho người đăng ký muộn, nếu không ứng dụng sẽ
+  // treo mãi ở màn hình "đang tải".
+  let lastUser = null;
+  let authReady = false;
+
   const state = {
     online: false,
     pending: 0,
@@ -74,13 +81,20 @@ CV.cloud = (function () {
     }
 
     fauth.onAuthStateChanged((user) => {
+      lastUser = user;
+      authReady = true;
       authCbs.forEach((fn) => { try { fn(user); } catch (e) { console.error(e); } });
     });
 
     return app;
   }
 
-  function onAuth(fn) { authCbs.add(fn); return () => authCbs.delete(fn); }
+  function onAuth(fn) {
+    authCbs.add(fn);
+    // Đăng ký sau khi trạng thái đã phát thì phát lại ngay cho người này.
+    if (authReady) { try { fn(lastUser); } catch (e) { console.error(e); } }
+    return () => authCbs.delete(fn);
+  }
   const currentUser = () => (fauth ? fauth.currentUser : null);
 
   /* ================= đăng nhập ================= */
