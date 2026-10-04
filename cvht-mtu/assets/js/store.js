@@ -1,8 +1,18 @@
 /* =====================================================================
    store.js — tầng dữ liệu
-   Mọi thao tác đọc/ghi của ứng dụng đều đi qua tệp này. Hôm nay nơi lưu
-   là localStorage của trình duyệt; muốn chuyển sang máy chủ thật thì chỉ
-   cần thay phần adapter bên dưới, phần còn lại của ứng dụng giữ nguyên.
+   Mọi thao tác đọc/ghi của ứng dụng đều đi qua tệp này.
+
+   Bộ hàm công khai (all/get/find/first/put/remove…) ĐỒNG BỘ và sẽ giữ
+   nguyên mãi mãi: 154 KB mã màn hình dựa vào đó. Bên dưới là một bản sao
+   dữ liệu nằm trong bộ nhớ, luôn đọc được ngay, không phải chờ.
+
+   Nơi cất giữ thật thì cắm vào qua useBackend():
+     - không cắm gì  → chỉ localStorage, chạy một máy (như trước đây)
+     - cắm cloud.js  → thêm Firestore: nhiều máy, hai chiều, tức thời
+
+   Luồng dữ liệu:
+     put()  → sửa bản sao → ghi localStorage → đẩy lên máy chủ (không chờ)
+     máy chủ báo đổi → applyRemote() → sửa bản sao → notify() → vẽ lại
    ===================================================================== */
 window.CV = window.CV || {};
 
@@ -32,6 +42,27 @@ CV.store = (function () {
     "termResults",  // kết quả học kỳ do Phòng Đào tạo gửi (tệp KQHT)
     "registrations" // đăng ký học phần từng học kỳ (Thông báo 411/TB-ĐHXDMT)
   ];
+
+  /* ---------- phạm vi của từng bộ sưu tập ----------
+     Quy tắc bảo mật trên máy chủ xét quyền bằng chính trường classId nằm
+     trên mỗi tài liệu, nên không phải tra ngược qua sinh viên. put() tự
+     điền trường đó, các màn hình không phải biết gì về chuyện này. */
+
+  /** Thuộc về một lớp. Cố vấn phụ trách lớp nào thì thấy của lớp đó. */
+  const CLASS_SCOPED = [
+    "students", "scores", "conduct", "appointments", "notes",
+    "schedules", "meetings", "termResults", "registrations"
+  ];
+
+  /** Dùng chung toàn trường. Ai đăng nhập cũng đọc được; chỉ quản trị sửa. */
+  const SHARED = ["semesters", "handbook", "templates"];
+
+  /** Thuộc về một giảng viên. */
+  const ADVISOR_SCOPED = ["advisors", "evaluations"];
+
+  /** Sinh viên KHÔNG BAO GIỜ đọc được, kể cả bản ghi nói về chính mình.
+      Đây là ghi chú riêng của cố vấn — tài liệu phân quyền yêu cầu vậy. */
+  const ADVISOR_ONLY = ["notes"];
 
   /* ---------- thiết lập mặc định ---------- */
   function defaultSettings() {
@@ -128,6 +159,47 @@ CV.store = (function () {
   const listeners = new Set();
   let channel = null;
 
+  /* ---------- nơi cất giữ thật (tuỳ chọn) ----------
+     Không cắm gì thì ứng dụng chạy y như trước: một máy, localStorage.
+     Cắm cloud.js vào thì thêm Firestore. Mọi lỗi đẩy dữ liệu đều báo ra
+     bằng notify("backend") chứ không bao giờ làm hỏng bản sao dưới máy. */
+  let backend = null;
+  let applying = false;   // đang nhận dữ liệu từ máy chủ: đừng đẩy ngược lên
+
+  function useBackend(b) {
+    backend = b || null;
+    notify("backend");
+    return backend;
+  }
+
+  function backendStatus() {
+    if (!backend) return { kind: "local", online: false, text: "Chỉ lưu trên máy này" };
+    try { return Object.assign({ kind: backend.name || "cloud" }, backend.status()); }
+    catch (e) { return { kind: "cloud", online: false, text: "Lỗi: " + e.message }; }
+  }
+
+  /** Đẩy một tài liệu lên máy chủ. Không chờ kết quả — màn hình đã vẽ xong rồi;
+      hỏng thì Firestore tự xếp hàng ghi lại, và lỗi thật thì báo ra ngoài. */
+  function pushDoc(col, obj) {
+    if (!backend || applying) return;
+    try {
+      Promise.resolve(backend.push(col, obj)).catch((e) => {
+        console.error("Không đẩy được lên máy chủ:", col, e);
+        notify("backend-error");
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  function pushDelete(col, id) {
+    if (!backend || applying) return;
+    try {
+      Promise.resolve(backend.del(col, id)).catch((e) => {
+        console.error("Không xoá được trên máy chủ:", col, id, e);
+        notify("backend-error");
+      });
+    } catch (e) { console.error(e); }
+  }
+
   function notify(reason) {
     listeners.forEach((fn) => {
       try { fn(reason); } catch (e) { console.error(e); }
@@ -199,20 +271,50 @@ CV.store = (function () {
   const find = (col, fn) => all(col).filter(fn);
   const first = (col, fn) => all(col).find(fn) || null;
 
+  /**
+   * Điền classId cho các bản ghi phụ (điểm, ghi chú, lịch hẹn…).
+   * Quy tắc bảo mật trên máy chủ xét quyền bằng trường này, nên thiếu nó là
+   * tài liệu bị từ chối. Các màn hình chỉ truyền studentId như trước.
+   */
+  function fillScope(col, obj) {
+    if (CLASS_SCOPED.indexOf(col) === -1) return obj;
+    if (col === "students") return obj;             // students đã có sẵn classId
+    if (obj.classId) return obj;
+    if (obj.studentId) {
+      const st = get("students", obj.studentId);
+      if (st && st.classId) obj.classId = st.classId;
+    }
+    return obj;
+  }
+
   function put(col, obj, opts) {
     const rows = data()[col];
     const now = new Date().toISOString();
+    let saved;
     if (!obj.id) {
       obj.id = U.uid(col.slice(0, 3));
       obj.createdAt = now;
       obj.updatedAt = now;
+      fillScope(col, obj);
       if (rows.indexOf(obj) === -1) rows.push(obj);
+      saved = obj;
     } else {
       const i = rows.findIndex((r) => r.id === obj.id);
       obj.updatedAt = now;
-      if (i === -1) { obj.createdAt = obj.createdAt || now; rows.push(obj); }
-      else rows[i] = Object.assign({}, rows[i], obj);
+      if (i === -1) {
+        obj.createdAt = obj.createdAt || now;
+        fillScope(col, obj);
+        rows.push(obj);
+        saved = obj;
+      } else {
+        rows[i] = Object.assign({}, rows[i], obj);
+        fillScope(col, rows[i]);
+        saved = rows[i];
+      }
     }
+    // Đẩy lên bản ghi ĐẦY ĐỦ sau khi trộn, không phải phần sửa lẻ:
+    // máy chủ cần tài liệu nguyên vẹn để quy tắc xét được quyền.
+    pushDoc(col, saved);
     if (!opts || opts.save !== false) save(`put:${col}`);
     return obj;
   }
@@ -222,14 +324,20 @@ CV.store = (function () {
     const i = rows.findIndex((r) => r.id === id);
     if (i === -1) return false;
     rows.splice(i, 1);
+    pushDelete(col, id);
     if (!opts || opts.save !== false) save(`remove:${col}`);
     return true;
   }
 
   /** Xoá sinh viên kèm mọi dữ liệu phụ thuộc, tránh để lại bản ghi mồ côi. */
   function removeStudentCascade(studentId) {
-    ["scores", "conduct", "appointments", "notes", "schedules"].forEach((col) => {
-      data()[col] = all(col).filter((r) => r.studentId !== studentId);
+    ["scores", "conduct", "appointments", "notes", "schedules",
+     "termResults", "registrations"].forEach((col) => {
+      const keep = [], drop = [];
+      all(col).forEach((r) => (r.studentId === studentId ? drop : keep).push(r));
+      data()[col] = keep;
+      // Xoá từng bản ghi trên máy chủ: Firestore không có "xoá theo điều kiện".
+      drop.forEach((r) => pushDelete(col, r.id));
     });
     remove("students", studentId, { save: false });
     save("remove:student-cascade");
@@ -240,8 +348,12 @@ CV.store = (function () {
     if (all("students").some((s) => s.classId === classId)) {
       return { ok: false, reason: "Lớp vẫn còn sinh viên. Hãy chuyển hoặc xoá sinh viên trước." };
     }
-    data().schedules = all("schedules").filter((r) => r.classId !== classId);
-    data().meetings = all("meetings").filter((r) => r.classId !== classId);
+    ["schedules", "meetings"].forEach((col) => {
+      const keep = [], drop = [];
+      all(col).forEach((r) => (r.classId === classId ? drop : keep).push(r));
+      data()[col] = keep;
+      drop.forEach((r) => pushDelete(col, r.id));
+    });
     remove("classes", classId);
     return { ok: true };
   }
@@ -325,6 +437,65 @@ CV.store = (function () {
     return { bytes, kb: Math.round(bytes / 1024), limitKb: 5120 };
   }
 
+  /* ---------- nhận dữ liệu từ máy chủ ---------- */
+
+  /**
+   * Máy chủ báo có thay đổi. Trộn vào bản sao rồi vẽ lại màn hình.
+   * Gọi được nhiều lần, thứ tự nào cũng được: trộn theo id nên không trùng lặp.
+   *
+   * @param col        tên bộ sưu tập
+   * @param upserts    các tài liệu thêm mới hoặc sửa
+   * @param removedIds id các tài liệu đã bị xoá nơi khác
+   * @param opts       { replace:true } = đây là toàn bộ nội dung bộ sưu tập,
+   *                   những gì không có trong danh sách thì bỏ đi
+   */
+  function applyRemote(col, upserts, removedIds, opts) {
+    if (COLLECTIONS.indexOf(col) === -1) return false;
+    const rows = data()[col];
+    applying = true;                 // chặn đẩy ngược lên tạo vòng lặp
+    try {
+      if (opts && opts.replace) {
+        data()[col] = (upserts || []).slice();
+      } else {
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        (upserts || []).forEach((r) => { if (r && r.id) byId.set(r.id, r); });
+        (removedIds || []).forEach((id) => byId.delete(id));
+        data()[col] = Array.from(byId.values());
+      }
+      adapter.write(DB_KEY, JSON.stringify(db));
+    } finally {
+      applying = false;
+    }
+    notify("remote");
+    return true;
+  }
+
+  /** Máy chủ gửi về bộ thiết lập của chính người đang đăng nhập. */
+  function applyRemoteSettings(obj) {
+    if (!obj || typeof obj !== "object") return false;
+    applying = true;
+    try {
+      data().settings = migrate({ settings: obj }).settings;
+      adapter.write(DB_KEY, JSON.stringify(db));
+    } finally { applying = false; }
+    notify("remote");
+    return true;
+  }
+
+  /** Gọi sau khi sửa settings, để hai máy của cùng một người khớp nhau. */
+  function saveSettings(reason) {
+    const ok = save(reason || "settings");
+    if (backend && !applying && typeof backend.pushSettings === "function") {
+      try {
+        Promise.resolve(backend.pushSettings(data().settings)).catch((e) => {
+          console.error("Không đẩy được thiết lập:", e);
+          notify("backend-error");
+        });
+      } catch (e) { console.error(e); }
+    }
+    return ok;
+  }
+
   /* ---------- đồng bộ giữa các tab trên CÙNG một máy ---------- */
   function initSync() {
     if (typeof BroadcastChannel === "function") {
@@ -347,10 +518,14 @@ CV.store = (function () {
 
   return {
     COLLECTIONS, SCHEMA_VERSION, DB_KEY,
-    load, save, data, settings, defaultSettings,
+    CLASS_SCOPED, SHARED, ADVISOR_SCOPED, ADVISOR_ONLY,
+    load, save, saveSettings, data, settings, defaultSettings,
     all, get, find, first, put, remove, removeStudentCascade, removeClass,
     setSession, session, clearSession, touchSession,
     exportJson, importJson, reset, countAll, usage, initSync, on,
+    // cắm nơi cất giữ thật
+    useBackend, backendStatus, applyRemote, applyRemoteSettings,
+    get backend() { return backend; },
     get writeFailed() { return lastWriteFailed; }
   };
 })();
