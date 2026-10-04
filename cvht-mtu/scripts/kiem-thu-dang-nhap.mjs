@@ -22,6 +22,7 @@ async function moi(seed, user) {
   await page.evaluate(() => {
     CV.cloudConfig.enabled = true;
     CV.cloudConfig.provider = 'google';
+    CV.cloudConfig.hostedDomain = 'mtu.edu.vn';
     CV.cloudConfig.firebase = { apiKey: 'x', projectId: 'cvht-mtu', authDomain: 'x' };
     CV.app.render();
   });
@@ -39,9 +40,42 @@ console.log('\n=== 1. Chưa đăng nhập: hiện nút tài khoản Trường ==
 {
   const { page, ctx, errs } = await moi({}, null);
   const t = await page.locator('#view-gate').innerText();
-  ok('hiện màn hình đăng nhập bằng tài khoản Trường', /tài khoản Google của Trường/i.test(t), t.slice(0, 120));
+  ok('hiện màn hình đăng nhập bằng tài khoản Trường', /Đăng nhập bằng tài khoản Trường/i.test(t), t.slice(0, 120));
+  ok('nhắc chọn đúng đuôi thư của Trường', /@mtu\.edu\.vn/.test(t));
+  ok('chỉ còn MỘT nút đăng nhập', (await page.locator('#view-gate button').count()) === 1,
+     'co ' + (await page.locator('#view-gate button').count()) + ' nut');
+  ok('có dấu chữ G của Google', (await page.locator('#view-gate svg path').count()) === 4);
   ok('KHÔNG còn ô nhập mật khẩu cũ', (await page.locator('input[type=password]').count()) === 0);
   ok('không lỗi', errs.length === 0, errs.join(' | '));
+  await ctx.close();
+}
+
+console.log('\n=== 1b. Không tràn ngang trên điện thoại ===');
+for (const w of [320, 360, 430]) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: 820 }, locale: 'vi-VN' });
+  await ctx.addInitScript(SHIM);
+  const page = await ctx.newPage();
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.evaluate(() => {
+    CV.cloudConfig.enabled = true; CV.cloudConfig.provider = 'google';
+    CV.cloudConfig.hostedDomain = 'mtu.edu.vn';
+    CV.cloudConfig.firebase = { apiKey: 'x', projectId: 'cvht-mtu', authDomain: 'x' };
+    CV.app.render();
+  });
+  await page.waitForTimeout(600);
+  const r = await page.evaluate(() => {
+    const b = document.querySelector('#view-gate button');
+    const bb = b.getBoundingClientRect();
+    return { trangRong: document.documentElement.scrollWidth,
+             manRong: window.innerWidth,
+             nutPhai: Math.round(bb.right), nutTrai: Math.round(bb.left),
+             chuTran: b.scrollWidth > b.clientWidth + 1 };
+  });
+  ok('rộng ' + w + 'px: trang không tràn ngang',
+     r.trangRong <= r.manRong, 'trang=' + r.trangRong + ' màn=' + r.manRong);
+  ok('rộng ' + w + 'px: nút nằm gọn trong màn hình',
+     r.nutTrai >= 0 && r.nutPhai <= r.manRong, 'nút ' + r.nutTrai + '→' + r.nutPhai);
+  ok('rộng ' + w + 'px: chữ trong nút không bị cắt', !r.chuTran);
   await ctx.close();
 }
 
@@ -49,7 +83,7 @@ console.log('\n=== 2. Giảng viên đăng nhập → vào thẳng bàn làm vi�
 {
   const { page, ctx, errs } = await moi(Object.assign({}, LOP, GV, SV),
     { uid: 'uid_phieu', email: 'phieu@mtu.edu.vn', displayName: 'Trương Hoàng Phiếu' });
-  await page.click('button:has-text("tài khoản Google")');
+  await page.click('#view-gate button');
   await page.waitForTimeout(1500);
   const title = await page.locator('#page-title').innerText().catch(() => '');
   ok('vào được khung ứng dụng', !(await page.locator('#shell').isHidden()), 'tiêu đề=' + title);
@@ -71,7 +105,7 @@ console.log('\n=== 3. Sinh viên đăng nhập → tự nối hồ sơ bằng đ
 {
   const { page, ctx, errs } = await moi(Object.assign({}, LOP, GV, SV),
     { uid: 'uid_sv1', email: 'sv2250001@mtu.edu.vn', displayName: 'Nguyễn Văn A' });
-  await page.click('button:has-text("tài khoản Google")');
+  await page.click('#view-gate button');
   await page.waitForTimeout(1800);
   const st = await page.evaluate(() => ({
     phien: CV.store.session(), ai: (CV.auth.current() || {}).kind,
@@ -92,7 +126,7 @@ console.log('\n=== 4. Người lạ: không có trong danh sách lớp nào ==='
 {
   const { page, ctx, errs } = await moi(Object.assign({}, LOP, GV, SV),
     { uid: 'uid_la', email: 'nguoila@mtu.edu.vn', displayName: 'Người Lạ' });
-  await page.click('button:has-text("tài khoản Google")');
+  await page.click('#view-gate button');
   await page.waitForTimeout(1500);
   const t = await page.locator('#view-gate').innerText();
   ok('báo chưa tìm thấy hồ sơ', /Chưa tìm thấy hồ sơ/i.test(t), t.slice(0, 150));
@@ -108,7 +142,7 @@ console.log('\n=== 5. Giảng viên chờ duyệt: không thấy dữ liệu nà
                 role: 'pending', khoaId: 'XD', classIds: [], active: true } };
   const { page, ctx, errs } = await moi(Object.assign({}, LOP, GV, SV, cho),
     { uid: 'uid_moi', email: 'moi@mtu.edu.vn', displayName: 'Mới' });
-  await page.click('button:has-text("tài khoản Google")');
+  await page.click('#view-gate button');
   await page.waitForTimeout(1500);
   const t = await page.locator('#view-gate').innerText();
   ok('báo đang chờ duyệt', /chờ duyệt/i.test(t), t.slice(0, 120));
@@ -118,7 +152,30 @@ console.log('\n=== 5. Giảng viên chờ duyệt: không thấy dữ liệu nà
   await ctx.close();
 }
 
-console.log('\n=== 6. Tắt enabled → quay về cách đăng nhập cũ ===');
+console.log('\n=== 6. Tài khoản Gmail cá nhân: bị từ chối ngay, báo rõ ===');
+{
+  const { page, ctx, errs } = await moi(Object.assign({}, LOP, GV, SV),
+    { uid: 'uid_gmail', email: 'aibiet@gmail.com', displayName: 'Ai Đó' });
+  await page.click('#view-gate button');
+  await page.waitForTimeout(1500);
+  const t = await page.locator('#view-gate').innerText();
+  ok('báo sai tài khoản', /Sai tài khoản/i.test(t), t.slice(0, 140));
+  ok('nói rõ địa chỉ nào bị từ chối', /aibiet@gmail\.com/.test(t));
+  ok('nói rõ chỉ nhận đuôi Trường', /@mtu\.edu\.vn/.test(t));
+  ok('KHÔNG vào được khung ứng dụng', await page.locator('#shell').isHidden());
+  const st = await page.evaluate(() => ({
+    nguoiDung: !!(window.__FB.user), backend: CV.store.backendStatus().kind,
+    phien: CV.store.session(), noiHoSo: !!window.__FB.docs['links/uid_gmail']
+  }));
+  ok('đã bị thoát khỏi tài khoản', st.nguoiDung === false);
+  ok('KHÔNG cắm backend', st.backend === 'local', st.backend);
+  ok('KHÔNG đặt phiên', !st.phien);
+  ok('KHÔNG tạo bản nối hồ sơ', st.noiHoSo === false);
+  ok('không lỗi', errs.length === 0, errs.join(' | '));
+  await ctx.close();
+}
+
+console.log('\n=== 7. Tắt enabled → quay về cách đăng nhập cũ ===');
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 950 }, locale: 'vi-VN' });
   const errs = []; const page = await ctx.newPage();

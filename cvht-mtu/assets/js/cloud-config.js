@@ -16,23 +16,18 @@ CV.cloudConfig = {
   /* Bật/tắt toàn bộ phần đồng bộ. */
   enabled: false,
 
-  /* Đăng nhập bằng nền nào.
-     "google"    — thư của Trường chạy trên Google Workspace
-     "microsoft" — thư của Trường chạy trên Microsoft 365
-     "ca-hai"    — hiện cả hai nút, để người dùng tự chọn
+  /* Thư điện tử của Trường chạy trên Google Workspace, nên để "google".
+     Vẫn nhận "microsoft" (Microsoft 365) hoặc "ca-hai" (hiện cả hai nút)
+     phòng khi về sau Trường đổi nền. */
+  provider: "google",
 
-     Chưa chắc dùng nền nào thì xem lúc đăng nhập hộp thư của Trường:
-       accounts.google.com        → Google
-       login.microsoftonline.com  → Microsoft
-     Hoặc cứ để "ca-hai", bật nền nào trong Firebase Console thì nền đó chạy. */
-  provider: "ca-hai",
-
-  /* Tên miền thư điện tử của Trường. Dùng để gợi ý trình duyệt chỉ hiện tài
-     khoản thuộc Trường, và để báo lỗi cho dễ hiểu. Chặn thật nằm ở quy tắc. */
+  /* Tên miền thư điện tử của Trường.
+     Ba việc: (1) bảo Google chỉ hiện tài khoản thuộc Trường trong ô chọn;
+     (2) ứng dụng tự kiểm lại sau khi đăng nhập và thoát ngay nếu sai tên miền;
+     (3) báo lỗi cho dễ hiểu. Chặn cuối cùng vẫn nằm ở quy tắc trên máy chủ. */
   hostedDomain: "mtu.edu.vn",
 
-  /* Chỉ cần khi dùng Microsoft: mã tenant của Trường, hoặc để "organizations"
-     nếu muốn nhận mọi tài khoản cơ quan (vẫn bị quy tắc lọc lại theo tên miền). */
+  /* Chỉ dùng tới khi đổi sang Microsoft. Bỏ qua khi provider là "google". */
   tenantId: "organizations",
 
   /* Lấy ở Firebase Console → Project settings → General → Your apps → Web app.

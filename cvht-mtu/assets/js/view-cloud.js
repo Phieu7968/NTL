@@ -61,6 +61,9 @@ CV.viewCloud = (function () {
       user = u;
       if (!u) {
         scope = null;
+        // Vừa bị thoát vì sai tên miền thì giữ nguyên lời báo, đừng nhảy về
+        // màn hình đăng nhập làm người dùng không kịp đọc vì sao bị từ chối.
+        if (phase === "sai-ten-mien") { S.clearSession(); S.useBackend(null); return; }
         phase = "can-dang-nhap";
         S.clearSession();
         S.useBackend(null);
@@ -71,8 +74,31 @@ CV.viewCloud = (function () {
     });
   }
 
+  /** Địa chỉ này có thuộc tên miền của Trường không. */
+  function dungTenMien(e) {
+    const mien = (cfg().hostedDomain || "").toLowerCase().trim();
+    if (!mien) return true;                        // không khai thì không chặn
+    const addr = String(e || "").toLowerCase();
+    return addr.endsWith("@" + mien) || addr.endsWith("." + mien);
+  }
+
   /** Đăng nhập xong: xác định là ai, gắn listener, đặt phiên. */
   async function afterSignIn(u) {
+    // Tham số hd chỉ là gợi ý cho ô chọn tài khoản của Google, vượt qua được.
+    // Nên kiểm lại ở đây và thoát ngay, để người dùng thấy lời báo dễ hiểu
+    // thay vì đi tới màn hình "chưa tìm thấy hồ sơ". Chặn cuối vẫn là quy tắc.
+    if (!dungTenMien(u.email)) {
+      const sai = u.email || "";
+      phase = "sai-ten-mien";
+      message = sai;
+      if (redraw) redraw();
+      try { await CV.cloud.signOut(); } catch (e) { /* bỏ qua */ }
+      phase = "sai-ten-mien";          // signOut làm onAuth bắn về can-dang-nhap
+      message = sai;
+      if (redraw) redraw();
+      return;
+    }
+
     phase = "dang-tai";
     message = "";
     if (redraw) redraw();
@@ -177,16 +203,57 @@ CV.viewCloud = (function () {
     ]);
   }
 
+  /** Dấu chữ G của Google, vẽ thẳng bằng SVG để không phải tải ảnh từ mạng. */
+  function dauG() {
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 48 48");
+    svg.setAttribute("width", "19");
+    svg.setAttribute("height", "19");
+    svg.setAttribute("aria-hidden", "true");
+    svg.style.flex = "0 0 auto";
+    [
+      ["#4285F4", "M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"],
+      ["#34A853", "M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"],
+      ["#FBBC05", "M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"],
+      ["#EA4335", "M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"]
+    ].forEach(([mau, d]) => {
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("fill", mau);
+      path.setAttribute("d", d);
+      svg.appendChild(path);
+    });
+    return svg;
+  }
+
   function nutDangNhap(nen, nhan) {
-    const b = el("button", { class: "btn btn-primary btn-block", type: "button", text: nhan });
+    const chu = el("span", { text: nhan, style: "min-width:0" });
+    const b = el("button", {
+      class: "btn btn-primary btn-block",
+      type: "button",
+      // .btn đặt white-space:nowrap; với nút dài chiếm hết bề ngang thì nhãn
+      // không co được và đẩy cả thẻ tràn khỏi màn hình điện thoại. Cho xuống
+      // dòng và bỏ chiều rộng tối thiểu để chuyện đó không xảy ra nữa.
+      style: "display:flex;align-items:center;justify-content:center;gap:.6rem;" +
+             "white-space:normal;line-height:1.3;min-width:0;padding-block:.7rem;" +
+             "text-align:left"
+    });
+    if (nen === "google") {
+      const trong = el("span", {
+        style: "display:inline-flex;align-items:center;justify-content:center;" +
+               "width:26px;height:26px;border-radius:50%;background:#fff;flex:0 0 auto"
+      }, dauG());
+      b.appendChild(trong);
+    }
+    b.appendChild(chu);
     b.addEventListener("click", async () => {
       b.disabled = true;
-      b.textContent = "Đang mở cửa sổ đăng nhập…";
+      chu.textContent = "Đang mở cửa sổ đăng nhập…";
       try {
         await CV.cloud.signIn(nen);
       } catch (e) {
         b.disabled = false;
-        b.textContent = nhan;
+        chu.textContent = nhan;
         ui.toast(dienGiai(e), "warn", 6000);
       }
     });
@@ -197,10 +264,13 @@ CV.viewCloud = (function () {
     const c = cfg();
     const nut = [];
     if (c.provider === "google" || c.provider === "ca-hai") {
-      nut.push(nutDangNhap("google", "Đăng nhập bằng tài khoản Google của Trường"));
+      nut.push(nutDangNhap("google", "Đăng nhập bằng tài khoản Trường"));
+      nut.push(el("p", { class: "muted",
+        style: "text-align:center;font-size:.82rem;margin:.65rem 0 0",
+        text: "Chọn tài khoản Google có đuôi @" + (c.hostedDomain || "mtu.edu.vn") }));
     }
     if (c.provider === "microsoft" || c.provider === "ca-hai") {
-      const b = nutDangNhap("microsoft", "Đăng nhập bằng tài khoản Microsoft của Trường");
+      const b = nutDangNhap("microsoft", "Đăng nhập bằng tài khoản Microsoft");
       if (nut.length) b.className = "btn btn-ghost btn-block";
       nut.push(b);
     }
@@ -297,6 +367,25 @@ CV.viewCloud = (function () {
     ]);
   }
 
+  function manSaiTenMien() {
+    const mien = cfg().hostedDomain || "mtu.edu.vn";
+    khung([
+      dau("Sai tài khoản"),
+      el("div", { style: "max-width:470px;margin-inline:auto" }, [
+        ui.card3d([el("div", { class: "lift-1" }, [
+          el("p", { text: "Địa chỉ " + (message || "") + " không thuộc Trường." }),
+          el("p", { text: "Hệ thống chỉ nhận tài khoản có đuôi @" + mien +
+                          " mà Trường đã cấp. Tài khoản Gmail cá nhân không dùng được." }),
+          el("p", { class: "muted", text: "Đang đăng nhập nhầm tài khoản khác trên máy này thì " +
+                    "bấm lại rồi chọn đúng tài khoản của Trường." })
+        ])], { strength: 5 }),
+        el("button", { class: "btn btn-primary btn-block", type: "button",
+          text: "Thử lại với tài khoản của Trường",
+          onclick: () => { phase = "can-dang-nhap"; message = ""; if (redraw) redraw(); } })
+      ])
+    ]);
+  }
+
   function manLoi() {
     khung([
       dau("Không vào được"),
@@ -343,6 +432,7 @@ CV.viewCloud = (function () {
       case "dang-tai":      manDangTai(); return true;
       case "cho-duyet":     manChoDuyet(); return true;
       case "chua-co-ho-so": manChuaCoHoSo(); return true;
+      case "sai-ten-mien":  manSaiTenMien(); return true;
       case "loi":           manLoi(); return true;
       default:              return false;   // "xong" — để app.js vẽ tiếp như thường
     }
