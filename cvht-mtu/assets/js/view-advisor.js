@@ -592,6 +592,10 @@ CV.viewAdvisor = (function () {
         el("button", { class: "btn btn-ghost btn-sm", text: "Sửa hồ sơ",
           onclick: () => editStudent(st, () => CV.app.render()) }),
         el("button", { class: "btn btn-ghost btn-sm", text: "In hồ sơ", onclick: () => printOne(p) }),
+        el("button", { class: "btn btn-ghost btn-sm", text: "Phiếu học tập",
+          title: "Phiếu theo dõi kết quả học tập theo thể thức văn bản hành chính",
+          onclick: () => xuatVanBan(() => CV.mauVb.phieuHocTap(p.student.id),
+            "Phiếu theo dõi kết quả học tập — " + p.student.name) }),
         el("button", { class: "btn btn-danger btn-sm", text: "Xoá", onclick: async () => {
           const okd = await ui.confirm({ title: "Xoá sinh viên", danger: true,
             message: `Xoá ${st.name} (${st.mssv})?`,
@@ -1273,7 +1277,27 @@ CV.viewAdvisor = (function () {
             doc.appendChild(el("h3", { text: "Danh sách sinh viên cần lưu ý", style: "margin-top:1rem" }));
             doc.appendChild(warnTable.cloneNode(true));
             CV.io.print("Báo cáo công tác cố vấn học tập", doc);
-          } })
+          } }),
+          el("button", { class: "btn btn-primary", text: "Báo cáo theo Nghị định 30",
+            title: "Báo cáo công tác CVHT đúng thể thức văn bản hành chính, xuất ra Word hoặc in",
+            onclick: () => {
+              // Báo cáo lập cho MỘT lớp, vì khối ký và phần sinh hoạt lớp
+              // đều gắn với lớp cụ thể. Chọn "Tất cả" thì nhắc chọn lớp.
+              if (!state.classId) {
+                ui.toast("Chọn một lớp ở ô Phạm vi trước khi lập báo cáo.", "warn", 5000);
+                return;
+              }
+              // Lấy học kỳ gần nhất, đúng quy ước các màn hình khác đang dùng
+              // (sổ họp lớp cũng mặc định chọn học kỳ cuối danh sách).
+              const sems = semesters();
+              const sem = sems.length ? sems[sems.length - 1] : null;
+              xuatVanBan(
+                () => CV.mauVb.baoCaoCongTac(state.classId, {
+                  semesterId: sem ? sem.id : "",
+                  kyBaoCao: sem ? sem.name : ""
+                }),
+                "Báo cáo công tác cố vấn học tập");
+            } })
         ]
       }));
 
@@ -1683,7 +1707,13 @@ CV.viewAdvisor = (function () {
           options: ["Đầu học kỳ", "Trong học kỳ", "Đột xuất"].map((x) => ({ value: x, label: x })) },
         { name: "format", label: "Hình thức", type: "select", value: (row && row.format) || "Trực tiếp",
           options: ["Trực tiếp", "Trực tuyến"].map((x) => ({ value: x, label: x })) },
-        { name: "attended", label: "Số sinh viên dự", type: "number", min: 0, max: 200 },
+        // Chặn ngay ở chỗ nhập: số dự không thể lớn hơn sĩ số lớp, nếu không
+        // biên bản in ra sẽ mang con số vô lý.
+        { name: "attended", label: "Số sinh viên dự", type: "number", min: 0,
+          max: Math.max(1, S.find("students",
+            (x) => x.classId === klassId && x.active !== false).length),
+          hint: "Sĩ số lớp hiện tại: " + S.find("students",
+            (x) => x.classId === klassId && x.active !== false).length + " sinh viên." },
         { name: "place", label: "Địa điểm / đường dẫn" },
         { name: "content", label: "Nội dung chính", type: "textarea", full: true, rows: 3 },
         { name: "minutes", label: "Biên bản", type: "textarea", full: true, rows: 5,
@@ -1764,6 +1794,10 @@ CV.viewAdvisor = (function () {
               ? el("span", { class: "badge badge-ok", text: "Đã có" })
               : el("span", { class: "badge badge-watch", text: "Chưa có" }) },
           { key: "act", label: "", render: (r) => el("div", { class: "row" }, [
+              el("button", { class: "btn btn-ghost btn-sm", text: "Biên bản",
+                title: "In hoặc tải biên bản kèm phiếu điểm danh",
+                onclick: () => xuatVanBan(() => CV.mauVb.bienBanHopLop(r.id),
+                  "Biên bản họp lớp ngày " + U.dmy(r.date)) }),
               el("button", { class: "btn btn-ghost btn-sm", text: "Sửa",
                 onclick: () => editMeeting(r.classId, r.semesterId, r) }),
               el("button", { class: "btn btn-ghost btn-sm", text: "Xoá", onclick: async () => {
@@ -1779,6 +1813,43 @@ CV.viewAdvisor = (function () {
       ], { sub: "Quyết định 758/QĐ-ĐHXDMT, Điều 9" }));
     }
     draw();
+  }
+
+  /* =====================================================================
+     Xuất văn bản hành chính (Nghị định 30/2020/NĐ-CP)
+     Một hộp thoại chung cho mọi mẫu: xem thử, in, hoặc tải về tệp Word.
+     ===================================================================== */
+
+  /**
+   * @param dung   hàm dựng văn bản, trả về null nếu thiếu dữ liệu
+   * @param tieuDe tên hiện trên hộp thoại
+   */
+  function xuatVanBan(dung, tieuDe) {
+    let vb;
+    try { vb = dung(); }
+    catch (e) {
+      console.error("Không dựng được văn bản:", e);
+      ui.toast("Không dựng được văn bản: " + e.message, "warn", 6000);
+      return;
+    }
+    if (!vb) { ui.toast("Thiếu dữ liệu để lập văn bản này.", "warn"); return; }
+
+    ui.modal({
+      title: tieuDe || "Xuất văn bản",
+      body: [
+        ui.note("Văn bản được lập theo thể thức hành chính tại Nghị định 30/2020/NĐ-CP: " +
+                "khổ A4, phông Times New Roman cỡ 13, lề trên 20mm, dưới 20mm, trái 30mm, phải 15mm.",
+                "info"),
+        el("p", { class: "muted", style: "margin-top:.6rem",
+          text: "Bản Word mở được bằng Microsoft Word hoặc WPS để sửa tiếp trước khi trình ký. " +
+                "Bản in ra thẳng máy in, giữ nguyên thể thức." })
+      ],
+      actions: [
+        { label: "Xem thử", onClick: () => CV.docvn.xemThu(vb) },
+        { label: "Tải bản Word", onClick: (close) => { CV.docvn.taiWord(vb); close(); } },
+        { label: "In", class: "btn-primary", onClick: (close) => { CV.docvn.inA4(vb); close(); } }
+      ]
+    });
   }
 
   /** Gợi ý điểm tiêu chí "Tổ chức họp lớp": tối đa 20, thiếu mỗi buổi trừ 5. */
