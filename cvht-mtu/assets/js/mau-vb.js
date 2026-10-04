@@ -25,8 +25,11 @@ CV.mauVb = (function () {
    */
   function coQuan() {
     const s = S.settings();
-    const truong = s.schoolName || "";
     const khoa = (s.facultyName || "").trim();
+    // Giữ nguyên tên đầy đủ: Nghị định 30 muốn ghi đúng như văn bản thành lập.
+    // Tên dài thì docvn.js tự hạ cỡ chữ cho vừa một dòng, không cắt bớt chữ.
+    // Thầy/Cô muốn viết tắt theo ý mình thì khai ở mục Cài đặt.
+    const truong = (s.schoolNameDoc || "").trim() || (s.schoolName || "");
     return khoa ? { tren: truong, chinh: khoa } : { tren: "", chinh: truong };
   }
 

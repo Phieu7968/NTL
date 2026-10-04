@@ -150,7 +150,7 @@ console.log('\n=== 5b. Không tự bịa tên cơ quan ===');
   ok('không có Khoa thì KHÔNG tự điền tên Khoa',!h.includes('KHOA XÂY DỰNG'));
   // Tên dài nay được ngắt dòng cân đối nên có <br> ở giữa — bỏ thẻ rồi mới so.
   const phang=(x)=>x.replace(/<br>/g,' ');
-  ok('vẫn in tên Trường ở phần đầu',
+  ok('vẫn in tên Trường đầy đủ ở phần đầu',
      phang(h).includes('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY'));
   ok('mục Đơn vị công tác khớp với phần đầu',
      h.includes('Đơn vị công tác: Trường Đại học Xây dựng Miền Tây'),
@@ -164,19 +164,44 @@ console.log('\n=== 5b. Không tự bịa tên cơ quan ===');
      (h2.match(/Đơn vị công tác:[^<]*/)||[''])[0]);
 }
 
-console.log('\n=== 5c. Ngắt dòng tên cơ quan cho cân đối ===');
+console.log('\n=== 5c. Tên cơ quan: giữ tên đầy đủ, tự co cỡ chữ ===');
 {
-  const n=D.ngatCanDoi;
-  ok('tên dài ngắt ở giữa, hai dòng cân nhau',
-     n('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY')==='TRƯỜNG ĐẠI HỌC<br>XÂY DỰNG MIỀN TÂY',
-     n('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY'));
-  ok('tên ngắn giữ nguyên một dòng',n('KHOA XÂY DỰNG')==='KHOA XÂY DỰNG');
-  ok('một từ dài thì không ngắt bừa',n('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123')==='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123');
-  ok('vẫn chặn thẻ HTML',n('<b>Trường Rất Dài Tên Của Nó Đây</b>').indexOf('<b>')===-1,
-     n('<b>Trường Rất Dài Tên Của Nó Đây</b>'));
+  const c=D.coChuCoQuan;
+  ok('tên ngắn giữ đúng cỡ 12pt của Nghị định 30',c('KHOA XÂY DỰNG')===12);
+  // Số liệu đối chiếu là bề ngang ĐO THẬT trong Times New Roman, chữ hoa đậm.
+  // Cột trái dùng được 74,5mm sau khi trừ đệm ô.
+  ok('tên Trường dài co xuống 10pt (đo thật 70,7mm ≤ 74,5mm)',
+     c('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY')===10,
+     c('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY')+'pt');
+  ok('KHÔNG co xuống dưới 10pt',c('MỘT CÁI TÊN RẤT DÀI DÀI DÀI DÀI DÀI DÀI NỮA')>=10);
+  ok('viết tắt sẵn thì được cỡ lớn hơn (11,5pt, đo thật 69,7mm)',
+     c('TRƯỜNG ĐH XÂY DỰNG MIỀN TÂY')===11.5,
+     c('TRƯỜNG ĐH XÂY DỰNG MIỀN TÂY')+'pt');
+
   const h=D.htmlWord(M.baoCaoCongTac(k.id,{}));
-  ok('áp dụng vào phần đầu văn bản',h.includes('TRƯỜNG ĐẠI HỌC<br>XÂY DỰNG MIỀN TÂY'));
+  ok('in NGUYÊN tên đầy đủ, không cắt chữ',h.includes('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY'));
+  ok('KHÔNG ngắt dòng nữa',!h.includes('<br>XÂY DỰNG')&&!h.includes('ĐẠI HỌC<br>'),
+     (h.match(/class="cq-[a-z]*"[^>]*>[^<]*(<br>)?[^<]*/)||[''])[0]);
+  ok('có cỡ chữ 10pt cho tên Trường',h.includes('font-size:10pt'),
+     (h.match(/class="cq-tren"[^>]*/)||[''])[0]);
+  ok('tên Khoa vẫn giữ 12pt',/class="cq-chinh" style="font-size:12pt"/.test(h),
+     (h.match(/class="cq-chinh"[^>]*/)||[''])[0]);
+
+  const cu=S.settings().schoolNameDoc;
+  S.settings().schoolNameDoc='Trường ĐHXD Miền Tây';
+  const h2=D.htmlWord(M.baoCaoCongTac(k.id,{}));
+  ok('Thầy tự khai thì dùng đúng chữ Thầy khai',h2.includes('TRƯỜNG ĐHXD MIỀN TÂY'));
+  ok('tên Thầy khai ngắn nên về 12pt',/class="cq-tren" style="font-size:12pt"/.test(h2));
+  S.settings().schoolNameDoc=cu||'';
+
+  // Dài hơn cả mức 10,5pt chịu được thì mới ngắt dòng — phương án cuối.
+  ok('quá dài thì vẫn ngắt dòng được',
+     D.ngatCanDoi('VIỆN ĐẠI HỌC MỞ HÀ NỘI VÀ CÁC ĐƠN VỊ TRỰC THUỘC').includes('<br>'));
   ok('quốc hiệu không được vỡ dòng',h.includes('white-space:nowrap'));
+
+  // vietTat vẫn dùng được khi cần, chỉ không còn chạy tự động
+  ok('vẫn có sẵn hàm viết tắt khi cần',
+     D.vietTat('Trường Đại học Xây dựng Miền Tây')==='Trường ĐH Xây dựng Miền Tây');
 }
 
 console.log('\n=== 6. Dữ liệu trống thì không vỡ ===');

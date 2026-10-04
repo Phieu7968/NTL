@@ -69,6 +69,9 @@ CV.store = (function () {
     return {
       schoolName: "Trường Đại học Xây dựng Miền Tây",
       schoolShort: "MTU",
+      // Tên Trường ghi trên văn bản hành chính. Để trống thì lấy schoolName,
+      // tự viết tắt theo lối thông dụng nếu quá dài cho một dòng.
+      schoolNameDoc: "",
       facultyName: "",
       // Thang điểm chữ. Sửa được trong mục Cài đặt để khớp quy chế của Trường.
       // Mặc định theo Quy chế đào tạo trình độ đại học (Thông tư 08/2021/TT-BGDĐT).

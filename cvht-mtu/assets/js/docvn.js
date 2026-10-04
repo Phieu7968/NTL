@@ -116,6 +116,90 @@ CV.docvn = (function () {
 
   /* ================= phần đầu và phần cuối ================= */
 
+  /* Lối viết tắt thông dụng trong văn bản hành chính. Chỉ nhận những dạng
+     không gây hiểu nhầm; xếp dạng dài trước để thay đúng thứ tự. */
+  /* Chỉ nêu đúng phần rút ngắn được, không ôm cả chữ đứng trước. Nhờ vậy
+     "Trường Đại học Xây dựng Miền Tây" thành "Trường ĐH Xây dựng Miền Tây",
+     giữ nguyên cách viết hoa thường của phần còn lại. Xếp cụm dài lên trước. */
+  const VIET_TAT = [
+    ["TRUNG HỌC PHỔ THÔNG", "THPT"],
+    ["TRUNG HỌC CƠ SỞ", "THCS"],
+    ["GIÁO DỤC VÀ ĐÀO TẠO", "GD&ĐT"],
+    ["ỦY BAN NHÂN DÂN", "UBND"],
+    ["UỶ BAN NHÂN DÂN", "UBND"],
+    ["ĐẠI HỌC", "ĐH"],
+    ["CAO ĐẲNG", "CĐ"]
+  ];
+
+  /* Hai điều dễ sai ở đây, nên ghi rõ:
+     - \b của JavaScript chỉ hiểu chữ cái ASCII, nên "\bỦY BAN" không bao giờ
+       khớp. Phải tự dựng ranh giới bằng lớp chữ cái Unicode.
+     - Tên Trường lưu trong thiết lập viết thường ("Trường Đại học Xây dựng
+       Miền Tây"), việc viết hoa xảy ra mãi về sau lúc dựng phần đầu. Nên
+       phải so không phân biệt hoa thường, nếu không chẳng khớp gì cả. */
+  function moc(cum) {
+    const thoat = cum.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(^|[^\\p{L}])" + thoat + "(?![\\p{L}])", "giu");
+  }
+
+  /**
+   * Rút gọn tên cơ quan cho vừa một dòng, bằng lối viết tắt thông dụng.
+   * Thay dần từng dạng, hễ đủ ngắn là dừng — tên ngắn sẵn thì không đụng tới.
+   *
+   * Nghị định 30 muốn tên cơ quan ban hành ghi đúng như văn bản thành lập,
+   * nên đây chỉ là phương án khi người dùng không tự khai cách viết của mình.
+   */
+  function vietTat(text, nguong) {
+    let t = String(text || "").trim();
+    const max = nguong || 26;
+    for (let i = 0; i < VIET_TAT.length && t.length > max; i++) {
+      t = t.replace(moc(VIET_TAT[i][0]), "$1" + VIET_TAT[i][1]);
+    }
+    return t;
+  }
+
+  /* ---------- chọn cỡ chữ cho tên cơ quan ----------
+     Đo thật trong trình duyệt với phông Times New Roman, chữ hoa đậm:
+       "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"  34 ký tự → 87,7mm ở 12pt
+       "TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY"    32 ký tự → 84,8mm ở 12pt
+       "KHOA XÂY DỰNG"                       13 ký tự → 36,6mm ở 12pt
+     Suy ra mỗi ký tự chiếm khoảng 0,225mm cho mỗi điểm cỡ chữ. Lấy 0,23
+     cho dư một chút. Bề ngang co giãn tuyến tính theo cỡ chữ. */
+  const MM_MOI_KY_TU_MOI_PT = 0.23;
+
+  /* Bề ngang còn lại sau lề Nghị định 30 (210 - 30 - 15) là 165mm.
+     Quốc hiệu là chữ luật định, phải đủ 12pt và không được vỡ dòng, tức cần
+     87,7mm — nên cột phải lấy 54% (89,1mm). Cột trái còn 46% trừ đệm 4pt. */
+  const RONG_CON_LAI_MM = 165;
+  const PHAN_TRAM_TRAI = 46;
+  const DEM_TRAI_MM = 1.4;
+  const RONG_CQ_MM = (RONG_CON_LAI_MM * PHAN_TRAM_TRAI) / 100 - DEM_TRAI_MM;
+
+  /* Nghị định 30 cho tên cơ quan cỡ 12-13. Tên dài thì hạ dần, nhưng không
+     xuống dưới 10 — thấp hơn nữa thì khó đọc, lúc đó ngắt dòng còn hơn. */
+  const CO_CHU_CQ = [12, 11.5, 11, 10.5, 10];
+
+  const rongUocLuong = (text, pt) =>
+    String(text || "").trim().length * MM_MOI_KY_TU_MOI_PT * pt;
+
+  /**
+   * Chọn cỡ chữ lớn nhất mà tên cơ quan vẫn nằm gọn MỘT dòng.
+   * Nghị định 30 muốn ghi đúng tên đầy đủ như văn bản thành lập, nên thà hạ
+   * cỡ chữ một hai bậc còn hơn cắt bớt chữ hay để rớt dòng. Giữ 12pt đúng
+   * chuẩn khi tên đủ ngắn, chỉ co lại khi thật sự cần.
+   */
+  function coChuCoQuan(text) {
+    for (let i = 0; i < CO_CHU_CQ.length; i++) {
+      if (rongUocLuong(text, CO_CHU_CQ[i]) <= RONG_CQ_MM) return CO_CHU_CQ[i];
+    }
+    return CO_CHU_CQ[CO_CHU_CQ.length - 1];
+  }
+
+  /** Nhỏ hết cỡ rồi mà vẫn không vừa thì mới phải ngắt dòng. */
+  function canNgat(text) {
+    return rongUocLuong(text, CO_CHU_CQ[CO_CHU_CQ.length - 1]) > RONG_CQ_MM;
+  }
+
   /**
    * Tên cơ quan dài thì tự xuống dòng ở chỗ xấu (ví dụ rớt mỗi chữ "TÂY").
    * Hàm này chủ động ngắt ở ranh giới từ gần giữa nhất, cho hai dòng cân nhau.
@@ -140,12 +224,13 @@ CV.docvn = (function () {
   function veDau(vb) {
     const cq = vb.coQuan || {};
     let trai = "";
-    if (cq.tren) {
-      trai += '<p class="cq-tren">' + ngatCanDoi(String(cq.tren).toUpperCase()) + "</p>";
-    }
-    if (cq.chinh) {
-      trai += '<p class="cq-chinh">' + ngatCanDoi(String(cq.chinh).toUpperCase()) + "</p>";
-    }
+    const ten = (txt, lop) => {
+      const t = String(txt).toUpperCase();
+      return '<p class="' + lop + '" style="font-size:' + coChuCoQuan(t) + 'pt">' +
+        (canNgat(t) ? ngatCanDoi(t) : esc(t)) + "</p>";
+    };
+    if (cq.tren) trai += ten(cq.tren, "cq-tren");
+    if (cq.chinh) trai += ten(cq.chinh, "cq-chinh");
     trai += '<div class="gach-cq"></div>';
     if (vb.so) trai += '<p class="so-vb">Số: ' + esc(vb.so) + "</p>";
 
@@ -219,8 +304,8 @@ CV.docvn = (function () {
       /* Bề ngang còn lại sau lề NĐ 30 là 165mm. Quốc hiệu là chữ luật định,
          KHÔNG được vỡ dòng, nên dành cho nó 55% và khoá white-space.
          Tên cơ quan dài thì xuống dòng được — văn bản thật vẫn hay như vậy. */
-      .kh-trai { width:45%; padding-right:8pt !important; }
-      .kh-phai { width:55%; }
+      .kh-trai { width:46%; padding-right:4pt !important; }
+      .kh-phai { width:54%; }
       /* Giữ cỡ 12 đúng Nghị định 30 cho tên cơ quan. Tên dài thì ngắt dòng
          cân đối bằng ngatCanDoi() chứ không hạ cỡ chữ. */
       .cq-tren { font-size:12pt; line-height:1.2; }
@@ -391,6 +476,6 @@ CV.docvn = (function () {
     // kết xuất
     taiWord, inA4, xemThu, htmlWord, htmlIn, tenTep,
     // dùng lại khi cần
-    esc, escLn, ngayThang, ngatCanDoi
+    esc, escLn, ngayThang, ngatCanDoi, vietTat, coChuCoQuan
   };
 })();
