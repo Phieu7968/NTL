@@ -2432,6 +2432,8 @@ CV.viewAdvisor = (function () {
                               chiQuanTri: true, render: (h) => CV.viewQuanTri.render(h) },
     "advisor/nhat-ky":      { title: "Nhật ký hoạt động", icon: "note", nav: "Nhật ký",
                               chiQuanTri: true, render: (h) => CV.viewQuanTri.renderNhatKy(h) },
+    "advisor/nap-du-lieu":  { title: "Nạp dữ liệu lên máy chủ", icon: "report",
+                              render: (h) => CV.viewQuanTri.renderNapDuLieu(h) },
     "advisor/settings":     { title: "Cài đặt", icon: "gear", nav: "Cài đặt", render: settings }
   };
 

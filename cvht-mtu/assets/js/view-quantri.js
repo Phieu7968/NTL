@@ -135,11 +135,27 @@ CV.viewQuanTri = (function () {
       body.innerHTML = "";
       khoiChoDuyet(body, ve);
       khoiGiangVien(body, ve);
+      if (laOwner()) khoiLoiVaoNap(body);
       khoiPhanLop(body, ve);
       if (laOwner()) khoiKhoa(body, ve);
       khoiKiemTra(body, ve);
     }
     ve();
+  }
+
+  /* ---------- lối vào công cụ nạp dữ liệu ---------- */
+
+  function khoiLoiVaoNap(host) {
+    const co = CV.napDuLieu && CV.napDuLieu.demSeNap().tong;
+    if (!co) return;
+    host.appendChild(ui.card("Chuyển dữ liệu cũ lên máy chủ", [
+      ui.note("Việc làm một lần, khi mới chuyển từ chạy một máy sang nhiều máy. " +
+              "Công cụ soát trước xem có chỗ nào máy chủ sẽ từ chối, rồi mới cho nạp.",
+              "info"),
+      el("button", { class: "btn btn-primary", type: "button",
+        text: "Mở công cụ nạp dữ liệu",
+        onclick: () => CV.app.go("advisor/nap-du-lieu") })
+    ]));
   }
 
   /* ---------- 1. chờ duyệt ---------- */
@@ -470,6 +486,136 @@ CV.viewQuanTri = (function () {
     });
   }
 
-  return { render, renderNhatKy, duocQuanTri, laOwner, laKhoaAdmin,
+  /* ================= màn hình nạp dữ liệu lên máy chủ ================= */
+
+  function renderNapDuLieu(host) {
+    if (!laOwner()) {
+      host.appendChild(ui.card(null, [
+        ui.empty("Không có quyền",
+          "Việc này đụng tới toàn bộ dữ liệu nên chỉ tác giả hệ thống làm được.")
+      ]));
+      return;
+    }
+
+    const body = el("div");
+    host.appendChild(body);
+
+    function ve() {
+      body.innerHTML = "";
+      const N = CV.napDuLieu;
+      const vd = N.soat();
+      const dem = N.demSeNap();
+      const chan = N.coChan(vd);
+
+      /* --- có bao nhiêu dữ liệu --- */
+      body.appendChild(ui.card("Dữ liệu đang có trên máy này", [
+        el("div", { class: "deck" }, Object.keys(dem.theoBang).map((col) =>
+          ui.stat({ label: col, value: String(dem.theoBang[col]), icon: "note" }))),
+        el("p", { class: "muted", style: "margin-top:.8rem",
+          text: "Tổng cộng " + dem.tong + " bản ghi sẽ được đưa lên máy chủ." })
+      ]));
+
+      /* --- kết quả soát --- */
+      if (!vd.length) {
+        body.appendChild(ui.card("Kết quả soát", [
+          ui.note("Dữ liệu sạch. Không có chỗ nào máy chủ sẽ từ chối.", "ok")
+        ]));
+      } else {
+        body.appendChild(ui.card(`Kết quả soát (${vd.length} việc cần xem)`, [
+          chan
+            ? ui.note("Có chỗ máy chủ sẽ TỪ CHỐI. Sửa xong mới nạp được — nếu không, " +
+                      "nửa dữ liệu lên được nửa không, dọn rất mệt.", "warn")
+            : ui.note("Không có chỗ nào bị chặn. Mấy việc dưới đây nạp xong sửa cũng được, " +
+                      "nhưng nên xem qua.", "info"),
+          ui.table([
+            { key: "nang", label: "", render: (r) => el("span", {
+                class: "badge badge-" + (r.nang === "chan" ? "critical" : "warn"),
+                text: r.nang === "chan" ? "Bị chặn" : "Nên xem" }) },
+            { key: "muc", label: "Bảng", render: (r) => r.muc },
+            { key: "moTa", label: "Vấn đề", render: (r) => r.moTa },
+            { key: "cachSua", label: "Cách xử lý", render: (r) => r.cachSua }
+          ], vd, { emptyTitle: "—", emptyText: "" })
+        ], { actions: [
+          el("button", { class: "btn btn-ghost btn-sm", text: "Dọn trường cấm",
+            title: "Xoá hẳn số căn cước công dân khỏi dữ liệu dưới máy",
+            onclick: async () => {
+              if (!(await ui.confirm({ title: "Dọn trường cấm", danger: true,
+                message: "Xoá hẳn số căn cước công dân khỏi mọi bản ghi dưới máy?",
+                detail: "Không khôi phục được. Hệ thống này vốn không lưu căn cước." }))) return;
+              const n = CV.napDuLieu.donTruongCam();
+              ui.toast(n ? "Đã dọn " + n + " bản ghi." : "Không có bản ghi nào dính.", "ok");
+              ve();
+            } }),
+          el("button", { class: "btn btn-ghost btn-sm", text: "Điền lại mã lớp",
+            onclick: () => {
+              const r = CV.napDuLieu.dienLaiMaLop();
+              ui.toast("Điền được " + r.sua + " bản ghi." +
+                (r.chiu ? " Còn " + r.chiu + " bản ghi không tính được, nên xoá." : ""),
+                r.chiu ? "warn" : "ok", 6000);
+              ve();
+            } })
+        ] }));
+      }
+
+      /* --- nạp --- */
+      const sanSang = CV.napDuLieu.sanSang();
+      const tienDo = el("div", { style: "margin-top:.8rem" });
+      const nut = el("button", {
+        class: "btn btn-primary", type: "button",
+        text: "Nạp " + dem.tong + " bản ghi lên máy chủ",
+        disabled: (chan || !sanSang || !dem.tong) ? "disabled" : null
+      });
+
+      nut.addEventListener("click", async () => {
+        const ok = await ui.confirm({
+          title: "Nạp dữ liệu lên máy chủ", danger: true,
+          message: "Đưa " + dem.tong + " bản ghi từ máy này lên máy chủ?",
+          detail: "Bản ghi nào trên máy chủ đã có cùng mã thì bị GHI ĐÈ bằng bản " +
+                  "dưới máy. Nếu máy khác vừa sửa gì đó, thay đổi ấy sẽ mất. " +
+                  "Việc này chỉ nên làm MỘT LẦN, lúc mới chuyển sang dùng nhiều máy."
+        });
+        if (!ok) return;
+
+        nut.disabled = true;
+        const thanh = el("div", { class: "note note-info" }, el("div", {}, el("span", { text: "Đang nạp…" })));
+        tienDo.innerHTML = "";
+        tienDo.appendChild(thanh);
+
+        const kq = await CV.napDuLieu.nap((t) => {
+          thanh.textContent = "Đang nạp " + t.bang + "… " + t.xong + "/" + t.tong;
+        });
+
+        tienDo.innerHTML = "";
+        if (kq.ok) {
+          tienDo.appendChild(ui.note("Xong. Đã đưa " + kq.daNap + " bản ghi lên máy chủ. " +
+            "Từ giờ mọi thay đổi tự đồng bộ, không phải nạp lại.", "ok"));
+        } else {
+          tienDo.appendChild(ui.note("Nạp được " + kq.daNap + "/" + (kq.tong || 0) +
+            " bản ghi, còn lại lỗi:", "warn"));
+          tienDo.appendChild(ui.table([
+            { key: "bang", label: "Bảng", render: (r) => r.bang || "—" },
+            { key: "so", label: "Số bản ghi", num: true, render: (r) => String(r.so) },
+            { key: "thong", label: "Lý do", render: (r) => r.thong }
+          ], kq.loi, { emptyTitle: "—", emptyText: "" }));
+          nut.disabled = false;
+        }
+      });
+
+      body.appendChild(ui.card("Nạp lên máy chủ", [
+        !sanSang
+          ? ui.note("Chưa bật đồng bộ, hoặc chưa đăng nhập bằng tài khoản Trường. " +
+                    "Xem assets/vendor/README.md và mục Cài đặt.", "warn")
+          : chan
+            ? ui.note("Còn chỗ bị chặn ở trên. Sửa xong nút nạp mới bật.", "warn")
+            : ui.note("Dữ liệu được đưa lên theo thứ tự Khoa → lớp → sinh viên → phần " +
+                      "còn lại, vì quy tắc xét quyền của sinh viên phải tra ngược lên lớp. " +
+                      "Mỗi mẻ " + CV.napDuLieu.MOI_ME + " bản ghi.", "info"),
+        nut, tienDo
+      ]));
+    }
+    ve();
+  }
+
+  return { render, renderNhatKy, renderNapDuLieu, duocQuanTri, laOwner, laKhoaAdmin,
     ganLop, boLop, tinhLaiClassIds, choLech, VAI_TRO };
 })();

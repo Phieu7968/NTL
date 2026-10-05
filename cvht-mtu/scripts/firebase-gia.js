@@ -73,7 +73,21 @@ window.__FB = { docs: {}, written: [], deleted: [], user: null, authCbs: [] };
     return Object.assign({}, q, { doc: (id) => docRef(col, id) });
   }
 
-  const fs = () => ({ collection, enablePersistence: () => Promise.resolve() });
+  function batch() {
+    const viec = [];
+    return {
+      set: (ref, v, o) => { viec.push(() => ref.set(v, o)); return undefined; },
+      delete: (ref) => { viec.push(() => ref.delete()); return undefined; },
+      commit: () => {
+        if (window.__FB.batchLoi) return Promise.reject(window.__FB.batchLoi);
+        window.__FB.batches = (window.__FB.batches || 0) + 1;
+        window.__FB.batchSizes = (window.__FB.batchSizes || []).concat([viec.length]);
+        viec.forEach(f => f());
+        return Promise.resolve();
+      }
+    };
+  }
+  const fs = () => ({ collection, batch, enablePersistence: () => Promise.resolve() });
   fs.FieldPath = { documentId: () => '__name__' };
   fs.FieldValue = { serverTimestamp: () => new Date().toISOString() };
 

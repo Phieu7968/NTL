@@ -4,7 +4,7 @@
    nên lưu đệm được hết. Mất mạng vẫn mở và dùng bình thường.
    Mỗi lần sửa mã nguồn, đổi số VERSION để trình duyệt nạp bản mới.
    ===================================================================== */
-const VERSION = "cvht-mtu-v11";
+const VERSION = "cvht-mtu-v12";
 const ASSETS = [
   "./",
   "./index.html",
@@ -26,6 +26,7 @@ const ASSETS = [
   "./assets/js/mau-vb.js",
   "./assets/js/view-auth.js",
   "./assets/js/view-cloud.js",
+  "./assets/js/nap-du-lieu.js",
   "./assets/js/view-quantri.js",
   "./assets/js/view-advisor.js",
   "./assets/js/view-student.js",
@@ -38,11 +39,29 @@ const ASSETS = [
   "./assets/icons/apple-touch-icon.png"
 ];
 
+/* Thư viện Firebase: chỉ cần khi bật đồng bộ nhiều thiết bị. Chưa tải về đặt
+   vào assets/vendor/ thì ứng dụng vẫn chạy bình thường trên một máy, nên
+   những tệp này nạp trước theo kiểu "có thì tốt", thiếu cũng không sao.
+   Xem assets/vendor/README.md. */
+const ASSETS_TUY_CHON = [
+  "./assets/vendor/firebase-app-compat.js",
+  "./assets/vendor/firebase-auth-compat.js",
+  "./assets/vendor/firebase-firestore-compat.js"
+];
+
 self.addEventListener("install", (ev) => {
   ev.waitUntil(
-    caches.open(VERSION)
-      .then((c) => c.addAll(ASSETS))
-      .then(() => self.skipWaiting())
+    caches.open(VERSION).then(async (c) => {
+      // Phần bắt buộc: thiếu một tệp là hỏng cả ứng dụng, nên để addAll báo lỗi.
+      await c.addAll(ASSETS);
+      // Phần tuỳ chọn: nạp từng tệp một, tệp nào không có thì bỏ qua.
+      // Nếu gộp chung vào addAll thì một tệp thiếu làm hỏng toàn bộ bộ nhớ đệm
+      // và service worker không cài được — mất luôn khả năng chạy khi mất mạng.
+      await Promise.all(ASSETS_TUY_CHON.map((u) =>
+        c.add(u).catch(() => { /* chưa tải thư viện về, bỏ qua */ })
+      ));
+      await self.skipWaiting();
+    })
   );
 });
 

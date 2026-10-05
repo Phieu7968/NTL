@@ -17,6 +17,7 @@ python3 -m http.server 8141          # chạy trong thư mục cvht-mtu/
 node scripts/kiem-thu-dang-nhap.mjs  # 47 phép thử: toàn bộ luồng đăng nhập
 node scripts/kiem-thu-van-ban-ui.mjs # 20 phép thử: xuất Word và in, qua giao diện thật
 node scripts/kiem-thu-quan-tri.mjs   # 53 phép thử: duyệt cố vấn, phân lớp, nhật ký
+node scripts/kiem-thu-nap-du-lieu.mjs # 32 phép thử: soát và nạp dữ liệu lên máy chủ
 ```
 
 `firebase-gia.js` là một bản Firebase giả, đủ bề mặt để chạy thử mà không cần
