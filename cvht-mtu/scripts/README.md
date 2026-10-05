@@ -5,7 +5,7 @@
 ```
 node scripts/kiem-thu-store.mjs      # 25 phép thử: bản sao dữ liệu, đẩy/nhận, xoá dây chuyền
 node scripts/kiem-thu-store-2.mjs    # 11 phép thử: xoá lớp, xuất/nhập JSON
-node scripts/kiem-thu-van-ban.mjs    # 74 phép thử: văn bản hành chính theo NĐ 30
+node scripts/kiem-thu-van-ban.mjs    # 76 phép thử: văn bản hành chính theo NĐ 30
 ```
 
 ## Chạy bằng trình duyệt

@@ -122,6 +122,10 @@ CV.docvn = (function () {
      "Trường Đại học Xây dựng Miền Tây" thành "Trường ĐH Xây dựng Miền Tây",
      giữ nguyên cách viết hoa thường của phần còn lại. Xếp cụm dài lên trước. */
   const VIET_TAT = [
+    ["ĐẠI HỌC XÂY DỰNG", "ĐHXD"],
+    ["ĐẠI HỌC SƯ PHẠM KỸ THUẬT", "ĐHSPKT"],
+    ["ĐẠI HỌC KHOA HỌC TỰ NHIÊN", "ĐHKHTN"],
+    ["ĐẠI HỌC BÁCH KHOA", "ĐHBK"],
     ["TRUNG HỌC PHỔ THÔNG", "THPT"],
     ["TRUNG HỌC CƠ SỞ", "THCS"],
     ["GIÁO DỤC VÀ ĐÀO TẠO", "GD&ĐT"],
@@ -151,7 +155,8 @@ CV.docvn = (function () {
    */
   function vietTat(text, nguong) {
     let t = String(text || "").trim();
-    const max = nguong || 26;
+    // nguong = 0 nghĩa là viết tắt hết mức; bỏ trống thì dừng khi đã đủ ngắn.
+    const max = nguong === 0 ? 0 : (nguong || 26);
     for (let i = 0; i < VIET_TAT.length && t.length > max; i++) {
       t = t.replace(moc(VIET_TAT[i][0]), "$1" + VIET_TAT[i][1]);
     }
@@ -201,6 +206,23 @@ CV.docvn = (function () {
   }
 
   /**
+   * Chọn cách viết tên cơ quan cho vừa một dòng.
+   * Thứ tự ưu tiên:
+   *   1. Tên đầy đủ nếu đã vừa ở cỡ 12pt chuẩn Nghị định 30 — giữ nguyên.
+   *   2. Không vừa thì viết tắt vài từ theo lối thông dụng.
+   *   3. Viết tắt rồi vẫn dài thì mới hạ cỡ chữ (coChuCoQuan).
+   *   4. Nhỏ hết cỡ vẫn không vừa thì mới ngắt dòng (canNgat).
+   * Người dùng tự khai cách viết của mình thì bỏ qua hết, dùng đúng chữ họ khai.
+   */
+  function vuaMotDong(text) {
+    const t = String(text || "").trim();
+    if (!t) return "";
+    if (rongUocLuong(t, CO_CHU_CQ[0]) <= RONG_CQ_MM) return t;   // đầy đủ, 12pt
+    const tat = vietTat(t, 0);                                    // 0 = luôn viết tắt
+    return tat;
+  }
+
+  /**
    * Tên cơ quan dài thì tự xuống dòng ở chỗ xấu (ví dụ rớt mỗi chữ "TÂY").
    * Hàm này chủ động ngắt ở ranh giới từ gần giữa nhất, cho hai dòng cân nhau.
    * Trả về chuỗi ĐÃ escape, có thể kèm thẻ <br>.
@@ -224,12 +246,15 @@ CV.docvn = (function () {
   function veDau(vb) {
     const cq = vb.coQuan || {};
     let trai = "";
+    // Khối tên cơ quan có thể tới ba dòng: Trường / Khoa / bộ phận ban hành.
+    // Dòng cuối là cơ quan ban hành thật nên in đậm, các dòng trên là cấp trên.
     const ten = (txt, lop) => {
       const t = String(txt).toUpperCase();
       return '<p class="' + lop + '" style="font-size:' + coChuCoQuan(t) + 'pt">' +
         (canNgat(t) ? ngatCanDoi(t) : esc(t)) + "</p>";
     };
     if (cq.tren) trai += ten(cq.tren, "cq-tren");
+    if (cq.giua) trai += ten(cq.giua, "cq-tren");
     if (cq.chinh) trai += ten(cq.chinh, "cq-chinh");
     trai += '<div class="gach-cq"></div>';
     if (vb.so) trai += '<p class="so-vb">Số: ' + esc(vb.so) + "</p>";
@@ -476,6 +501,6 @@ CV.docvn = (function () {
     // kết xuất
     taiWord, inA4, xemThu, htmlWord, htmlIn, tenTep,
     // dùng lại khi cần
-    esc, escLn, ngayThang, ngatCanDoi, vietTat, coChuCoQuan
+    esc, escLn, ngayThang, ngatCanDoi, vietTat, coChuCoQuan, vuaMotDong
   };
 })();

@@ -150,58 +150,71 @@ console.log('\n=== 5b. Không tự bịa tên cơ quan ===');
   ok('không có Khoa thì KHÔNG tự điền tên Khoa',!h.includes('KHOA XÂY DỰNG'));
   // Tên dài nay được ngắt dòng cân đối nên có <br> ở giữa — bỏ thẻ rồi mới so.
   const phang=(x)=>x.replace(/<br>/g,' ');
-  ok('vẫn in tên Trường đầy đủ ở phần đầu',
-     phang(h).includes('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY'));
+  ok('vẫn in tên Trường ở phần đầu (viết tắt cho vừa dòng)',
+     phang(h).includes('TRƯỜNG ĐHXD MIỀN TÂY'),
+     (phang(h).match(/class="cq-[a-z]*"[^>]*>[^<]*/)||[''])[0]);
   ok('mục Đơn vị công tác khớp với phần đầu',
-     h.includes('Đơn vị công tác: Trường Đại học Xây dựng Miền Tây'),
+     h.includes('Đơn vị công tác: Ban Cố vấn học tập, Trường Đại học Xây dựng Miền Tây'),
      (h.match(/Đơn vị công tác:[^<]*/)||[''])[0]);
   S.settings().facultyName=cu;
   const h2=D.htmlWord(M.baoCaoCongTac(k.id,{}));
   ok('có Khoa thì in cả Trường lẫn Khoa',
-     phang(h2).includes('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY')&&h2.includes('KHOA XÂY DỰNG'));
-  ok('mục Đơn vị công tác ghi đủ Khoa và Trường',
-     h2.includes('Đơn vị công tác: Khoa Xây dựng, Trường Đại học Xây dựng Miền Tây'),
+     phang(h2).includes('TRƯỜNG ĐHXD MIỀN TÂY')&&h2.includes('KHOA XÂY DỰNG'));
+  ok('mục Đơn vị công tác ghi đủ Ban, Khoa và Trường',
+     h2.includes('Đơn vị công tác: Ban Cố vấn học tập, Khoa Xây dựng, Trường Đại học Xây dựng Miền Tây'),
      (h2.match(/Đơn vị công tác:[^<]*/)||[''])[0]);
 }
 
-console.log('\n=== 5c. Tên cơ quan: giữ tên đầy đủ, tự co cỡ chữ ===');
+console.log('\n=== 5c. Khối tên cơ quan: viết tắt trước, co chữ sau ===');
 {
-  const c=D.coChuCoQuan;
-  ok('tên ngắn giữ đúng cỡ 12pt của Nghị định 30',c('KHOA XÂY DỰNG')===12);
-  // Số liệu đối chiếu là bề ngang ĐO THẬT trong Times New Roman, chữ hoa đậm.
-  // Cột trái dùng được 74,5mm sau khi trừ đệm ô.
-  ok('tên Trường dài co xuống 10pt (đo thật 70,7mm ≤ 74,5mm)',
-     c('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY')===10,
-     c('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY')+'pt');
-  ok('KHÔNG co xuống dưới 10pt',c('MỘT CÁI TÊN RẤT DÀI DÀI DÀI DÀI DÀI DÀI NỮA')>=10);
-  ok('viết tắt sẵn thì được cỡ lớn hơn (11,5pt, đo thật 69,7mm)',
-     c('TRƯỜNG ĐH XÂY DỰNG MIỀN TÂY')===11.5,
-     c('TRƯỜNG ĐH XÂY DỰNG MIỀN TÂY')+'pt');
+  const V=D.vuaMotDong, c=D.coChuCoQuan;
+  ok('tên dài thì viết tắt, KHÔNG co chữ',
+     V('Trường Đại học Xây dựng Miền Tây')==='Trường ĐHXD Miền Tây',
+     V('Trường Đại học Xây dựng Miền Tây'));
+  ok('viết tắt xong thì về đúng cỡ 12pt chuẩn NĐ 30',
+     c(V('Trường Đại học Xây dựng Miền Tây'))===12);
+  ok('tên đã vừa thì giữ NGUYÊN, không viết tắt bừa',
+     V('Khoa Xây dựng')==='Khoa Xây dựng'&&V('Bộ Xây dựng')==='Bộ Xây dựng');
+  ok('Ban Cố vấn học tập giữ nguyên',V('Ban Cố vấn học tập')==='Ban Cố vấn học tập');
+  ok('trường khác cũng viết tắt đúng',
+     V('Trường Đại học Bách khoa Hà Nội')==='Trường ĐHBK Hà Nội',
+     V('Trường Đại học Bách khoa Hà Nội'));
 
+  const cu={d:S.settings().schoolNameDoc,b:S.settings().banBanHanh};
+  S.settings().banBanHanh='Ban Cố vấn học tập';
   const h=D.htmlWord(M.baoCaoCongTac(k.id,{}));
-  ok('in NGUYÊN tên đầy đủ, không cắt chữ',h.includes('TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TÂY'));
-  ok('KHÔNG ngắt dòng nữa',!h.includes('<br>XÂY DỰNG')&&!h.includes('ĐẠI HỌC<br>'),
-     (h.match(/class="cq-[a-z]*"[^>]*>[^<]*(<br>)?[^<]*/)||[''])[0]);
-  ok('có cỡ chữ 10pt cho tên Trường',h.includes('font-size:10pt'),
-     (h.match(/class="cq-tren"[^>]*/)||[''])[0]);
-  ok('tên Khoa vẫn giữ 12pt',/class="cq-chinh" style="font-size:12pt"/.test(h),
-     (h.match(/class="cq-chinh"[^>]*/)||[''])[0]);
+  ok('khối tên cơ quan có đủ ba dòng',
+     h.includes('TRƯỜNG ĐHXD MIỀN TÂY')&&h.includes('KHOA XÂY DỰNG')&&
+     h.includes('BAN CỐ VẤN HỌC TẬP'));
+  ok('dòng cuối in đậm là nơi ban hành',
+     /class="cq-chinh"[^>]*>BAN CỐ VẤN HỌC TẬP/.test(h),
+     (h.match(/class="cq-chinh"[^>]*>[^<]*/)||[''])[0]);
+  ok('hai dòng trên là cấp trên, chữ thường',
+     (h.match(/class="cq-tren"/g)||[]).length===2);
+  // Chỉ xét KHỐI TÊN CƠ QUAN; chỗ khác trong văn bản có <br> là bình thường
+  // (dòng chấm chấm để điền tay cũng dùng xuống dòng).
+  const khoiCQ=(x)=>{const a=x.indexOf('class="kh-trai"'),b=x.indexOf('</td>',a);return x.slice(a,b);};
+  ok('KHÔNG dòng nào trong khối tên cơ quan bị ngắt',!khoiCQ(h).includes('<br>'),
+     khoiCQ(h).slice(0,160));
+  ok('mục Đơn vị công tác ghi đủ ba cấp',
+     h.includes('Đơn vị công tác: Ban Cố vấn học tập, Khoa Xây dựng, Trường Đại học Xây dựng Miền Tây'),
+     (h.match(/Đơn vị công tác:[^<]*/)||[''])[0]);
 
-  const cu=S.settings().schoolNameDoc;
-  S.settings().schoolNameDoc='Trường ĐHXD Miền Tây';
+  S.settings().banBanHanh='';
   const h2=D.htmlWord(M.baoCaoCongTac(k.id,{}));
-  ok('Thầy tự khai thì dùng đúng chữ Thầy khai',h2.includes('TRƯỜNG ĐHXD MIỀN TÂY'));
-  ok('tên Thầy khai ngắn nên về 12pt',/class="cq-tren" style="font-size:12pt"/.test(h2));
-  S.settings().schoolNameDoc=cu||'';
+  ok('bỏ trống Ban thì còn hai dòng',
+     !h2.includes('BAN CỐ VẤN')&&h2.includes('KHOA XÂY DỰNG'));
+  ok('lúc đó Khoa thành nơi ban hành, in đậm',
+     /class="cq-chinh"[^>]*>KHOA XÂY DỰNG/.test(h2));
 
-  // Dài hơn cả mức 10,5pt chịu được thì mới ngắt dòng — phương án cuối.
-  ok('quá dài thì vẫn ngắt dòng được',
-     D.ngatCanDoi('VIỆN ĐẠI HỌC MỞ HÀ NỘI VÀ CÁC ĐƠN VỊ TRỰC THUỘC').includes('<br>'));
-  ok('quốc hiệu không được vỡ dòng',h.includes('white-space:nowrap'));
+  S.settings().schoolNameDoc='Trường ĐHXD MT';
+  const h3=D.htmlWord(M.baoCaoCongTac(k.id,{}));
+  ok('Thầy tự khai thì dùng đúng chữ Thầy khai',h3.includes('TRƯỜNG ĐHXD MT'));
+  S.settings().schoolNameDoc=cu.d||''; S.settings().banBanHanh=cu.b||'';
 
-  // vietTat vẫn dùng được khi cần, chỉ không còn chạy tự động
-  ok('vẫn có sẵn hàm viết tắt khi cần',
-     D.vietTat('Trường Đại học Xây dựng Miền Tây')==='Trường ĐH Xây dựng Miền Tây');
+  ok('quốc hiệu vẫn không được vỡ dòng',h.includes('white-space:nowrap'));
+  ok('quá dài thì vẫn ngắt dòng được (phương án cuối)',
+     D.ngatCanDoi('VIỆN NGHIÊN CỨU VÀ PHÁT TRIỂN CÔNG NGHỆ CAO MIỀN TÂY NAM BỘ').includes('<br>'));
 }
 
 console.log('\n=== 6. Dữ liệu trống thì không vỡ ===');

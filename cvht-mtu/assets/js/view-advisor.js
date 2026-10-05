@@ -1317,6 +1317,9 @@ CV.viewAdvisor = (function () {
       { name: "schoolName", label: "Tên trường", value: s.schoolName, full: true },
       { name: "schoolShort", label: "Tên viết tắt", value: s.schoolShort },
       { name: "facultyName", label: "Khoa / Bộ môn", value: s.facultyName },
+      { name: "banBanHanh", label: "Bộ phận ban hành văn bản", value: s.banBanHanh,
+        hint: "In ở dòng cuối khối tên cơ quan, phía trên số văn bản. Để trống " +
+              "thì khối chỉ còn Trường và Khoa." },
       { name: "schoolNameDoc", label: "Tên Trường ghi trên văn bản",
         value: s.schoolNameDoc, full: true,
         hint: "Để trống thì lấy tên đầy đủ ở trên, tự viết tắt nếu quá dài cho một dòng. " +

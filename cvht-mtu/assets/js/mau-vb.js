@@ -18,26 +18,38 @@ CV.mauVb = (function () {
   /* ---------- phần đầu dùng chung ---------- */
 
   /**
-   * Khối tên cơ quan theo Nghị định 30, Phụ lục I mục 2:
-   * có cơ quan chủ quản thì ghi ở dòng trên (chữ thường), cơ quan ban hành
-   * ở dòng dưới (chữ đậm). Không có Khoa thì chỉ ghi tên Trường, KHÔNG tự
-   * điền tên Khoa — văn bản hành chính không được đoán.
+   * Khối tên cơ quan ở góc trái phần đầu, tối đa ba dòng:
+   *     TRƯỜNG ĐHXD MIỀN TÂY        ← cấp trên, chữ thường
+   *     KHOA XÂY DỰNG               ← cấp trên, chữ thường
+   *     BAN CỐ VẤN HỌC TẬP          ← nơi ban hành, in đậm
+   *
+   * Nghị định 30 Phụ lục I chỉ nói tới hai dòng (cơ quan chủ quản và cơ quan
+   * ban hành). Dòng thứ ba là theo thực tế công tác: văn bản do Ban Cố vấn
+   * học tập của Khoa phát hành. Bỏ trống mục nào thì dòng đó không in.
+   *
+   * Tên dài thì docvn.vuaMotDong() viết tắt vài từ cho vừa một dòng, chứ
+   * không cắt nghĩa; tên đủ ngắn thì giữ nguyên ở cỡ 12 đúng chuẩn.
    */
   function coQuan() {
     const s = S.settings();
-    const khoa = (s.facultyName || "").trim();
-    // Giữ nguyên tên đầy đủ: Nghị định 30 muốn ghi đúng như văn bản thành lập.
-    // Tên dài thì docvn.js tự hạ cỡ chữ cho vừa một dòng, không cắt bớt chữ.
-    // Thầy/Cô muốn viết tắt theo ý mình thì khai ở mục Cài đặt.
-    const truong = (s.schoolNameDoc || "").trim() || (s.schoolName || "");
-    return khoa ? { tren: truong, chinh: khoa } : { tren: "", chinh: truong };
+    const gon = (x) => CV.docvn.vuaMotDong((x || "").trim());
+    // Thầy/Cô tự khai cách viết tên Trường thì dùng y nguyên, không tự sửa.
+    const truong = (s.schoolNameDoc || "").trim() || gon(s.schoolName);
+    const khoa = gon(s.facultyName);
+    const ban = gon(s.banBanHanh);
+
+    if (ban)  return { tren: truong, giua: khoa, chinh: ban };
+    if (khoa) return { tren: truong, giua: "",   chinh: khoa };
+    return { tren: "", giua: "", chinh: truong };
   }
 
   /** Đơn vị công tác ghi trong thân văn bản, dùng đúng giá trị như phần đầu. */
   function donViCongTac() {
     const s = S.settings();
-    const khoa = (s.facultyName || "").trim();
-    return [khoa, s.schoolName].filter(Boolean).join(", ") || "……………………";
+    return [ (s.banBanHanh || "").trim(),
+             (s.facultyName || "").trim(),
+             (s.schoolName || "").trim() ]
+      .filter(Boolean).join(", ") || "……………………";
   }
 
   function nguoiKy(advisor, chucDanh) {
