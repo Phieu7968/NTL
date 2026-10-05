@@ -2,3 +2,19 @@ node_modules/
 .DS_Store
 *.log
 dist/
+build/
+coverage/
+
+# Không bao giờ đưa thông tin đăng nhập lên kho công khai.
+# Kho Phieu7968/NTL là kho công khai: đã đẩy lên thì lịch sử git không dọn được.
+.env
+.env.*
+!.env.example
+cookies.txt
+cookie*.txt
+*.pem
+*.key
+*.p12
+*.keystore
+*service-account*.json
+client_secret*.json

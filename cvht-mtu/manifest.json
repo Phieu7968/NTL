@@ -1,0 +1,39 @@
+{
+  "id": "./",
+  "name": "Cố vấn học tập MTU",
+  "short_name": "CVHT MTU",
+  "description": "Nền tảng công tác Cố vấn học tập sinh viên Trường Đại học Xây dựng Miền Tây: quản lý lớp, điểm, GPA, cảnh báo học vụ và lịch tư vấn 1-1.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#eef2f9",
+  "theme_color": "#123a6b",
+  "categories": ["education", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Bàn làm việc Cố vấn",
+      "short_name": "Cố vấn",
+      "description": "Mở thẳng bàn làm việc của giảng viên cố vấn",
+      "url": "./index.html#/advisor/dashboard",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cổng Sinh viên",
+      "short_name": "Sinh viên",
+      "description": "Xem kết quả học tập và lịch tư vấn",
+      "url": "./index.html#/student/home",
+      "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
