@@ -296,8 +296,15 @@ CV.cloud = (function () {
         listen(col, fdb.collection(col), { parts: {} }, "all");
       });
 
-      // Đồng nghiệp trong Khoa — để hiện tên người phụ trách lớp khác
-      if (sc.khoaId) {
+      /* Hồ sơ giảng viên.
+         Quản trị không quản được thứ mình không thấy, nên phạm vi ở đây phải
+         khớp với phạm vi mà quy tắc cho phép:
+           owner     → toàn trường
+           khoaAdmin → Khoa mình
+           advisor   → Khoa mình, để hiện tên người phụ trách lớp khác */
+      if (sc.role === "owner") {
+        listen("advisors", fdb.collection("advisors"), { parts: {} }, "all");
+      } else if (sc.khoaId) {
         listen("advisors",
           fdb.collection("advisors").where("khoaId", "==", sc.khoaId),
           { parts: {} }, "khoa");
@@ -308,28 +315,46 @@ CV.cloud = (function () {
           { parts: {} }, "self");
       }
 
+      /* Danh sách lớp. Cũng theo phạm vi quản trị, vì màn hình phân công cần
+         thấy cả lớp chưa giao cho ai. Dữ liệu HỌC VỤ của lớp thì vẫn chỉ lấy
+         lớp mình phụ trách — xem phần dưới. Nhờ vậy bản sao không phình to
+         theo quy mô trường. */
+      if (sc.role === "owner") {
+        listen("classes", fdb.collection("classes"), { parts: {} }, "all");
+      } else if (sc.role === "khoaAdmin" && sc.khoaId) {
+        listen("classes",
+          fdb.collection("classes").where("khoaId", "==", sc.khoaId),
+          { parts: {} }, "khoa");
+      }
+
       // Phiếu tự đánh giá của chính mình
       listen("evaluations",
         fdb.collection("evaluations").where("advisorId", "==", sc.uid),
         { parts: {} }, "self");
 
       if (!ids.length) {
-        // Chưa được giao lớp nào: không hỏi gì thêm, tránh bị máy chủ từ chối.
+        // Chưa được giao lớp nào thì không hỏi dữ liệu học vụ, tránh bị máy chủ
+        // từ chối. Nhưng quản trị vẫn phải thấy danh sách lớp để còn phân công,
+        // nên KHÔNG xoá bảng classes — nó đã được nghe riêng ở trên.
         classScoped.forEach((col) => CV.store.applyRemote(col, [], [], { replace: true }));
-        CV.store.applyRemote("classes", [], [], { replace: true });
+        if (sc.role !== "owner" && sc.role !== "khoaAdmin") {
+          CV.store.applyRemote("classes", [], [], { replace: true });
+        }
         return;
       }
 
       const groups = chunk(ids, IN_LIMIT);
 
-      // Lớp phụ trách
-      const classBucket = { parts: {} };
-      groups.forEach((g, i) => {
-        listen("classes",
-          fdb.collection("classes")
-             .where(window.firebase.firestore.FieldPath.documentId(), "in", g),
-          classBucket, "g" + i);
-      });
+      // Lớp phụ trách — chỉ cần với cố vấn thường; quản trị đã nghe rộng ở trên.
+      if (sc.role !== "owner" && sc.role !== "khoaAdmin") {
+        const classBucket = { parts: {} };
+        groups.forEach((g, i) => {
+          listen("classes",
+            fdb.collection("classes")
+               .where(window.firebase.firestore.FieldPath.documentId(), "in", g),
+            classBucket, "g" + i);
+        });
+      }
 
       // Mọi bộ sưu tập thuộc lớp
       classScoped.forEach((col) => {

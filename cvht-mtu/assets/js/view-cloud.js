@@ -148,6 +148,10 @@ CV.viewCloud = (function () {
     }
 
     S.setSession(scope.kind, id);
+    if (CV.nhatKy) {
+      CV.nhatKy.ghi("dang-nhap",
+        "Đăng nhập với vai trò " + (scope.role || scope.kind), scope.khoaId || "");
+    }
     phase = "xong";
     if (redraw) redraw();
   }

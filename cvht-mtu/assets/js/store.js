@@ -40,7 +40,8 @@ CV.store = (function () {
     "meetings",     // sổ họp lớp (QĐ 758, Điều 9)
     "evaluations",  // phiếu tự đánh giá công tác (QĐ 758, Điều 13)
     "termResults",  // kết quả học kỳ do Phòng Đào tạo gửi (tệp KQHT)
-    "registrations" // đăng ký học phần từng học kỳ (Thông báo 411/TB-ĐHXDMT)
+    "registrations", // đăng ký học phần từng học kỳ (Thông báo 411/TB-ĐHXDMT)
+    "khoa"          // khoa / đơn vị đào tạo
   ];
 
   /* ---------- phạm vi của từng bộ sưu tập ----------
@@ -55,7 +56,7 @@ CV.store = (function () {
   ];
 
   /** Dùng chung toàn trường. Ai đăng nhập cũng đọc được; chỉ quản trị sửa. */
-  const SHARED = ["semesters", "handbook", "templates"];
+  const SHARED = ["semesters", "handbook", "templates", "khoa"];
 
   /** Thuộc về một giảng viên. */
   const ADVISOR_SCOPED = ["advisors", "evaluations"];

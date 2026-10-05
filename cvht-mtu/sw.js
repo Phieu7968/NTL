@@ -4,7 +4,7 @@
    nên lưu đệm được hết. Mất mạng vẫn mở và dùng bình thường.
    Mỗi lần sửa mã nguồn, đổi số VERSION để trình duyệt nạp bản mới.
    ===================================================================== */
-const VERSION = "cvht-mtu-v10";
+const VERSION = "cvht-mtu-v11";
 const ASSETS = [
   "./",
   "./index.html",
@@ -22,9 +22,11 @@ const ASSETS = [
   "./assets/js/ui.js",
   "./assets/js/pack.js",
   "./assets/js/sync.js",
+  "./assets/js/nhat-ky.js",
   "./assets/js/mau-vb.js",
   "./assets/js/view-auth.js",
   "./assets/js/view-cloud.js",
+  "./assets/js/view-quantri.js",
   "./assets/js/view-advisor.js",
   "./assets/js/view-student.js",
   "./assets/js/app.js",

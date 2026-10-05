@@ -43,6 +43,8 @@ CV.app = (function () {
     Object.keys(routes).forEach((key) => {
       const r = routes[key];
       if (!r.nav) return;
+      // Mục dành riêng cho quản trị thì người khác không thấy trên thanh điều hướng.
+      if (r.chiQuanTri && !(CV.viewQuanTri && CV.viewQuanTri.duocQuanTri())) return;
       const current = key === activeKey ? "page" : null;
 
       const link = el("button", { class: "nav-link", type: "button", "aria-current": current }, [

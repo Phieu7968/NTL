@@ -26,16 +26,28 @@ window.__FB = { docs: {}, written: [], deleted: [], user: null, authCbs: [] };
   }
   window.__FB.fire = fire;
 
-  function Query(col, filters) {
+  function Query(col, filters, sort, cap) {
+    const loc = () => {
+      let r = rows(col);
+      filters.forEach(f => { r = r.filter(d => {
+        const v = f.field === '__name__' ? d.id : d.data()[f.field];
+        return f.op === '==' ? v === f.val : (f.val || []).includes(v);
+      }); });
+      if (sort) {
+        r = r.slice().sort((a, b) => {
+          const x = a.data()[sort.field], y = b.data()[sort.field];
+          const c = x === y ? 0 : (x > y ? 1 : -1);
+          return sort.dir === 'desc' ? -c : c;
+        });
+      }
+      return cap ? r.slice(0, cap) : r;
+    };
     return {
-      where: (field, op, val) => Query(col, filters.concat([{ field, op, val }])),
-      limit: () => Query(col, filters),
+      where: (field, op, val) => Query(col, filters.concat([{ field, op, val }]), sort, cap),
+      orderBy: (field, dir) => Query(col, filters, { field, dir: dir || 'asc' }, cap),
+      limit: (n) => Query(col, filters, sort, n),
       get: () => {
-        let r = rows(col);
-        filters.forEach(f => { r = r.filter(d => {
-          const v = f.field === '__name__' ? d.id : d.data()[f.field];
-          return f.op === '==' ? v === f.val : (f.val || []).includes(v);
-        }); });
+        const r = loc();
         return Promise.resolve({ forEach: fn => r.forEach(fn), empty: !r.length, size: r.length, docs: r });
       },
       onSnapshot: (cb) => { const l = { col, filters, cb }; listeners.push(l);

@@ -601,6 +601,13 @@ CV.viewAdvisor = (function () {
             message: `Xoá ${st.name} (${st.mssv})?`,
             detail: "Toàn bộ điểm, điểm rèn luyện, lịch hẹn và nhật ký của em này cũng bị xoá theo." });
           if (!okd) return;
+          // Ghi nhật ký TRƯỚC khi xoá, để còn lấy được thông tin của bản ghi.
+          if (CV.nhatKy) {
+            CV.nhatKy.ghi("xoa-sv",
+              "Xoá sinh viên " + (st.name || "") + " (" + (st.mssv || "") + "), lớp " +
+              ((p.klass && p.klass.code) || "—"),
+              (p.klass && p.klass.khoaId) || "");
+          }
           S.removeStudentCascade(st.id);
           ui.toast("Đã xoá.", "ok");
           CV.app.go("advisor/students");
@@ -1828,6 +1835,14 @@ CV.viewAdvisor = (function () {
      Một hộp thoại chung cho mọi mẫu: xem thử, in, hoặc tải về tệp Word.
      ===================================================================== */
 
+  /** Văn bản mang dữ liệu cá nhân ra khỏi hệ thống, nên ghi lại là ai lấy. */
+  function ghiXuat(vb, cach) {
+    if (!CV.nhatKy) return;
+    CV.nhatKy.ghi("xuat-vb",
+      (vb.loai || "Văn bản") + (vb.trichYeu ? " — " + vb.trichYeu : "") + " (" + cach + ")",
+      S.settings().facultyName || "");
+  }
+
   /**
    * @param dung   hàm dựng văn bản, trả về null nếu thiếu dữ liệu
    * @param tieuDe tên hiện trên hộp thoại
@@ -1854,8 +1869,10 @@ CV.viewAdvisor = (function () {
       ],
       actions: [
         { label: "Xem thử", onClick: () => CV.docvn.xemThu(vb) },
-        { label: "Tải bản Word", onClick: (close) => { CV.docvn.taiWord(vb); close(); } },
-        { label: "In", class: "btn-primary", onClick: (close) => { CV.docvn.inA4(vb); close(); } }
+        { label: "Tải bản Word", onClick: (close) => {
+            CV.docvn.taiWord(vb); ghiXuat(vb, "tải bản Word"); close(); } },
+        { label: "In", class: "btn-primary", onClick: (close) => {
+            CV.docvn.inA4(vb); ghiXuat(vb, "in"); close(); } }
       ]
     });
   }
@@ -2411,6 +2428,10 @@ CV.viewAdvisor = (function () {
     "advisor/meetings":     { title: "Sổ họp lớp", icon: "note", nav: "Sổ họp lớp", render: meetings },
     "advisor/evaluation":   { title: "Đánh giá công tác", icon: "user", nav: "Đánh giá công tác", render: evaluation },
     "advisor/reports":      { title: "Báo cáo", icon: "report", nav: "Báo cáo", render: reports },
+    "advisor/quan-tri":     { title: "Quản trị", icon: "users", nav: "Quản trị",
+                              chiQuanTri: true, render: (h) => CV.viewQuanTri.render(h) },
+    "advisor/nhat-ky":      { title: "Nhật ký hoạt động", icon: "note", nav: "Nhật ký",
+                              chiQuanTri: true, render: (h) => CV.viewQuanTri.renderNhatKy(h) },
     "advisor/settings":     { title: "Cài đặt", icon: "gear", nav: "Cài đặt", render: settings }
   };
 
