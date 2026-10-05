@@ -20,6 +20,17 @@ node scripts/kiem-thu-quan-tri.mjs   # 53 phép thử: duyệt cố vấn, phân
 node scripts/kiem-thu-nap-du-lieu.mjs # 32 phép thử: soát và nạp dữ liệu lên máy chủ
 ```
 
+### Chạy ở thư mục con
+
+```
+python3 -m http.server 8142           # chạy ở thư mục CHA của cvht-mtu/
+node scripts/kiem-thu-thu-muc-con.mjs # 11 phép thử
+```
+
+Kiểm ứng dụng vẫn chạy đúng khi đặt ở thư mục con, như trên GitHub Pages
+(`.../NTL/cvht-mtu/`): phạm vi service worker, đường dẫn trong manifest, và
+danh sách tệp nạp trước đều phải trỏ vào thư mục con chứ không phải gốc tên miền.
+
 `firebase-gia.js` là một bản Firebase giả, đủ bề mặt để chạy thử mà không cần
 dự án thật và không chạm vào dữ liệu thật. Nó đã bắt được một lỗi thật: Firebase
 phát trạng thái đăng nhập trước khi màn hình kịp đăng ký nghe, làm ứng dụng treo
